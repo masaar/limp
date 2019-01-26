@@ -36,6 +36,13 @@ This should give you additional message in the output with two users' superadmin
 query: {"_id":{"val":"ID_GOES_HERE"}}
 ```
 
+# Technical Sepcs
+LIMP is using `aiohttp` Python framework. It handles both `websocket` and `GET` connectinos using two different separate functions both located in `limpd.py`. LIMP uses a group of techniques to:
+* Auto load all LIMP packages and modules located in `modules` folder.
+* Scaffold all modules attributes and methods and abstract them unto class methods and attributes.
+* Set required attributes for cross-module communication.
+By default, all calls to and from LIMP are tokenised using `JWT` or `JSON Web Token` standard. Once a connection is established with LIMPd, a connection-specific session attribute is set in the loop handling the connection. By default, it uses the anonymous session to handle all the calls, thus requiring all the calls to be signed using '__ANON' session token. However, any call related to authenticating the user and/or session are not tokenised in order not to result in a cyclic effect by signing a session request with a token that is not the same used by the connection on LIMPd-side.
+
 # CLI Interface
 ```
 usage: limpd.py [-h] [--version] [--env ENV] [--debug] [--packages PACKAGES]
