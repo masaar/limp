@@ -1,0 +1,4 @@
+aiohttp==3.5.4
+twilio==6.21.0
+pymongo==3.7.2
+PyJWT==1.7.1
