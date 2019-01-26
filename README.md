@@ -11,11 +11,30 @@ The current list of requirements is: https://github.com/masaar/limp/blob/master/
 ```
 Make sure you have MongoDB daemon working before proceeding.
 ```
+
+## Setting Up LIMP
 To start a new LIMP app, all you need is to clone this repository and then clone https://github.com/masaar/limp-sample-app inside `modules` folder. Then run the following command (make sure your default `python` command is set to version 3.5+ and not 2.x):
 ```
 python limpd.py --env dev --debug
 ```
 This command would then connect to the database named in https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L15 on the server https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L9. If you need to use different settings please change the previously referred values. After succeful connection, LIMPd would attempt to create the necessary collections and documents required for its basic functionalities.
+
+## Interacting with LIMPd
+To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'Dynamic API' interface. If you see a succeful connection message in the output area then, congrats! your setup is working. Then you can start by `auth`entication call using the default credentials for the superadmin user using:
+```
+ADMIN@LIMP.MASAAR.COM
+__ADMIN
+```
+You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your backend using the 'call()' button. For instance you can query all the users by passing the following values:
+```
+endpoint: user/read
+query: {}
+doc: {}
+```
+This should give you additional message in the output with two users' superadmin and anonymous user. To query specific user pass its '_id' value as a query param like:
+```
+query: {"_id":{"val":"ID_GOES_HERE"}}
+```
 
 # CLI Interface
 ```
