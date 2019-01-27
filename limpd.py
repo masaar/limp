@@ -117,7 +117,7 @@ async def websocket_handler(request):
 	}))
 
 	async for msg in ws:
-		logger.debug('Received new message: %s', msg)
+		logger.debug('Received new message: %s', msg[:256])
 		if msg.type == aiohttp.WSMsgType.TEXT:
 			try:
 				try:
@@ -127,10 +127,10 @@ async def websocket_handler(request):
 					session = session_results.args.docs[0]
 				res = json.loads(msg.data)
 				if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
-					logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
+					# logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
 					res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
 
-				logger.debug('received: %s', res)
+				# logger.debug('received: %s', res)
 				if 'query' not in res.keys(): res['query'] = {}
 				if 'doc' not in res.keys(): res['doc'] = {}
 				if 'endpoint' not in res.keys(): res['endpoint'] = ''

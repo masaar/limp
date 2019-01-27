@@ -380,7 +380,7 @@ class BaseTemplate:
 				'subtitle':'locale',
 				'permalink':'str',
 				'content':'locale',
-				'tags':['id'],
+				'tags':['str'],
 				'cat':'id',
 				'access':'access',
 				'create_time':'time',
@@ -401,28 +401,6 @@ class BaseTemplate:
 				},
 				'delete':{
 					'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}, {}]],
-					'query_args':['!_id']
-				}
-			}
-		},
-		'content_tag':{
-			'attrs':{
-				'user':'id',
-				'tag':'locale'
-			},
-			'methods':{
-				'read':{
-					'permissions':[['*', {}, {}]]
-				},
-				'create':{
-					'permissions':[['create', {}, {'user':'$__user'}]]
-				},
-				'update':{
-					'permissions':[['update', {}, {}], ['__NOT:update', {'user':'$__user'}, {'user':None}]],
-					'query_args':['!_id']
-				},
-				'delete':{
-					'permissions':[['delete', {}, {}], ['__NOT:delete', {'user':'$__user'}, {}]],
 					'query_args':['!_id']
 				}
 			}
@@ -463,48 +441,27 @@ class BaseTemplate:
 	@classmethod
 	def content_on_read(self, results, session, query, doc):
 		return (results, session, query, doc)
-	
 	@classmethod
 	def content_pre_create(self, session, query, doc):
-		doc.update({
-			'create_time':datetime.datetime.fromtimestamp(time.time()),
-			'update_time':0,
-			'diff':[]
-		})
 		if 'subtitle' not in doc.keys(): doc['subtitle'] = {locale:'' for locale in Config.locales}
-		if 'permalink' not in doc.keys(): doc['permalink'] = re.sub('\s+', '-', re.sub('[^\s\-\w]', '', doc['title'][Config.locale]))
+		if 'permalink' not in doc.keys(): doc['permalink'] = re.sub(r'\s+', '-', re.sub(r'[^\s\-\w]', '', doc['title'][Config.locale]))
 		if 'tags' not in doc.keys(): doc['tags'] = []
 		if 'cat' not in doc.keys(): doc['cat'] = False
-		if 'expiry_time' not in doc.keys(): doc['expiry_time'] = 0
 		return (session, query, doc)
 	@classmethod
 	def content_on_create(self, results, session, query, doc):
 		return (results, session, query, doc)
-	
 	@classmethod
 	def content_pre_update(self, session, query, doc):
-		doc.update({
-			'update_time':datetime.datetime.fromtimestamp(time.time()),
-			# 'diff':[]
-		})
 		return (session, query, doc)
 	@classmethod
 	def content_on_update(self, results, session, query, doc):
 		return (results, session, query, doc)
-	
 	@classmethod
 	def content_pre_delete(self, session, query, doc):
 		return (session, query, doc)
 	@classmethod
 	def content_on_delete(self, results, session, query, doc):
-		return (results, session, query, doc)
-	
-	# tag methods:
-	@classmethod
-	def content_tag_pre_read(self, session, query, doc):
-		return (session, query, doc)
-	@classmethod
-	def content_tag_on_read(self, results, session, query, doc):
 		return (results, session, query, doc)
 
 	# cat methods:
@@ -513,6 +470,24 @@ class BaseTemplate:
 		return (session, query, doc)
 	@classmethod
 	def content_cat_on_read(self, results, session, query, doc):
+		return (results, session, query, doc)
+	@classmethod
+	def content_cat_pre_create(self, session, query, doc):
+		return (session, query, doc)
+	@classmethod
+	def content_cat_on_create(self, results, session, query, doc):
+		return (results, session, query, doc)
+	@classmethod
+	def content_cat_pre_update(self, session, query, doc):
+		return (session, query, doc)
+	@classmethod
+	def content_cat_on_update(self, results, session, query, doc):
+		return (results, session, query, doc)
+	@classmethod
+	def content_cat_pre_delete(self, session, query, doc):
+		return (session, query, doc)
+	@classmethod
+	def content_cat_on_delete(self, results, session, query, doc):
 		return (results, session, query, doc)
 
 class BaseMethod:

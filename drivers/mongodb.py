@@ -364,10 +364,6 @@ class MongoDb(metaclass=ClassSingleton):
 		if not force_delete:
 			return self.update(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
 		else:
-			return {
-				'count':0,
-				'docs':[]
-			}
 			# [DOC] Perform a read query to get all matching documents
 			results = self.read(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 			docs = [doc._id for doc in results['docs']]
