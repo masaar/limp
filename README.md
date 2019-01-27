@@ -20,7 +20,7 @@ python limpd.py --env dev --debug
 This command would then connect to the database named in https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L15 on the server https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L9. If you need to use different settings please change the previously referred values. After succeful connection, LIMPd would attempt to create the necessary collections and documents required for its basic functionalities.
 
 ## Interacting with LIMPd
-To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'Dynamic API' interface. If you see a succeful connection message in the output area then, congrats! your setup is working. Then you can start by `auth`entication call using the default credentials for the superadmin user using:
+To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'LIMP Sandbox' interface. If you see a succeful connection message in the output area then, congrats! your setup is working. Then you can start by `auth`entication call using the default credentials for the superadmin user using:
 ```
 ADMIN@LIMP.MASAAR.COM
 __ADMIN
@@ -35,6 +35,7 @@ This should give you additional message in the output with two users' superadmin
 ```
 query: {"_id":{"val":"ID_GOES_HERE"}}
 ```
+If you are running `limp-sample-app` you can also use the sample tools available in the sandbox, for starter create a `blog_cat`, and then copy its '_id' and then create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
 
 # Technical Sepcs
 LIMP is using `aiohttp` Python framework. It handles both `websocket` and `GET` connectinos using two different separate functions both located in `limpd.py`. LIMP uses a group of techniques to:
