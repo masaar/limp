@@ -76,19 +76,34 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 	doc: { [key: 'username' || 'email' || 'phone']: string, hash: string; }
 }
 /*
-[DOC] You can get the hash of the auth method of choise from 'username', 'email', or 'phone' by generating the JWT of the following obejct:
+[DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following obejct:
 {
-	[key: 'username' || 'email' || 'phone']: string, password: string;
+	[key: 'username' || 'email' || 'phone']: string;
+	password: string;
 }
 signed using 'password' value
 */
 ```
-7. To re0authenticate the user from the cached credentials, in a new session, you can make the following call:
+7. To re-authenticate the user from the cached credentials, in a new session, you can make the following call:
 ```typescript
+{
+	call_id: string;
+	endpoint: 'session/reauth';
+	sid: 'f00000000000000000000012';
+	query: { _id: { val: string; }; hash: { val: string; } }
+}
+/*
+[DOC] You can get the hash to reauth method by generating the JWT of the following obejct:
+{
+	token: string;
+}
+signed using cached token value
+*/
 ```
 
 # Technical Sepcs
 LIMP is using `aiohttp` Python framework. It handles both `websocket` and `GET` connectinos using two different separate functions both located in `limpd.py`. LIMP uses a group of techniques to:
+* Instead of using nested git structure, LIMP repo ignores all folders in `modules` folder except `core` folder, making it possible to include unlimited number of LIMP packages and keep LIMP local repo up-to-date without touching your files.
 * Auto load all LIMP packages and modules located in `modules` folder.
 * Scaffold all modules attributes and methods and abstract them unto class methods and attributes.
 * Set required attributes for cross-module communication.
