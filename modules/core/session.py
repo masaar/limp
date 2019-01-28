@@ -3,7 +3,7 @@ from event import Event
 
 from bson import ObjectId
 
-import logging, random, datetime, time, json
+import logging, random, datetime, time, json, jwt
 logger = logging.getLogger('limp')
 
 class Session(BaseModule):
@@ -40,7 +40,7 @@ class Session(BaseModule):
 		},
 		'reauth':{
 			'permissions':[['*', {}, {}]],
-			'query_args':['!_id']
+			'query_args':['!_id', '!hash']
 		},
 		'signout':{
 			'permissions':[['*', {}, {}]],
@@ -87,18 +87,21 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_ANON_REAUTH'}
 			}
 		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})
-		#logger.debug('session find results: %s.', results)
 		if not results['args']['count']:
 			return {
 				'status':403,
 				'msg':'Session is invalid.',
 				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
 			}
+		
+		if jwt.encode({'token':results['args']['docs'][0].token}, results['args']['docs'][0].token).decode('utf-8').split('.')[1] != query['hash']['val']:
+			return {
+				'status':403,
+				'msg':'Reauth token hash invalid.',
+				'args':{'code':'CORE_SESSION_INVALID_REAUTH_HASH'}
+			}
 		if results['args']['docs'][0].expiry < datetime.datetime.fromtimestamp(time.time()):
-			# [TODO] delete session
-			# if str(results['args']['docs'][0]._id) != 'f00000000000000000000012':
 			results = self.methods['delete'](skip_events=[Event.__PERM__, Event.__SOFT__], session=session, query={'_id':{'val':session._id}})
-			#logger.debug('session delete results: %s.', results)
 			return {
 				'status':403,
 				'msg':'Session had expired.',
@@ -106,7 +109,6 @@ class Session(BaseModule):
 			}
 		# [DOC] update user's last_login timestamp
 		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}}, doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
-		# [TODO] update session to extend it
 		self.methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]._id}}, doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
 		return {
 			'status':200,
