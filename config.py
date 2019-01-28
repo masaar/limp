@@ -30,17 +30,8 @@ class Config:
 	def config_data(self, modules):
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].methods['read'](
-			skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__])
-		# [Doc] test if ADMIN, ANON users exist
-		admin_exists = False
-		anon_exists = False
-		for doc in user_results.args.docs:
-			if str(doc._id) == 'f00000000000000000000010':
-				admin_exists = True
-			if str(doc._id) == 'f00000000000000000000011':
-				anon_exists = True
-		if not admin_exists:
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000010'}})
+		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000010'),
@@ -68,7 +59,9 @@ class Config:
 				'locale': 'en_AE'
 			})
 			logger.debug('ADMIN user creation results %s', admin_results)
-		if not anon_exists:
+
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000011'}})
+		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
 			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000011'),
@@ -98,14 +91,9 @@ class Config:
 			logger.debug('ANON user creation results %s', anon_results)
 
 		logger.debug('Testing sessions collection.')
-		session_results = modules['session'].methods['read'](
-			skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__])
 		# [Doc] test if ANON session exists
-		anon_exists = False
-		for doc in session_results.args.docs:
-			if str(doc._id) == 'f00000000000000000000012':
-				anon_exists = True
-		if not anon_exists:
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000012'}})
+		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
 			admin_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000012'),
@@ -119,14 +107,9 @@ class Config:
 			logger.debug('ANON session creation results %s', admin_results)
 
 		logger.debug('Testing groups collection.')
-		group_results = modules['group'].methods['read'](
-			skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__])
 		# [Doc] test if DEFAULT group exists
-		default_exists = False
-		for doc in group_results.args.docs:
-			if str(doc._id) == 'f00000000000000000000013':
-				default_exists = True
-		if not default_exists:
+		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__])
+		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
 			admin_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000013'),
