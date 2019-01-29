@@ -117,7 +117,7 @@ async def websocket_handler(request):
 	}))
 
 	async for msg in ws:
-		logger.debug('Received new message: %s', msg[:256])
+		logger.debug('Received new message: %s', msg.data[:256])
 		if msg.type == aiohttp.WSMsgType.TEXT:
 			try:
 				try:
