@@ -80,9 +80,7 @@ class Config:
 				'phone': '+971000000000',
 				'website': 'https://ANON.limp.masaar.com',
 				'groups': [],
-				'privileges': {
-					'*': '*'
-				},
+				'privileges': {},
 				'email_hash': '__ANON',
 				'phone_hash': '__ANON',
 				'username_hash': '__ANON',
@@ -97,7 +95,7 @@ class Config:
 			logger.debug('ANON session not found, creating it.')
 			admin_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000012'),
-				'user': ObjectId('f00000000000000000000010'),
+				'user': ObjectId('f00000000000000000000011'),
 				'host_add': '127.0.0.1',
 				'user_agent': '__ANON',
 				'timestamp': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
