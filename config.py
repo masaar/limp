@@ -1,7 +1,7 @@
 from bson import ObjectId
 from event import Event
 
-import logging, datetime
+import jwt, logging, datetime
 
 logger = logging.getLogger('limp')
 
@@ -24,6 +24,15 @@ class Config:
 	events = {}
 	templates = {}
 
+	admin_username = '__ADMIN'
+	admin_email = 'ADMIN@LIMP.MASAAR.COM'
+	admin_phone = '+971500000000'
+	admin_password = '__ADMIN'
+
+	anon_token = '__ANON'
+
+	groups = []
+
 	l10n = {}
 
 	@classmethod
@@ -35,8 +44,8 @@ class Config:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000010'),
-				'username': '__ADMIN',
-				'email': 'ADMIN@LIMP.MASAAR.COM',
+				'username': self.admin_username,
+				'email': self.admin_email,
 				'name': {
 					locale: '__ADMIN' for locale in self.locales
 				},
@@ -47,25 +56,23 @@ class Config:
 					locale: '__ADMIN' for locale in self.locales
 				},
 				'postal_code': '__ADMIN',
-				'phone': '+971550000000',
+				'phone': self.admin_phone,
 				'website': 'https://ADMIN.limp.masaar.com',
 				'groups': [],
-				'privileges': {
-					'*': '*'
-				},
-				'email_hash': 'eyJwYXNzd29yZCI6Il9fQURNSU4iLCJlbWFpbCI6IkFETUlOQExJTVAuTUFTQUFSLkNPTSJ9',
-				'phone_hash': '__ADMIN',
-				'username_hash': '__ADMIN',
-				'locale': 'en_AE'
+				'privileges': {'*': '*'},
+				'email_hash': jwt.encode({'hash':['email', self.admin_email, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
+				'phone_hash': jwt.encode({'hash':['phone', self.admin_phone, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
+				'username_hash': jwt.encode({'hash':['username', self.admin_username, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
+				'locale': self.locale
 			})
-			logger.debug('ADMIN user creation results %s', admin_results)
+			logger.debug('ADMIN user creation results: %s', admin_results)
 
 		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000011'}})
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
 			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000011'),
-				'username': '__ANON',
+				'username': self.anon_token,
 				'email': 'ANON@LIMP.MASAAR.COM',
 				'name': {
 					locale: '__ANON' for locale in self.locales
@@ -77,39 +84,39 @@ class Config:
 					locale: '__ANON' for locale in self.locales
 				},
 				'postal_code': '__ANON',
-				'phone': '+971000000000',
+				'phone': '+0',
 				'website': 'https://ANON.limp.masaar.com',
 				'groups': [],
 				'privileges': {},
-				'email_hash': '__ANON',
-				'phone_hash': '__ANON',
-				'username_hash': '__ANON',
-				'locale': 'en_AE'
+				'email_hash': self.anon_token,
+				'phone_hash': self.anon_token,
+				'username_hash': self.anon_token,
+				'locale': self.locale
 			})
-			logger.debug('ANON user creation results %s', anon_results)
+			logger.debug('ANON user creation results: %s', anon_results)
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
 		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000012'}})
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			admin_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
+			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000012'),
 				'user': ObjectId('f00000000000000000000011'),
 				'host_add': '127.0.0.1',
-				'user_agent': '__ANON',
+				'user_agent': self.anon_token,
 				'timestamp': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
 				'expiry': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
-				'token': '__ANON'
+				'token': self.anon_token
 			})
-			logger.debug('ANON session creation results %s', admin_results)
+			logger.debug('ANON session creation results: %s', anon_results)
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__])
+		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000013'}})
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
-			admin_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
+			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
 				'_id': ObjectId('f00000000000000000000013'),
 				'user': ObjectId('f00000000000000000000010'),
 				'name': {
@@ -120,4 +127,13 @@ class Config:
 				},
 				'privileges': {}
 			})
-			logger.debug('DEFAULT group creation results %s', admin_results)
+			logger.debug('DEFAULT group creation results: %s', group_results)
+		
+		logger.debug('Testing app-specific groups collection.')
+		# [DOC] test app-specific groups
+		for group in self.groups:
+			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':group['_id']}})
+			if not group_results.args.count:
+				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
+				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=group)
+				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)

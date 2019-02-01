@@ -121,14 +121,14 @@ async def websocket_handler(request):
 		if msg.type == aiohttp.WSMsgType.TEXT:
 			try:
 				try:
-					session
+					session.token
 				except Exception:
 					session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__], query={'_id':{'val':ObjectId('f00000000000000000000012')}})
 					session = session_results.args.docs[0]
 				res = json.loads(msg.data)
-				if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
+				# if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
 					# logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
-					res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
+				res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
 
 				# logger.debug('received: %s', res)
 				if 'query' not in res.keys(): res['query'] = {}
@@ -137,7 +137,7 @@ async def websocket_handler(request):
 				if 'call_id' not in res.keys(): res['call_id'] = ''
 
 				request = {'call_id':res['call_id'], 'sid':res['sid'] or False, 'query':res['query'], 'doc':res['doc'], 'path':res['endpoint'].split('/')}
-				logger.debug('request: %s', request)
+				# logger.debug('request: %s', request)
 
 				if request['path'].__len__() != 2:
 					await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint path is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_PATH'}}))
@@ -154,6 +154,8 @@ async def websocket_handler(request):
 
 				method = modules[module].methods[request['path'][1].lower()]
 				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=request['doc'])
+
+				# logger.debug('call results: %s', results)
 
 				if results['status'] == 291:
 					byte_array = []
@@ -173,6 +175,8 @@ async def websocket_handler(request):
 					else:
 						if '/'.join(request['path']) in ['session/auth', 'session/reauth'] and results['status'] == 200:
 							session = results.args.docs[0]
+						if '/'.join(request['path']) == 'session/signout' and results['status'] == 200:
+							session = None
 							# print('updated session!', self.session._attrs())
 						results.args['call_id'] = request['call_id']
 						await ws.send_str(JSONEncoder().encode(results))
