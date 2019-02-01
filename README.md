@@ -66,8 +66,7 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 ```
 { alg: 'HS256', typ: 'JWT' }
 ```
-5. For `session/auth` and `sessino/reauth` calls, you need to send the call as raw data without tokenising it.
-6. To authenticate the user for the current session you need to make the following call:
+5. To authenticate the user for the current session you need to make the following call:
 ```typescript
 {
 	call_id: string;
@@ -78,13 +77,12 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 /*
 [DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following obejct:
 {
-	[key: 'username' || 'email' || 'phone']: string;
-	password: string;
+	hash: [authVar: string; authVal: string; password: string;];
 }
 signed using 'password' value
 */
 ```
-7. To re-authenticate the user from the cached credentials, in a new session, you can make the following call:
+6. To re-authenticate the user from the cached credentials, in a new session, you can make the following call:
 ```typescript
 {
 	call_id: string;
