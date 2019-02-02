@@ -38,6 +38,42 @@ query: {"_id":{"val":"ID_GOES_HERE"}}
 ```
 If you are running `limp-sample-app` you can also use the sample tools available in the sandbox, for starter create a `blog_cat`, and then copy its '_id' and then create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
 
+## Query Object
+The call `query` object is the most essential object. Although, you need to specify an `endpoint` to make any call, `query` is the object that allows you to get access to any specific data you need. The `query` object looks like this.:
+```typescript
+{
+	[key: String]?: {
+		val: String || Array<String>;
+		$oper: '$gt' || '$lt' || '$bet' || '$not';
+		val2: String;
+	},
+	$search?: String;
+	$sort?: { [key: String]: 1 || -1 };
+	$skip?: Number;
+	$limit?: Number;
+	$extn?: Boolean;
+}
+```
+Any value passed in the query obejct, that's not from the [magic attrs](#limp-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for unirformity of any type of query attribute being passed. By default, passing an attribute means search for equals to it, however, by passing `$oper` you can choose from `$gt`, `$lt`, `$bet`, and `$not`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
+
+### LIMP Magic Attrs
+Additional available query attributes are the magic methods, which have common form and unique use cases. Which are:
+
+#### #search
+You can use this attr to pass on any string value to search for matching results in the data collection. `$search` assumes there are already the necessary requirements for it to perform in the database being used, such as text indexes.
+
+#### $sort
+This self-descriptive magic attr allows you to pass any number of attributes names with their value being `1` or `-1` to determine the requested order of matched data.
+
+#### $skip
+...
+
+#### $limit
+...
+
+#### $extn
+Setting this magic attr to false, would result in the data documents being matched to not get [extended](#extns). This can be used in scenarios to limit the data transferred if the piece of info you are looking for is essentially not in the extended data, but rather in the original data.
+
 # Building an App with LIMP
 Our `limp-sample-app` gives a good starting point. However, there's more than that.
 
@@ -88,6 +124,24 @@ The available configuration options for every package are:
 19. `groups`: App-specific users groups to create.
 20. `data_indexes`: App-specific data indexes to create for data collections.
 
+## Module Elements
+...
+
+### collection
+...
+
+### attrs
+...
+
+### optional_attrs
+...
+
+### extns
+...
+
+### methods
+...
+
 
 # Building an SDK for LIMP
 LIMP is currently having only Angular SDK. We are working with other developers in providing `react`, `react-native`, `Java` and `Swift` SDKs. However, if you are in need of creating your SDK for any reason, here are the things you need to know:
@@ -99,16 +153,16 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 3. Your calls to LIMP should have the following structure (Typescript-annotated interface):
 ```typescript
 {
-	call_id?: string; // [DOC] A unique token to distinguish which responses from LIMPd belong to which calls.
-	endpoint?: string; // [DOC] The endpoint you are calling, it's in the form of 'MODULE/METHOD'.
-	sid?: string; // [DOC] The session ID you are currently on.
+	call_id?: String; // [DOC] A unique token to distinguish which responses from LIMPd belong to which calls.
+	endpoint?: String; // [DOC] The endpoint you are calling, it's in the form of 'MODULE/METHOD'.
+	sid?: String; // [DOC] The session ID you are currently on.
 	query?: any; /*
 	[DOC] The query object which is in the form of
-	{ [key: string]?: {
-		val: string || Array<string>;
+	{ [key: String]?: {
+		val: String || Array<String>;
 		$oper: '$gt' || '$lt' || '$bet' || '$not';
-		val2: string; },
-	  $search?: string; $sort?: { [key: string]: 1 || -1 }; $skip?: number; $limit?: number; $extn?: boolean; }
+		val2: String; },
+	  $search?: String; $sort?: { [key: String]: 1 || -1 }; $skip?: Number; $limit?: Number; $extn?: Boolean; }
 	*/
 	doc?: any; // [DOC] The doc object is the raw values you are passing to LIMPd. It's should comply with the module `attrs` you are calling.
 }
@@ -120,15 +174,15 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 5. To authenticate the user for the current session you need to make the following call:
 ```typescript
 {
-	call_id: string;
+	call_id: String;
 	endpoint: 'session/auth';
 	sid: 'f00000000000000000000012';
-	doc: { [key: 'username' || 'email' || 'phone']: string, hash: string; }
+	doc: { [key: 'username' || 'email' || 'phone']: String, hash: String; }
 }
 /*
 [DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following obejct:
 {
-	hash: [authVar: string; authVal: string; password: string;];
+	hash: [authVar: String; authVal: String; password: String;];
 }
 signed using 'password' value
 */
@@ -136,18 +190,28 @@ signed using 'password' value
 6. To re-authenticate the user from the cached credentials, in a new session, you can make the following call:
 ```typescript
 {
-	call_id: string;
+	call_id: String;
 	endpoint: 'session/reauth';
 	sid: 'f00000000000000000000012';
-	query: { _id: { val: string; }; hash: { val: string; } }
+	query: { _id: { val: String; }; hash: { val: String; } }
 }
 /*
 [DOC] You can get the hash to reauth method by generating the JWT of the following obejct:
 {
-	token: string;
+	token: String;
 }
 signed using cached token value
 */
+```
+7. Files can be pushed as part of the `doc` object in the call. The files or file should be pushed into the specific `attr` with a list or array of objects representing a file per LIMP specs, which is given below. It should have the following self-descreptive keys `name`, `type`, `size`, `lastModified` and `content`. Since sending binary to websocket is not a good idea in mixed encoded content, the decided conviction was to send the `ByteArray` of the binary data in the `content` attribute. LIMP Angular SDK has perfect async implementation for this using native HTML5 APIs:
+```typescript
+Array<{
+	name: String;
+	type: String;
+	size: Number;
+	lastModified: Number;
+	content: Int8Array;
+}>
 ```
 
 # Technical Sepcs
