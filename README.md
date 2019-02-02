@@ -13,7 +13,7 @@ The current list of requirements is: https://github.com/masaar/limp/blob/master/
 Make sure you have MongoDB daemon working before proceeding.
 ```
 
-## Setting Up LIMP
+## Setting-up LIMP
 To start a new LIMP app, all you need is to clone this repository and then clone https://github.com/masaar/limp-sample-app inside `modules` folder. Then run the following command (make sure your default `python` command is set to version 3.5+ and not 2.x):
 ```
 python limpd.py --env dev --debug
@@ -37,6 +37,57 @@ This should give you additional message in the output with two users' superadmin
 query: {"_id":{"val":"ID_GOES_HERE"}}
 ```
 If you are running `limp-sample-app` you can also use the sample tools available in the sandbox, for starter create a `blog_cat`, and then copy its '_id' and then create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
+
+# Building an App with LIMP
+Our `limp-sample-app` gives a good starting point. However, there's more than that.
+
+The project consists of one package app. To understand the app structure you need to learn the following:
+
+## Packages
+A package is a folder with number of python files containing LIMP modules. The package is having a distinguishing `__init__.py` file (which is also a requirement of Python packages) that sets the configurations of a package. An app in the LIMP eco-system could be the results of multiple packages that's one reason to allow LIMP structure to have more than a single package with the ability to manage which to include in the launching sequence using LIMP CLI interface.
+
+## Modules
+A LIMP module is a single class in a Python file inside a LIMP package inheriting LIMP built-in `BaseModule` class. The `BaseModule` singletones all LIMP modules and provides them with access to the unified internal API for exchanging data.
+
+A module is essentially a definition of a data-type with number of typed-`attrs` that can be set as `optional_attrs` and/or auto-extended by documents from the same and/or another module using the `extns` instructions. A module as well defines all its `methods` that any client could call. By default the `CRUD` methods, `read`, `create`, `update`, `delete` are available for all of the modules by simply defining them. Additional methods can be defined either for use by the `GET` interface, or more usual `websocket` interface using some additional instructions passed. A method can set the permissions checks required for an agent to pass before the agent being allowed to access the called method.
+
+## Package Configuration
+Every LIMP package can be given various range of configurations to facilitate faster app setup in any given environment.
+
+The available configuration options for every package are:
+1. `envs`: An environment projection object. This can be used to create environmental configuration variables per need. For instance, `limp-sample-app` has the following `envs` value. This means, LIMP has two options at least that can be passed to the configuration mechanism, either `dev` or `prod` environment. The environment of choice can be set at the time lf launch using LIMP CLI interface. All configuration options can be passed as static values or as environmental variables:
+```
+{
+	'dev':{
+		'data_server':'mongodb://localhost'
+	},
+	'prod':{
+		'data_server':'mongodb://localhost'
+	}
+}
+```
+
+
+2. `debug`: The flag of whether debug options are active or not. It's not supposed to be set by a package, rather by the CLI. Default `False`.
+3. `data_driver`: Data driver of choice. It has to be always set to 'mongodb' by not setting any value due to the fact LIMP currently does not support any other drivers.
+4. `data_server`: Data server to connect to. Default `'mongodb://localhost'`
+5. `data_port`: Data server port is listening on. Default `27017`.
+6. `data_name`: Database name to connect to. Default `'limp_data'`.
+7. `sms_auth`: Twilio `sid`, `token`, and `number` values to access their API.
+8. `email_auth`: `server`, `username` and `password` of the default email account to send notifications from.
+9. `locales`: Python list of locales used by the package. The form of the locale used in LIMP is `lang_COUNTRY`. Default `['ar_AE', 'en_AE']`.
+10. `locale`: Default locale of the app. It should be one of the values passed in `locales`. Default `ar_AE`.
+11. `events`: ...
+12. `templates`: ...
+13. `l10n`: App-specific locale dictionary.
+14. `admin_username`: Superadmin username. Default `__ADMIN`.
+15. `admin_email`: Superadmin email. Default `ADMIN@LIMP.MASAAR.COM`
+16. `admin_phone`: Superadmin phone. Default `'+971500000000'`
+17. `admin_password`: Superadmin password. Default `'__ADMIN'`
+18. `anon_token`: Anon Token. Default `'__ANON'`
+19. `groups`: App-specific users groups to create.
+20. `data_indexes`: App-specific data indexes to create for data collections.
+
 
 # Building an SDK for LIMP
 LIMP is currently having only Angular SDK. We are working with other developers in providing `react`, `react-native`, `Java` and `Swift` SDKs. However, if you are in need of creating your SDK for any reason, here are the things you need to know:

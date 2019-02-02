@@ -189,4 +189,5 @@ def call_event(event, query, context_module, user_module, notification_module):
 							'status':'new'
 						})
 				elif module_event['handler'] == 'email':
+					# [TODO] Re-implement omitted code
 					1/0

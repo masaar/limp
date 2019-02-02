@@ -23,6 +23,7 @@ class Config:
 
 	events = {}
 	templates = {}
+	l10n = {}
 
 	admin_username = '__ADMIN'
 	admin_email = 'ADMIN@LIMP.MASAAR.COM'
@@ -33,7 +34,10 @@ class Config:
 
 	groups = []
 
-	l10n = {}
+	# [TODO] Re-implement
+	data_indexes = []
+
+	
 
 	@classmethod
 	def config_data(self, modules):
