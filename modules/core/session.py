@@ -59,6 +59,7 @@ class Session(BaseModule):
 				'msg':'Wrong auth credentials.',
 				'args':{'code':'CORE_SESSION_INVALID_CREDS'}
 			}
+		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]}})
 		#logger.debug('auth success')
 		token = ''.join(random.choice('0123456789abcdefABCDEF') for n in range(8))
 		session = {
@@ -73,6 +74,10 @@ class Session(BaseModule):
 		results = self.methods['create'](skip_events=[Event.__PERM__, Event.__SOFT__], session=session, doc=session)
 		# results['args']['docs'][0]._attrs().update(session)
 		# logger.debug('session_results: %s', results)
+		
+		# [DOC] read user privileges and return them
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}})
+		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,
 			'msg':'You were succefully authed.',
@@ -110,6 +115,9 @@ class Session(BaseModule):
 		# [DOC] update user's last_login timestamp
 		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}}, doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
 		self.methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]._id}}, doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
+		# [DOC] read user privileges and return them
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}})
+		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,
 			'msg':'You were succefully reauthed.',

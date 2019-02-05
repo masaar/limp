@@ -141,3 +141,9 @@ class Config:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
 				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
+		
+		logger.debug('Testing data indexes')
+		from data import Data
+		for index in self.data_indexes:
+			logger.debug('Attempting to create data index: %s', index)
+			Data.driver.db[index['collection']].create_index(index['index'])

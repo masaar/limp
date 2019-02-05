@@ -44,7 +44,7 @@ The call `query` object is the most essential object. Although, you need to spec
 {
 	[key: String]?: {
 		val: String || Array<String>;
-		$oper: '$gt' || '$lt' || '$bet' || '$not';
+		oper: '$gt' || '$lt' || '$bet' || '$not';
 		val2: String;
 	},
 	$search?: String;
@@ -54,7 +54,7 @@ The call `query` object is the most essential object. Although, you need to spec
 	$extn?: Boolean;
 }
 ```
-Any value passed in the query obejct, that's not from the [magic attrs](#limp-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for unirformity of any type of query attribute being passed. By default, passing an attribute means search for equals to it, however, by passing `$oper` you can choose from `$gt`, `$lt`, `$bet`, and `$not`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
+Any value passed in the query obejct, that's not from the [magic attrs](#limp-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for unirformity of any type of query attribute being passed. By default, passing an attribute means search for equals to it, however, by passing `oper` you can choose from `$gt`, `$lt`, `$bet`, and `$not`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
 
 ### LIMP Magic Attrs
 Additional available query attributes are the magic methods, which have common form and unique use cases. Which are:
@@ -160,7 +160,7 @@ LIMP is currently having only Angular SDK. We are working with other developers 
 	[DOC] The query object which is in the form of
 	{ [key: String]?: {
 		val: String || Array<String>;
-		$oper: '$gt' || '$lt' || '$bet' || '$not';
+		oper: '$gt' || '$lt' || '$bet' || '$not';
 		val2: String; },
 	  $search?: String; $sort?: { [key: String]: 1 || -1 }; $skip?: Number; $limit?: Number; $extn?: Boolean; }
 	*/

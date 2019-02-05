@@ -57,7 +57,6 @@ def import_modules(env=None, packages=None):
 			#logger.debug('Skipping package: %s', pkgname)
 			continue
 		child_package = __import__(pkgname, fromlist='*')
-		print('child_package', child_package, dir(child_package))
 		for k, v in child_package.config().items():
 			if k == 'envs':
 				if env and env in v.keys():

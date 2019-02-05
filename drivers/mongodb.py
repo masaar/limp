@@ -151,7 +151,7 @@ class MongoDb(metaclass=ClassSingleton):
 			else:
 				if 'oper' in query[query_arg].keys(): 
 					# [TODO] ignore invalid opers
-					if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not']:
+					if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex']:
 						query[query_arg]['oper'] = '$eq'
 					if oper == 'or':
 						if query[query_arg]['oper'] == '$bet':
@@ -161,7 +161,7 @@ class MongoDb(metaclass=ClassSingleton):
 					else:
 						if query[query_arg]['oper'] == '$bet':
 							aggregate_query.append({'$match':{extn+arg+child_arg:{'$gte':query[query_arg]['val'], '$lte':query[query_arg]['val2']}}})
-						if query[query_arg]['oper'] == '$not':
+						elif query[query_arg]['oper'] == '$not':
 							aggregate_query.append({'$match':{extn+arg+child_arg:{'$ne':query[query_arg]['val']}}})
 						else:
 							aggregate_query.append({'$match':{extn+arg+child_arg:{query[query_arg]['oper']:query[query_arg]['val']}}})
@@ -185,7 +185,7 @@ class MongoDb(metaclass=ClassSingleton):
 			aggregate_query.append({'$project':access_query['$project']})
 			aggregate_query.append({'$match':access_query['$match']})
 
-		# logger.debug('final query v1: %s, %s.', collection, aggregate_query)
+		logger.debug('final query v1: %s, %s.', collection, aggregate_query)
 
 		collection = self.db[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])

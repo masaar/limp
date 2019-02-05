@@ -46,6 +46,10 @@ class User(BaseModule):
 			'permissions':[['delete', {}, {}], ['__NOT:delete', {'_id':'$__user'}, {}]],
 			'query_args':['!_id']
 		},
+		'read_privileges':{
+			'permissions':[['read', {}, {}], ['__NOT:read', {'_id':'$__user'}, {}]],
+			'query_args':['!_id']
+		},
 		'add_group':{
 			'permissions':[['update', {}, {}]],
 			'query_args':['!_id'],
@@ -60,24 +64,24 @@ class User(BaseModule):
 
 	def on_read(self, results, session, query, doc):
 		# for doc in results['docs']:
-		groups = {}
+		# groups = {}
 		for i in range(0, results['docs'].__len__()):
 			# print('trying to delete user\'s hash:', results['docs'][i].hash)
 			user = results['docs'][i]
 			del user['username_hash']
 			del user['email_hash']
 			del user['phone_hash']
-			for group in user.groups:
-				if group not in groups.keys():
-					group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':group}})
-					groups[group] = group_results['args']['docs'][0]
-				group = groups[group]
-				# #logger.debug('group, %s permissions: %s', group.name, group.privileges)
-				for privilege in group.privileges.keys():
-					if privilege not in user.privileges.keys(): user.privileges[privilege] = []
-					for i in range(0, group.privileges[privilege].__len__()):
-						if group.privileges[privilege][i] not in user.privileges[privilege]:
-							user.privileges[privilege].append(group.privileges[privilege][i])
+			# for group in user.groups:
+			# 	if group not in groups.keys():
+			# 		group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':group}})
+			# 		groups[group] = group_results['args']['docs'][0]
+			# 	group = groups[group]
+			# 	# #logger.debug('group, %s permissions: %s', group.name, group.privileges)
+			# 	for privilege in group.privileges.keys():
+			# 		if privilege not in user.privileges.keys(): user.privileges[privilege] = []
+			# 		for i in range(0, group.privileges[privilege].__len__()):
+			# 			if group.privileges[privilege][i] not in user.privileges[privilege]:
+			# 				user.privileges[privilege].append(group.privileges[privilege][i])
 		return (results, session, query, doc)
 	
 	def pre_create(self, session, query, doc):
@@ -101,6 +105,28 @@ class User(BaseModule):
 			doc['attrs'] = {}
 		# print('user doc:', doc)
 		return (session, query, doc)
+	
+	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
+		# [DOC] Confirm _id is valid
+		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})
+		if not results['args']['count']:
+			return {
+				'status':400,
+				'msg':'User is invalid.',
+				'args':{'code':'CORE_USER_INVALID_USER'}
+			}
+		user = results['args']['docs'][0]
+		for group in user.groups:
+			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':group}})
+			group = group_results['args']['docs'][0]
+			for privilege in group.privileges.keys():
+				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
+				for i in range(0, group.privileges[privilege].__len__()):
+					if group.privileges[privilege][i] not in user.privileges[privilege]:
+						user.privileges[privilege].append(group.privileges[privilege][i])
+		print('read_privileges: results: ', results)
+		print('read_privileges: user: ', user.privileges)
+		return results
 	
 	def add_group(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm all basic args are provided
