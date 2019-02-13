@@ -34,7 +34,6 @@ class Config:
 
 	groups = []
 
-	# [TODO] Re-implement
 	data_indexes = []
 
 	

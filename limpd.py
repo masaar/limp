@@ -69,6 +69,8 @@ async def http_handler(request):
 		('Access-Control-Expose-Headers', 'Content-Disposition')
 	]
 
+	logger.debug('Received new GET request: %s', request.match_info)
+
 	module = request.match_info['module'].lower()
 	method = request.match_info['method'].lower()
 	_id = request.match_info['_id']
