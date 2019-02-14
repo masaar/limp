@@ -129,6 +129,9 @@ class User(BaseModule):
 		return results
 	
 	def add_group(self, skip_events=[], env={}, session=None, query={}, doc={}):
+		# [DOC] Check group privileges
+		# if ('*' in session.user.privileges.keys() and session.user.privileges['*'] == '*') \
+		# or ('__group_*' in session.user.privileges.keys() and session.user.privileges['__group_'])
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid

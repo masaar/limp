@@ -113,7 +113,10 @@ class MongoDb(metaclass=ClassSingleton):
 			if arg == '_id' or arg_attrs[arg] == 'id' or (type(arg_attrs[arg]) == list and arg_attrs[arg][0] == 'id'):
 				#logger.debug('converting (%s) to ObjectId.', query[query_arg]['val'])
 				if type(query[query_arg]['val']) == list:
-					query[query_arg]['val'] = {'$in':[ObjectId(_id) for _id in query[query_arg]['val']]}
+					if 'oper' in query[query_arg].keys() and query[query_arg]['oper'] == '$all':
+						query[query_arg]['val'] = {'$all':[ObjectId(_id) for _id in query[query_arg]['val']]}
+					else:
+						query[query_arg]['val'] = {'$in':[ObjectId(_id) for _id in query[query_arg]['val']]}
 				else:
 					if not isinstance(query[query_arg]['val'], ObjectId):
 						query[query_arg]['val'] = ObjectId(query[query_arg]['val'])
@@ -151,7 +154,7 @@ class MongoDb(metaclass=ClassSingleton):
 			else:
 				if 'oper' in query[query_arg].keys(): 
 					# [TODO] ignore invalid opers
-					if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex']:
+					if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all']:
 						query[query_arg]['oper'] = '$eq'
 					if oper == 'or':
 						if query[query_arg]['oper'] == '$bet':

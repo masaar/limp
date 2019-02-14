@@ -3,7 +3,7 @@ from event import Event
 
 from bson import ObjectId
 
-import logging, random, datetime, time, json, jwt
+import logging, random, datetime, time, json, jwt, secrets
 logger = logging.getLogger('limp')
 
 class Session(BaseModule):
@@ -61,7 +61,7 @@ class Session(BaseModule):
 			}
 		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]}})
 		#logger.debug('auth success')
-		token = ''.join(random.choice('0123456789abcdefABCDEF') for n in range(8))
+		token = secrets.token_urlsafe(32)
 		session = {
 			'user':results['args']['docs'][0],
 			'host_add':env['REMOTE_ADDR'],
