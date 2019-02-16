@@ -153,16 +153,16 @@ class Session(BaseModule):
 		# [DOC] If has global privileges '*' redefine it to module name
 		if '*' in user.privileges.keys() and module not in user.privileges.keys():
 			user.privileges[module] = user.privileges['*']
-		if module in user.privileges.keys() and user.privileges[module] == '*':
+		if module in user.privileges.keys() and (user.privileges[module] == ['*'] or user.privileges[module] == '*'):
 			user.privileges[module] = self.privileges
 		if module not in user.privileges.keys(): user.privileges[module] = []
 
 		for permission in permissions:
-			#logger.debug('checking permission: %s', permission)
+			logger.debug('checking permission: %s against: %s', permission, user.privileges)
 			if permission[0] == '*' \
 			or (permission[0].startswith('__NOT:') and permission[0].replace('__NOT:', '') not in user.privileges[module]) \
 			or permission[0] in user.privileges[module]:
-				#logger.debug('checking permission, query: %s', permission[1])
+				logger.debug('checking permission, query: %s', permission[1])
 				query = {attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == dict}
 				query.update({attr:{'val':permission[1][attr]} for attr in permission[1].keys() if type(permission[1][attr]) == str})
 				query.update({attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == int})

@@ -65,7 +65,7 @@ class BaseModule(metaclass=ClassSingleton):
 		if Event.__PRE__ not in skip_events:
 			# session, query, doc = self.pre_read(session=session, query=query, doc=doc)
 			pre_read = self.pre_read(session=session, query=query, doc=doc)
-			if type(pre_read) == DictObj: return pre_read
+			if type(pre_read) in [DictObj, dict]: return pre_read
 			session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
 			results = Data.read(collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
@@ -133,7 +133,7 @@ class BaseModule(metaclass=ClassSingleton):
 			session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
 			pre_create = self.pre_create(session=session, query=query, doc=doc)
-			if type(pre_create) == DictObj: return pre_create
+			if type(pre_create) in [DictObj, dict]: return pre_create
 			session, query, doc = pre_create
 		# [TODO]: validate data
 		# [DOC] Deleted all extra doc args
@@ -262,7 +262,7 @@ class BaseModule(metaclass=ClassSingleton):
 			session, query, doc = getattr(BaseTemplate, '{}_pre_update'.format(self.template))(session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
 			pre_update = self.pre_update(session=session, query=query, doc=doc)
-			if type(pre_update) == DictObj: return pre_update
+			if type(pre_update) in [DictObj, dict]: return pre_update
 			session, query, doc = pre_update
 		# [TODO] validate data
 		for attr in self.attrs.keys():

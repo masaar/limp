@@ -103,7 +103,7 @@ class User(BaseModule):
 			doc['status'] = 'active'
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
-		# print('user doc:', doc)
+		# print('(session, query, doc)', (session, query, doc))
 		return (session, query, doc)
 	
 	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
