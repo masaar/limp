@@ -1,10 +1,9 @@
 # LIMP
-
-LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 websocket` as primary protocol of communication with clients, however it also provides an `HTTP/1 GET` interface for additional communication windows.
+LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 websocket` as primary protocol of communication with clients. However, it also provides an `HTTP/1 GET` interface for additional communication windows.
 
 # Dependencies
 LIMP is Python based. It's tested in small number of environments running Python 3.5+.
-Since LIMP is orignially built for Masaar use-cases, it's based on `MongoDB` the database engine of choice by Masaar, as well as it requires `Twilio` SDK to be installed even if you are not planning to use their platform.
+Since LIMP is originally built for Masaar use-cases, it's based on `MongoDB` the database engine of choice by Masaar, as well as it requires `Twilio` SDK to be installed even if you are not planning to use their platform.
 
 The current list of requirements is: https://github.com/masaar/limp/blob/master/requirements.txt.
 
@@ -21,7 +20,7 @@ python limpd.py --env dev --debug
 This command would then connect to the database named in https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L15 on the server https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L9. If you need to use different settings please change the previously referred values. After succeful connection, LIMPd would attempt to create the necessary collections and documents required for its basic functionalities.
 
 ## Interacting with LIMPd
-To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'LIMP Sandbox' interface. If you see a succeful connection message in the output area then, congrats! your setup is working. Then you can start by `auth`entication call using the default credentials for the superadmin user using:
+To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'LIMP Sandbox' interface. If you see a succesful connection message in the output area then, congrats! Your setup is working. Then you can start by sending an `auth`entication call using the default credentials for the superadmin user using:
 ```
 ADMIN@LIMP.MASAAR.COM
 __ADMIN
@@ -32,11 +31,11 @@ endpoint: user/read
 query: {}
 doc: {}
 ```
-This should give you additional message in the output with two users' superadmin and anonymous user. To query specific user pass its '_id' value as a query param like:
+This should give you additional messages in the output with two users: superadmin and anonymous user. To query a specific user, pass its '_id' value as a query param like:
 ```
 query: {"_id":{"val":"ID_GOES_HERE"}}
 ```
-If you are running `limp-sample-app` you can also use the sample tools available in the sandbox, for starter create a `blog_cat`, and then copy its '_id' and then create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
+If you are running `limp-sample-app` you can also use the sample tools available in the sandbox. For example, create a `blog_cat`, then copy its '_id' and create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
 
 ## Query Object
 The call `query` object is the most essential object. Although, you need to specify an `endpoint` to make any call, `query` is the object that allows you to get access to any specific data you need. The `query` object looks like this.:
@@ -54,10 +53,10 @@ The call `query` object is the most essential object. Although, you need to spec
 	$extn?: Boolean;
 }
 ```
-Any value passed in the query obejct, that's not from the [magic attrs](#limp-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for unirformity of any type of query attribute being passed. By default, passing an attribute means search for equals to it, however, by passing `oper` you can choose from `$gt`, `$lt`, `$bet`, and `$not`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
+Any value passed in the query obejct, that's not from the [magic attrs](#limp-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for uniformity of any type of query attribute being passed. By default, passing an attribute means searching for matches to it. However, by passing `oper` you can choose from `$gt`, `$lt`, `$bet`, and `$not`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
 
 ### LIMP Magic Attrs
-Additional available query attributes are the magic methods, which have common form and unique use cases. Which are:
+Additional available query attributes are the magic methods which have common form and unique use cases. Which are:
 
 #### #search
 You can use this attr to pass on any string value to search for matching results in the data collection. `$search` assumes there are already the necessary requirements for it to perform in the database being used, such as text indexes.
@@ -80,12 +79,12 @@ Our `limp-sample-app` gives a good starting point. However, there's more than th
 The project consists of one package app. To understand the app structure you need to learn the following:
 
 ## Packages
-A package is a folder with number of python files containing LIMP modules. The package is having a distinguishing `__init__.py` file (which is also a requirement of Python packages) that sets the configurations of a package. An app in the LIMP eco-system could be the results of multiple packages that's one reason to allow LIMP structure to have more than a single package with the ability to manage which to include in the launching sequence using LIMP CLI interface.
+A package is a folder with number of python files containing LIMP modules. The package has a distinguishing `__init__.py` file (which is also a requirement of Python packages) that sets the configurations of a package. An app in the LIMP eco-system could be the results of multiple packages. That's one reason to allow LIMP structure to have more than a single package with the ability to manage which to include in the launching sequence using LIMP CLI interface.
 
 ## Modules
-A LIMP module is a single class in a Python file inside a LIMP package inheriting LIMP built-in `BaseModule` class. The `BaseModule` singletones all LIMP modules and provides them with access to the unified internal API for exchanging data.
+A LIMP module is a single class in a Python file inside a LIMP package inheriting from LIMP's built-in `BaseModule` class. The `BaseModule` singletons all LIMP modules and provides them with access to the unified internal API for exchanging data.
 
-A module is essentially a definition of a data-type with number of typed-`attrs` that can be set as `optional_attrs` and/or auto-extended by documents from the same and/or another module using the `extns` instructions. A module as well defines all its `methods` that any client could call. By default the `CRUD` methods, `read`, `create`, `update`, `delete` are available for all of the modules by simply defining them. Additional methods can be defined either for use by the `GET` interface, or more usual `websocket` interface using some additional instructions passed. A method can set the permissions checks required for an agent to pass before the agent being allowed to access the called method.
+A module is essentially a definition of a data-type with number of typed-`attrs` that can be set as `optional_attrs` and/or auto-extended by documents from the same and/or another module using the `extns` instructions. A module as well defines all its `methods` that any client could call. By default the `CRUD` methods, `read`, `create`, `update`, `delete` are available for all of the modules by simply defining them. Additional methods can be defined either for use by the `GET` interface or more often the `websocket` interface, using some additional instructions passed. A method can set the permissions checks required for an agent to pass before the agent being allowed to access the called method.
 
 ## Package Configuration
 Every LIMP package can be given various range of configurations to facilitate faster app setup in any given environment.
@@ -105,7 +104,7 @@ The available configuration options for every package are:
 
 
 2. `debug`: The flag of whether debug options are active or not. It's not supposed to be set by a package, rather by the CLI. Default `False`.
-3. `data_driver`: Data driver of choice. It has to be always set to 'mongodb' by not setting any value due to the fact LIMP currently does not support any other drivers.
+3. `data_driver`: Data driver of choice. It is always set to 'mongodb' by omitting a value due to the fact LIMP currently does not support any other drivers.
 4. `data_server`: Data server to connect to. Default `'mongodb://localhost'`
 5. `data_port`: Data server port is listening on. Default `27017`.
 6. `data_name`: Database name to connect to. Default `'limp_data'`.
@@ -144,7 +143,7 @@ The available configuration options for every package are:
 
 
 # Building an SDK for LIMP
-LIMP is currently having only Angular SDK. We are working with other developers in providing `react`, `react-native`, `Java` and `Swift` SDKs. However, if you are in need of creating your SDK for any reason, here are the things you need to know:
+LIMP currently only has an Angular SDK. We are working with other developers to provide React, React Native, Java and Swift SDKs. However, if you are in need of creating your SDK for any reason, here are the things you need to know:
 1. You need to start with a websocket client, connecting to `ws[s]://IP_OR_HOST[:PORT]/ws`.
 2. LIMPd would respond with the following:
 ```
@@ -203,7 +202,7 @@ signed using 'password' value
 signed using cached token value
 */
 ```
-7. Files can be pushed as part of the `doc` object in the call. The files or file should be pushed into the specific `attr` with a list or array of objects representing a file per LIMP specs, which is given below. It should have the following self-descreptive keys `name`, `type`, `size`, `lastModified` and `content`. Since sending binary to websocket is not a good idea in mixed encoded content, the decided conviction was to send the `ByteArray` of the binary data in the `content` attribute. LIMP Angular SDK has perfect async implementation for this using native HTML5 APIs:
+7. Files can be pushed as part of the `doc` object in the call. The files or file should be pushed into the specific `attr` with a list or array of objects representing a file per LIMP specs, which is given below. It should have the following self-descriptive keys `name`, `type`, `size`, `lastModified` and `content`. Since sending binary to websocket is not a good idea in mixed encoded content, the decided convention was to send the `ByteArray` of the binary data in the `content` attribute. LIMP Angular SDK has perfect async implementation for this using native HTML5 APIs:
 ```typescript
 Array<{
 	name: String;
@@ -220,7 +219,7 @@ LIMP is using `aiohttp` Python framework. It handles both `websocket` and `GET` 
 * Auto load all LIMP packages and modules located in `modules` folder.
 * Scaffold all modules attributes and methods and abstract them unto class methods and attributes.
 * Set required attributes for cross-module communication.
-* LIMP implements methods that require the client to generate authenitcation hashes to make sure no password are being transmistted in any unsecure method. This results in the users password being unrecoverable if lost.
+* LIMP implements methods that require the client to generate authentication hashes to make sure no passwords are being transmitted in an insecure way. This results in the users password being unrecoverable if lost.
 * LIMP implements JWT for data transfer between both sides in order to add a layer of security.
 By default, all calls to and from LIMP are tokenised using `JWT` or `JSON Web Token` standard. Once a connection is established with LIMPd, a connection-specific session attribute is set in the loop handling the connection. By default, it uses the anonymous session to handle all the calls, thus requiring all the calls to be signed using '__ANON' session token. However, any call related to authenticating the user and/or session are not tokenised in order not to result in a cyclic effect by signing a session request with a token that is not the same used by the connection on LIMPd-side.
 

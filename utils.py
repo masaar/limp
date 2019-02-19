@@ -1,7 +1,7 @@
 from config import Config
 from event import Event
 
-from bson import ObjectId
+from bson import ObjectId, binary
 
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
@@ -98,6 +98,14 @@ def objectify_args(args):
 					arg_object[arg_path] = {}
 				arg_object = arg_object[arg_path]
 	return args_object
+
+def parse_file_obj(doc):
+	for attr in doc.keys():
+		if type(doc[attr]) == list:
+			for child_attr in doc[attr]:
+				if type(child_attr) == dict and 'name' in child_attr.keys() and 'lastModified' in child_attr.keys() and 'type' in child_attr.keys() and 'size' in child_attr.keys() and 'content' in child_attr.keys():
+					child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
+	return doc
 
 def sigtime():
 	sigtime.time = 0

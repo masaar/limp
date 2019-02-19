@@ -30,7 +30,7 @@ class Config:
 	admin_phone = '+971500000000'
 	admin_password = '__ADMIN'
 
-	anon_token = '__ANONYMOUS_SECRET_TOKEN_f00000000000000000000012'
+	anon_token = '__ANON_TOKEN_f00000000000000000000012'
 
 	groups = []
 

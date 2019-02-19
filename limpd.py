@@ -4,7 +4,7 @@ import aiohttp.web
 
 from bson import ObjectId
 
-from utils import JSONEncoder, DictObj, import_modules, signal_handler
+from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj
 from base_module import Event
 from config import Config
 
@@ -156,7 +156,7 @@ async def websocket_handler(request):
 					request['sid'] = 'f00000000000000000000012'
 
 				method = modules[module].methods[request['path'][1].lower()]
-				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=request['doc'])
+				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=parse_file_obj(request['doc']))
 
 				# logger.debug('call results: %s', results)
 
