@@ -99,12 +99,25 @@ def objectify_args(args):
 				arg_object = arg_object[arg_path]
 	return args_object
 
-def parse_file_obj(doc):
+def parse_file_obj(doc, files):
 	for attr in doc.keys():
-		if type(doc[attr]) == list:
-			for child_attr in doc[attr]:
-				if type(child_attr) == dict and 'name' in child_attr.keys() and 'lastModified' in child_attr.keys() and 'type' in child_attr.keys() and 'size' in child_attr.keys() and 'content' in child_attr.keys():
-					child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
+		if attr in files.keys():
+			doc[attr] = []
+			for file in files[attr].values():
+				doc[attr].append({
+					'name':file['name'],
+					'lastModified':file['lastModified'],
+					'type':file['type'],
+					'size':file['size'],
+					'content':binary.Binary(bytes([int(byte) for byte in file['content'].split(',')]))
+				})
+			# for child_attr in doc[attr]:
+			# 	child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
+			del files[attr]
+		# if type(doc[attr]) == list:
+		# 	for child_attr in doc[attr]:
+		# 		if type(child_attr) == dict and 'name' in child_attr.keys() and 'lastModified' in child_attr.keys() and 'type' in child_attr.keys() and 'size' in child_attr.keys():
+		# 			child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
 	return doc
 
 def sigtime():

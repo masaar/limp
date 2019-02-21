@@ -99,6 +99,7 @@ async def http_handler(request):
 	return aiohttp.web.Response(status=405, headers=headers, body=JSONEncoder().encode({'status':405, 'msg':'METHOD NOT ALLOWED'}))
 
 async def websocket_handler(request):
+	files = {}
 	try:
 		env = {
 			'REMOTE_ADDR':request.remote,
@@ -144,19 +145,44 @@ async def websocket_handler(request):
 
 				if request['path'].__len__() != 2:
 					await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint path is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_PATH'}}))
+					continue
 				module = request['path'][0].lower()
+				if module == 'file' and request['path'][1].lower() == 'upload':
+					logger.debug('Received file chunk for %s, index %s, %s out of %s', request['doc']['attr'], request['doc']['index'], request['doc']['chunk'], request['doc']['total'])
+					if request['doc']['attr'] not in files.keys():
+						# [DOC] File attr first file, prepare files dict.
+						files[request['doc']['attr']] = {}
+					if request['doc']['chunk'] == 1:
+						# [DOC] First Chunk received, prepare files dict to accept it.
+						files[request['doc']['attr']][request['doc']['index']] = request['doc']['file']
+					else:
+						# [DOC] Past-first chunk received, append more bytes to it.
+						files[request['doc']['attr']][request['doc']['index']]['content'] += ',' + request['doc']['file']['content']
+					if request['doc']['chunk'] == request['doc']['total']:
+						# [DOC] Last chunk received, convert file to bytes and update the client.
+						await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Last chunk accepted', 'args':{'call_id':request['call_id']}}))
+					else:
+						# [DOC] More chunks expeceted, update the client
+						await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
+					# logger.debug('files: %s', {attr:{index:{'content_type':type()} for index in files[attr].keys()} for attr in files.keys()})
+					continue
 				if module not in modules.keys():
 					await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint module is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_MODULE'}}))
+					continue
 				if request['path'][1].lower() not in modules[module].methods.keys():
 					await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint method is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_METHOD'}}))
+					continue
 				if modules[module].methods[request['path'][1].lower()].get_method:
 					await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint method is a GET method.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_GET_METHOD'}}))
+					continue
 
 				if not request['sid']:
 					request['sid'] = 'f00000000000000000000012'
 
 				method = modules[module].methods[request['path'][1].lower()]
-				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=parse_file_obj(request['doc']))
+				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=parse_file_obj(request['doc'], files))
+
+				logger.debug('files: %s', files)
 
 				# logger.debug('call results: %s', results)
 
