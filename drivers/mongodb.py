@@ -138,16 +138,17 @@ class MongoDb(metaclass=ClassSingleton):
 			elif arg_attrs[arg] == 'access':
 				# [DOC] Check if passed arg is $__access query or sample val
 				# [TODO] Work on sample val resolve
-				if query[query_arg]['val'] == '$__access':
-					access_query = {
-						'$project':{
-							'user':'$user',
-							'access.anon':'$access.anon',
-							'access.users':{'$in':[ObjectId(query[query_arg]['$__user']), '$access.users']},
-							'access.groups':{'$in':[query[query_arg]['$__groups'], '$access.groups']}
-						},
-						'$match':{'$or':[{'user':ObjectId(query[query_arg]['$__user'])}, {'access.anon':True}, {'in_users':True}, {'in_groups':True}]}
-					}
+				# if query[query_arg]['val'] == '$__access':
+				access_query = {
+					'$project':{
+						'user':'$user',
+						'access.anon':'$access.anon',
+						'access.users':{'$in':[ObjectId(query[query_arg]['val']['$__user']), '$access.users']},
+						'access.groups':{'$or':[{'$in':[group, '$access.groups']} for group in query[query_arg]['val']['$__groups']]}
+						# 'access.groups':{'$in':[query[query_arg]['val']['$__groups'], '$access.groups']}
+					},
+					'$match':{'$or':[{'user':ObjectId(query[query_arg]['val']['$__user'])}, {'access.anon':True}, {'access.users':True}, {'access.groups':True}]}
+				}
 				# if oper == 'or': or_query.append(access_query)
 				# else: aggregate_query.append(access_query)
 				# aggregate_query.append(access_query)

@@ -106,6 +106,8 @@ class User(BaseModule):
 		# print('(session, query, doc)', (session, query, doc))
 		return (session, query, doc)
 	
+	# [TODO] Add pre_update method to check for duplications at time of updating
+
 	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm _id is valid
 		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})

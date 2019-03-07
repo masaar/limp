@@ -153,8 +153,11 @@ class Session(BaseModule):
 		# [DOC] If has global privileges '*' redefine it to module name
 		if '*' in user.privileges.keys() and module not in user.privileges.keys():
 			user.privileges[module] = user.privileges['*']
-		if module in user.privileges.keys() and (user.privileges[module] == ['*'] or user.privileges[module] == '*'):
-			user.privileges[module] = self.privileges
+		if module in user.privileges.keys():
+			if user.privileges[module] == '*':
+				user.privileges[module] = self.privileges
+			if type(user.privileges[module]) == list and '*' in user.privileges[module]:
+				user.privileges[module] += self.privileges
 		if module not in user.privileges.keys(): user.privileges[module] = []
 
 		for permission in permissions:

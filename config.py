@@ -31,8 +31,10 @@ class Config:
 	admin_password = '__ADMIN'
 
 	anon_token = '__ANON_TOKEN_f00000000000000000000012'
+	anon_privileges = {}
 
 	groups = []
+	default_privileges = {}
 
 	data_indexes = []
 
@@ -90,7 +92,7 @@ class Config:
 				'phone': '+0',
 				'website': 'https://ANON.limp.masaar.com',
 				'groups': [],
-				'privileges': {},
+				'privileges': self.anon_privileges,
 				'email_hash': self.anon_token,
 				'phone_hash': self.anon_token,
 				'username_hash': self.anon_token,
@@ -128,7 +130,7 @@ class Config:
 				'bio': {
 					locale: '__DEFAULT' for locale in self.locales
 				},
-				'privileges': {}
+				'privileges': self.default_privileges
 			})
 			logger.debug('DEFAULT group creation results: %s', group_results)
 		
