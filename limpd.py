@@ -51,13 +51,14 @@ else:
 	packages = None
 
 modules = import_modules(env=env, packages=packages)
+logger.debug('Loaded modules: %s', modules.keys())
+logger.debug('Config has attrs: %s', Config.__dict__)
 # [TODO] Update config_data method to make use of the new available tools.
 Config.config_data(modules=modules)
 
 # for module in modules.keys():
 # 	logger.debug('module %s has attrs: %s', module, modules[module].attrs)
-logger.debug('Loaded modules: %s', modules.keys())
-logger.debug('Config has attrs: %s', Config.__dict__)
+
 
 async def http_handler(request):
 	headers = [

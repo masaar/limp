@@ -49,6 +49,7 @@ __pycache
 .vs
 
 # Project Spcefic
+certs/*
 modules/*
 !modules/core
 *~

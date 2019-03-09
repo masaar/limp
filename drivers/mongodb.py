@@ -6,7 +6,7 @@ from base_model import BaseModel
 from pymongo import MongoClient
 from bson import ObjectId
 
-import logging, re
+import os, logging, re
 logger = logging.getLogger('limp')
 
 # metaclass=ClassSingleton
@@ -20,7 +20,13 @@ class MongoDb(metaclass=ClassSingleton):
 		# self.db = self.conn[Config.data_name]
 	
 	def create_conn(self):
-		self.conn = MongoClient(Config.data_server)
+		connection_config = {
+			'ssl':Config.data_ssl
+		}
+		if Config.data_ca:
+			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			connection_config['ssl_ca_certs'] = os.path.join(__location__, '..', 'certs', Config.data_ca_name)
+		self.conn = MongoClient(Config.data_server, **connection_config)
 		self.db = self.conn[Config.data_name]
 	
 	def read(self, collection, attrs, extns, modules, query):

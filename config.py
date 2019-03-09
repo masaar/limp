@@ -1,7 +1,7 @@
 from bson import ObjectId
 from event import Event
 
-import jwt, logging, datetime
+import os, jwt, logging, datetime
 
 logger = logging.getLogger('limp')
 
@@ -11,8 +11,10 @@ class Config:
 
 	data_driver = 'mongodb'
 	data_server = 'mongodb://localhost'
-	data_port = 27017
 	data_name = 'limp_data'
+	data_ssl = False
+	data_ca_name = None
+	data_ca = None
 
 	sms_auth = {}
 
@@ -42,6 +44,12 @@ class Config:
 
 	@classmethod
 	def config_data(self, modules):
+		# [DOC] Checking SSL settings
+		if self.data_ca:
+			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			with open(os.path.join(__location__, 'certs', self.data_ca_name), 'w') as f:
+				f.write(self.data_ca)
+
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
 		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000010'}})
