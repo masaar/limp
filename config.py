@@ -47,6 +47,8 @@ class Config:
 		# [DOC] Checking SSL settings
 		if self.data_ca:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			if not os.path.exists(os.path.join(__location__, 'certs')):
+				os.makedirs(os.path.join(__location__, 'certs'))
 			with open(os.path.join(__location__, 'certs', self.data_ca_name), 'w') as f:
 				f.write(self.data_ca)
 
