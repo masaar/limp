@@ -145,39 +145,42 @@ class MongoDb(metaclass=ClassSingleton):
 				# [DOC] Check if passed arg is $__access query or sample val
 				# [TODO] Work on sample val resolve
 				# if query[query_arg]['val'] == '$__access':
-				access_query = {
-					'$project':{
-						'user':'$user',
-						'access.anon':'$access.anon',
-						'access.users':{'$in':[ObjectId(query[query_arg]['val']['$__user']), '$access.users']},
-						'access.groups':{'$or':[{'$in':[group, '$access.groups']} for group in query[query_arg]['val']['$__groups']]}
+				access_query = [
+					{'$project':{
+						'__user':'$user',
+						'__access.anon':'${}.anon'.format(query_arg),
+						'__access.users':{'$in':[ObjectId(query[query_arg]['val']['$__user']), '${}.users'.format(query_arg)]},
+						'__access.groups':{'$or':[{'$in':[group, '${}.groups'.format(query_arg)]} for group in query[query_arg]['val']['$__groups']]}
 						# 'access.groups':{'$in':[query[query_arg]['val']['$__groups'], '$access.groups']}
-					},
-					'$match':{'$or':[{'user':ObjectId(query[query_arg]['val']['$__user'])}, {'access.anon':True}, {'access.users':True}, {'access.groups':True}]}
-				}
-				# if oper == 'or': or_query.append(access_query)
-				# else: aggregate_query.append(access_query)
+					}},
+					{'$match':{'$or':[{'__user':ObjectId(query[query_arg]['val']['$__user'])}, {'__access.anon':True}, {'__access.users':True}, {'__access.groups':True}]}}
+				]
+				access_query[0]['$project'].update({attr:'$'+attr for attr in attrs.keys()})
+				if oper == 'or': or_query += access_query
+				else: aggregate_query += access_query
 				# aggregate_query.append(access_query)
 			else:
-				if 'oper' in query[query_arg].keys(): 
+				if 'oper' not in query[query_arg].keys() or query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all']:
+					query[query_arg]['oper'] = '$eq'
+				# if 'oper' in query[query_arg].keys(): 
 					# [TODO] ignore invalid opers
-					if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all']:
-						query[query_arg]['oper'] = '$eq'
-					if oper == 'or':
-						if query[query_arg]['oper'] == '$bet':
-							or_query.append({extn+arg+child_arg:{'$gte':query[query_arg]['val'], '$lte':query[query_arg]['val2']}})
-						else:
-							or_query.append({extn+arg+child_arg:{query[query_arg]['oper']:query[query_arg]['val']}})
+					# if query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all']:
+					# 	query[query_arg]['oper'] = '$eq'
+				if oper == 'or':
+					if query[query_arg]['oper'] == '$bet':
+						or_query.append({extn+arg+child_arg:{'$gte':query[query_arg]['val'], '$lte':query[query_arg]['val2']}})
 					else:
-						if query[query_arg]['oper'] == '$bet':
-							aggregate_query.append({'$match':{extn+arg+child_arg:{'$gte':query[query_arg]['val'], '$lte':query[query_arg]['val2']}}})
-						elif query[query_arg]['oper'] == '$not':
-							aggregate_query.append({'$match':{extn+arg+child_arg:{'$ne':query[query_arg]['val']}}})
-						else:
-							aggregate_query.append({'$match':{extn+arg+child_arg:{query[query_arg]['oper']:query[query_arg]['val']}}})
+						or_query.append({extn+arg+child_arg:{query[query_arg]['oper']:query[query_arg]['val']}})
 				else:
-					if oper == 'or': or_query.append({extn+arg+child_arg:query[query_arg]['val']})
-					else: aggregate_query.append({'$match':{extn+arg+child_arg:query[query_arg]['val']}})
+					if query[query_arg]['oper'] == '$bet':
+						aggregate_query.append({'$match':{extn+arg+child_arg:{'$gte':query[query_arg]['val'], '$lte':query[query_arg]['val2']}}})
+					elif query[query_arg]['oper'] == '$not':
+						aggregate_query.append({'$match':{extn+arg+child_arg:{'$ne':query[query_arg]['val']}}})
+					else:
+						aggregate_query.append({'$match':{extn+arg+child_arg:{query[query_arg]['oper']:query[query_arg]['val']}}})
+				# else:
+				# 	if oper == 'or': or_query.append({extn+arg+child_arg:query[query_arg]['val']})
+				# 	else: aggregate_query.append({'$match':{extn+arg+child_arg:query[query_arg]['val']}})
 			
 			if extn.find('.') != -1:
 				group_query = {attr:{'$first':'$'+attr} for attr in attrs.keys()}
@@ -189,13 +192,13 @@ class MongoDb(metaclass=ClassSingleton):
 		group_query['_id'] = '$_id'
 		aggregate_query.append({'$group':group_query})
 		if or_query: aggregate_query.append({'$match':{'$or':or_query}})
-		if access_query:
-			access_query['$project'].update({attr:'$'+attr for attr in attrs.keys()})
-			del access_query['$project']['access']
-			aggregate_query.append({'$project':access_query['$project']})
-			aggregate_query.append({'$match':access_query['$match']})
+		# if access_query:
+		# 	access_query['$project'].update({attr:'$'+attr for attr in attrs.keys() if attr != 'access'})
+		# 	# del access_query['$project']['access']
+		# 	aggregate_query.append({'$project':access_query['$project']})
+		# 	aggregate_query.append({'$match':access_query['$match']})
 
-		logger.debug('final query v1: %s, %s.', collection, aggregate_query)
+		logger.debug('final query: %s, %s.', collection, aggregate_query)
 
 		collection = self.db[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])

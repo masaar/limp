@@ -224,12 +224,12 @@ async def websocket_handler(request):
 	return ws
 
 if __name__ == '__main__':
-	port = 8081
+	port = os.getenv('PORT') or 8081
 	if args.port:
 		try:
 			port = int(args.port)
 		except Exception as e:
-			logger.warning('Port should be in integer format. Defaulting to 8081.')
+			logger.warning('Port should be in integer format. Defaulting to %s.', port)
 	app = aiohttp.web.Application()
 	app.router.add_route('GET', '/{module}/{method}/{_id}/{var}', http_handler)
 	app.router.add_route('*', '/ws', websocket_handler)
