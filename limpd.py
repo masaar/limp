@@ -118,7 +118,8 @@ async def websocket_handler(request):
 
 	await ws.send_str(JSONEncoder().encode({
 		'status':200,
-		'msg':'Connection establised'
+		'msg':'Connection establised',
+		'args':{'code':'CORE_CONN_OK'}
 	}))
 
 	async for msg in ws:
@@ -132,7 +133,7 @@ async def websocket_handler(request):
 					session = session_results.args.docs[0]
 				res = json.loads(msg.data)
 				# if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
-					# logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
+				logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
 				res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
 
 				# logger.debug('received: %s', res)

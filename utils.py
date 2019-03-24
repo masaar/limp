@@ -151,6 +151,8 @@ def validate_attr(attr, attr_type):
 		return type(attr) == str
 	elif type(attr_type) == str and attr_type == 'int':
 		return type(attr) == int
+	elif type(attr_type) == tuple:
+		return attr in attr_type
 	elif attr_type == 'bool':
 		return type(attr) == bool
 	elif type(attr_type) == str and attr_type == 'email':

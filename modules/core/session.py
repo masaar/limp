@@ -178,21 +178,21 @@ class Session(BaseModule):
 						#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
 						if attrs[attr] == '$__user':
 							attrs[attr] = user
-						elif type(attrs[attr]) == dict and attrs[attr]['val'] == '$__user':
+						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__user':
 							attrs[attr]['val'] = user
 						elif attrs[attr] == '$__access':
 							attrs[attr] = {
 								'$__user':user,
 								'$__groups':user.groups
 							}
-						elif type(attrs[attr]) == dict and attrs[attr]['val'] == '$__access':
+						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__access':
 							attrs[attr]['val'] = {
 								'$__user':user,
 								'$__groups':user.groups
 							}
 						elif attrs[attr] == '$__time':
 							attrs[attr] = datetime.datetime.fromtimestamp(time.time())
-						elif type(attrs[attr]) == dict and attrs[attr]['val'] == '$__time':
+						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__time':
 							attrs[attr]['val'] = datetime.datetime.fromtimestamp(time.time())
 						#logger.debug('processed permission arg: %s, %s', attr, attrs[attr])
 					#logger.debug('processed permission args: %s', attrs)

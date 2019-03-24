@@ -198,7 +198,7 @@ class MongoDb(metaclass=ClassSingleton):
 		# 	aggregate_query.append({'$project':access_query['$project']})
 		# 	aggregate_query.append({'$match':access_query['$match']})
 
-		logger.debug('final query: %s, %s.', collection, aggregate_query)
+		# logger.debug('final query: %s, %s.', collection, aggregate_query)
 
 		collection = self.db[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
@@ -229,14 +229,14 @@ class MongoDb(metaclass=ClassSingleton):
 				group_query = collection.aggregate(group_query)
 				groups[group_condition['by']] = [{'min':group['_id']['min'], 'max':group['_id']['max'], 'count':group['count']} for group in group_query]
 
-		if sort:
-			aggregate_query.append({'$sort':sort})
+		# if sort:
+		aggregate_query.append({'$sort':sort})
 		if skip:
 			aggregate_query.append({'$skip':skip})
 		if limit:
 			aggregate_query.append({'$limit':limit})
 		
-		# logger.debug('final query: %s.', aggregate_query)
+		logger.debug('final query: %s, %s.', collection, aggregate_query)
 
 		docs_count = collection.aggregate(aggregate_query + [{'$count':'__docs_count'}])
 		try:
@@ -336,11 +336,13 @@ class MongoDb(metaclass=ClassSingleton):
 		if 'diff' not in doc.keys():
 			# #logger.debug('attempting to update docs:%s with values:%s', docs, doc)
 			results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
+			update_count = results.modified_count
 		else:
+			update_count = 0
 			diff = doc['diff']
 			del doc['diff']
 			diff['vars']
-			update_results = []
+			# update_results = []
 			for update_doc in read_results['docs']:
 				# #logger.debug('final update object: %s.', {'$set':doc, '$push':{'diff':diff}})
 				shadow_doc = {attr:doc[attr] for attr in doc.keys() if doc[attr] != update_doc[attr] and attr != 'diff'}
@@ -351,9 +353,10 @@ class MongoDb(metaclass=ClassSingleton):
 				diff['vars'] = {attr:update_doc[attr] for attr in shadow_doc.keys()}
 				# #logger.debug('shadow_doc: %s.', shadow_doc)
 				#logger.debug('attempting to update doc:%s with values:%s', update_doc._id, shadow_doc)
-				update_results.append(
-					collection.update_one({'_id':update_doc._id}, {'$set':shadow_doc, '$push':{'diff':diff}})
-				)
+				# update_results.append(
+				results = collection.update_one({'_id':update_doc._id}, {'$set':shadow_doc, '$push':{'diff':diff}})
+				update_count += results.modified_count
+				# )
 		# 1/0
 			# results = update_results[0]
 		#logger.debug('update results: %s', results)
@@ -367,7 +370,7 @@ class MongoDb(metaclass=ClassSingleton):
 		# if results.modified_count:
 		# 	update_id.append(ObjectId(id))
 		return {
-			'count':results.modified_count if results else 0,
+			'count':update_count,
 			'docs':[{'_id':doc} for doc in docs]
 		}
 	

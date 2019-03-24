@@ -40,7 +40,8 @@ class Config:
 
 	data_indexes = []
 
-	
+	docs = []
+
 
 	@classmethod
 	def config_data(self, modules):
@@ -158,3 +159,9 @@ class Config:
 		for index in self.data_indexes:
 			logger.debug('Attempting to create data index: %s', index)
 			Data.driver.db[index['collection']].create_index(index['index'])
+
+		logger.debug('Testing docs.')
+		for doc in self.docs:
+			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], query={'_id':{'val':doc['doc']['_id']}})
+			if not doc_results.args.count:
+				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], doc=doc['doc'])
