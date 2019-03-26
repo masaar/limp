@@ -369,6 +369,55 @@ class BaseModule(metaclass=ClassSingleton):
 			'msg':'Deleted {} docs.'.format(results['count']),
 			'args':results
 		}
+	
+	def retrieve_file(self, skip_events=[], env={}, session=None, query={}, doc={}):
+		attr, filename = query['var']['val'].split(';')
+		del query['var']
+		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query=query)
+		if not results['args']['count']:
+			return {
+				'status': 404,
+				'msg': 'File not found.',
+				'args': {
+					'code': '404 NOT FOUND'
+				}
+			}
+		doc = results['args']['docs'][0]
+		if attr not in doc.keys():
+			return {
+				'status': 404
+			}
+		if type(doc[attr]) == list:
+			for file in doc[attr]:
+				if file['name'] == filename:
+					return {
+						'status': 291,
+						'msg': file['content'],
+						'args': {
+							'name': file['name'],
+							'type': file['type'],
+							'size': file['size']
+						}
+					}
+		else:
+			if doc[attr]['name'] == filename:
+				return {
+					'status': 291,
+					'msg': doc[attr]['content'],
+					'args': {
+						'name': doc[attr]['name'],
+						'type': doc[attr]['type'],
+						'size': doc[attr]['size']
+					}
+				}
+		# [DOC] No filename match
+		return {
+			'status': 404,
+			'msg': 'File not found.',
+			'args': {
+				'code': '404 NOT FOUND'
+			}
+		}
 
 class BaseTemplate:
 	templates = {
