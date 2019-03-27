@@ -134,7 +134,11 @@ async def websocket_handler(request):
 				res = json.loads(msg.data)
 				# if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
 				logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
-				res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
+				try:
+					res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
+				except Exception:
+					await ws.send_str(JSONEncoder().encode({'status':403, 'msg':'Request token is not accepted.', 'args':{'call_id':res['call_id'], 'code':'CORE_REQ_INVALID_TOKEN'}}))
+					continue
 
 				# logger.debug('received: %s', res)
 				if 'query' not in res.keys(): res['query'] = {}
