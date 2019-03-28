@@ -37,6 +37,8 @@ class MongoDb(metaclass=ClassSingleton):
 		or_query = []
 		access_query = {}
 
+		logger.debug('attempting to parse query: %s', query)
+
 		# return_count = True
 		skip = False
 		limit = False
@@ -110,7 +112,7 @@ class MongoDb(metaclass=ClassSingleton):
 				extn = ''
 				child_arg = ''
 
-			#logger.debug('testing arg: %s, against: %s.', arg, arg_attrs[arg] if arg in arg_attrs.keys() else query[query_arg])
+			# logger.debug('testing arg: %s, against: %s.', arg, arg_attrs[arg] if arg in arg_attrs.keys() else query[query_arg])
 
 			if 'strict' in query[query_arg].keys() and not query[query_arg]['strict']:
 				query[query_arg]['val'] = re.compile(re.escape(query[query_arg]['val']), re.IGNORECASE)
@@ -160,7 +162,7 @@ class MongoDb(metaclass=ClassSingleton):
 				else: aggregate_query += access_query
 				# aggregate_query.append(access_query)
 			else:
-				if 'oper' not in query[query_arg].keys() or query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all']:
+				if 'oper' not in query[query_arg].keys() or query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all', '$in']:
 					query[query_arg]['oper'] = '$eq'
 				# if 'oper' in query[query_arg].keys(): 
 					# [TODO] ignore invalid opers

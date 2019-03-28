@@ -33,30 +33,30 @@ class User(BaseModule):
 	}
 	methods = {
 		'read':{
-			'permissions':[['read', {}, {}], ['__NOT:read', {'_id':'$__user'}, {}]]
+			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]]
 		},
 		'create':{
-			'permissions':[['create', {}, {}]]
+			'permissions':[['admin', {}, {}]]
 		},
 		'update':{
-			'permissions':[['update', {}, {}], ['__NOT:update', {'_id':'$__user'}, {'groups':None, 'privileges':None}]],
+			'permissions':[['admin', {}, {}], ['update', {'_id':'$__user'}, {'groups':None, 'privileges':None}]],
 			'query_args':['!_id']
 		},
 		'delete':{
-			'permissions':[['delete', {}, {}], ['__NOT:delete', {'_id':'$__user'}, {}]],
+			'permissions':[['admin', {}, {}], ['delete', {'_id':'$__user'}, {}]],
 			'query_args':['!_id']
 		},
 		'read_privileges':{
-			'permissions':[['read', {}, {}], ['__NOT:read', {'_id':'$__user'}, {}]],
+			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]],
 			'query_args':['!_id']
 		},
 		'add_group':{
-			'permissions':[['update', {}, {}]],
+			'permissions':[['admin', {}, {}]],
 			'query_args':['!_id'],
 			'doc_args':['!group']
 		},
 		'delete_group':{
-			'permissions':[['update', {}, {}]],
+			'permissions':[['admin', {}, {}]],
 			'query_args':['!_id'],
 			'doc_args':['!group']
 		}
@@ -209,17 +209,17 @@ class Group(BaseModule):
 	optional_attrs = ['attrs']
 	methods = {
 		'read':{
-			'permissions':[['read', {}, {}]]
+			'permissions':[['admin', {}, {}]]
 		},
 		'create':{
-			'permissions':[['create', {}, {}]]
+			'permissions':[['admin', {}, {}]]
 		},
 		'update':{
-			'permissions':[['update', {}, {}], ['__NOT:update', {'user':'$__user'}]],
+			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}]],
 			'query_args':['!_id']
 		},
 		'delete':{
-			'permissions':[['delete', {}, {}], ['__NOT:delete', {'user':'$__user'}]],
+			'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}]],
 			'query_args':['!_id']
 		}
 	}
