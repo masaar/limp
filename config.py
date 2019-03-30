@@ -79,7 +79,8 @@ class Config:
 				'email_hash': jwt.encode({'hash':['email', self.admin_email, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
 				'phone_hash': jwt.encode({'hash':['phone', self.admin_phone, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
 				'username_hash': jwt.encode({'hash':['username', self.admin_username, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
-				'locale': self.locale
+				'locale': self.locale,
+				'attrs':{}
 			})
 			logger.debug('ADMIN user creation results: %s', admin_results)
 
@@ -107,7 +108,8 @@ class Config:
 				'email_hash': self.anon_token,
 				'phone_hash': self.anon_token,
 				'username_hash': self.anon_token,
-				'locale': self.locale
+				'locale': self.locale,
+				'attrs':{}
 			})
 			logger.debug('ANON user creation results: %s', anon_results)
 
@@ -141,7 +143,8 @@ class Config:
 				'bio': {
 					locale: '__DEFAULT' for locale in self.locales
 				},
-				'privileges': self.default_privileges
+				'privileges': self.default_privileges,
+				'attrs':{}
 			})
 			logger.debug('DEFAULT group creation results: %s', group_results)
 		

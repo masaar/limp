@@ -63,7 +63,7 @@ class Session(BaseModule):
 		#logger.debug('auth success')
 		token = secrets.token_urlsafe(32)
 		session = {
-			'user':results['args']['docs'][0],
+			'user':results['args']['docs'][0]._id,
 			'host_add':env['REMOTE_ADDR'],
 			'user_agent':env['HTTP_USER_AGENT'],
 			'timestamp':datetime.datetime.fromtimestamp(time.time()),
@@ -76,7 +76,7 @@ class Session(BaseModule):
 		# logger.debug('session_results: %s', results)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,
@@ -116,7 +116,7 @@ class Session(BaseModule):
 		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}}, doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
 		self.methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]._id}}, doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,

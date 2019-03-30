@@ -106,6 +106,26 @@ class User(BaseModule):
 		# print('(session, query, doc)', (session, query, doc))
 		return (session, query, doc)
 	
+	def pre_update(self, session, query, doc):
+		# [DOC] Make sure no attrs overwriting would happen
+		if 'attrs' in doc.keys():
+			results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query=query)
+			if not results['args']['count']:
+				return {
+					'status':400,
+					'msg':'User is invalid.',
+					'args':{'code':'CORE_USER_INVALID_USER'}
+				}
+			if results['args']['count'] > 1:
+				return {
+					'status':400,
+					'msg':'Updating user attrs can be done only to individual users.',
+					'args':{'code':'CORE_USER_MULTI_ATTRS_UPDATE'}
+				}
+			results['args']['docs'][0]['attrs'].update(doc['attrs'])
+			doc['attrs'] = results['args']['docs'][0]['attrs']
+		return (session, query, doc)
+	
 	# [TODO] Add pre_update method to check for duplications at time of updating
 
 	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
@@ -126,8 +146,6 @@ class User(BaseModule):
 				for i in range(0, group.privileges[privilege].__len__()):
 					if group.privileges[privilege][i] not in user.privileges[privilege]:
 						user.privileges[privilege].append(group.privileges[privilege][i])
-		print('read_privileges: results: ', results)
-		print('read_privileges: user: ', user.privileges)
 		return results
 	
 	def add_group(self, skip_events=[], env={}, session=None, query={}, doc={}):

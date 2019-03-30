@@ -31,15 +31,15 @@ signal.signal(signal.SIGINT, signal_handler)
 import logging
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
-# %(name)-2s 
 formatter = logging.Formatter('%(asctime)s  [%(levelname)s]  %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # [DOC] Parse runtime args
 if args.debug:
 	Config.debug = True
+	logger.setLevel(logging.DEBUG)
 if args.env:
 	#logger.debug('Found env flag: %s', args.env)
 	env = args.env
@@ -111,10 +111,10 @@ async def websocket_handler(request):
 			'REMOTE_ADDR':request.remote,
 			'HTTP_USER_AGENT':''
 		}
-	logger.debug('Websocket connection starting')
+	logger.info('Websocket connection starting')
 	ws = aiohttp.web.WebSocketResponse()
 	await ws.prepare(request)
-	logger.debug('Websocket connection ready')
+	logger.info('Websocket connection ready')
 
 	await ws.send_str(JSONEncoder().encode({
 		'status':200,
@@ -123,7 +123,7 @@ async def websocket_handler(request):
 	}))
 
 	async for msg in ws:
-		logger.debug('Received new message: %s', msg.data[:256])
+		logger.info('Received new message: %s', msg.data[:256])
 		if msg.type == aiohttp.WSMsgType.TEXT:
 			try:
 				try:
@@ -199,7 +199,7 @@ async def websocket_handler(request):
 					results['msg'] = byte_array
 					await ws.send_str(JSONEncoder().encode(results))
 				else:
-					logger.debug('Call results: %s', results)
+					logger.debug('Call results: %s', str(results)[:512])
 					if results['status'] == 204:
 						await ws.send_str(JSONEncoder().encode({
 							'status':204,
@@ -225,7 +225,7 @@ async def websocket_handler(request):
 					'args':{'code':'SERVER_ERROR'}
 				}))
 
-	logger.debug('Websocket connection closed')
+	logger.info('Websocket connection closed')
 	return ws
 
 if __name__ == '__main__':

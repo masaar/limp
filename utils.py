@@ -27,6 +27,8 @@ class JSONEncoder(json.JSONEncoder):
 		elif type(o) == datetime.datetime:
 			# return o.timestamp()
 			return (o - datetime.datetime(1970,1,1)).total_seconds()
+		elif type(o) == bytes:
+			return True
 		return json.JSONEncoder.default(self, o)
 
 class DictObj:
