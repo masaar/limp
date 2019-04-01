@@ -118,15 +118,7 @@ class Config:
 		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000012'}})
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
-				'_id': ObjectId('f00000000000000000000012'),
-				'user': ObjectId('f00000000000000000000011'),
-				'host_add': '127.0.0.1',
-				'user_agent': self.anon_token,
-				'timestamp': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
-				'expiry': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
-				'token': self.anon_token
-			})
+			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
 
 		logger.debug('Testing groups collection.')
