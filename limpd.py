@@ -129,7 +129,10 @@ async def websocket_handler(request):
 				try:
 					session.token
 				except Exception:
-					session = DictObj(Config.compile_anon_session())
+					anon_user = Config.compile_anon_user()
+					anon_session = Config.compile_anon_session()
+					anon_session['user'] = DictObj(anon_user)
+					session = DictObj(anon_session)
 				res = json.loads(msg.data)
 				# if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
 				logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)

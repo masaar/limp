@@ -87,30 +87,7 @@ class Config:
 		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000011'}})
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
-			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
-				'_id': ObjectId('f00000000000000000000011'),
-				'username': self.anon_token,
-				'email': 'ANON@LIMP.MASAAR.COM',
-				'name': {
-					locale: '__ANON' for locale in self.locales
-				},
-				'bio': {
-					locale: '__ANON' for locale in self.locales
-				},
-				'address': {
-					locale: '__ANON' for locale in self.locales
-				},
-				'postal_code': '__ANON',
-				'phone': '+0',
-				'website': 'https://ANON.limp.masaar.com',
-				'groups': [],
-				'privileges': self.anon_privileges,
-				'email_hash': self.anon_token,
-				'phone_hash': self.anon_token,
-				'username_hash': self.anon_token,
-				'locale': self.locale,
-				'attrs':{}
-			})
+			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
 
 		logger.debug('Testing sessions collection.')
@@ -161,6 +138,33 @@ class Config:
 			if not doc_results.args.count:
 				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], doc=doc['doc'])
 	
+	@classmethod
+	def compile_anon_user(self):
+		return {
+			'_id': ObjectId('f00000000000000000000011'),
+			'username': self.anon_token,
+			'email': 'ANON@LIMP.MASAAR.COM',
+			'name': {
+				locale: '__ANON' for locale in self.locales
+			},
+			'bio': {
+				locale: '__ANON' for locale in self.locales
+			},
+			'address': {
+				locale: '__ANON' for locale in self.locales
+			},
+			'postal_code': '__ANON',
+			'phone': '+0',
+			'website': 'https://ANON.limp.masaar.com',
+			'groups': [],
+			'privileges': self.anon_privileges,
+			'email_hash': self.anon_token,
+			'phone_hash': self.anon_token,
+			'username_hash': self.anon_token,
+			'locale': self.locale,
+			'attrs':{}
+		}
+
 	@classmethod
 	def compile_anon_session(self):
 		return {
