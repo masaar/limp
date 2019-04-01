@@ -168,3 +168,15 @@ class Config:
 			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], query={'_id':{'val':doc['doc']['_id']}})
 			if not doc_results.args.count:
 				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], doc=doc['doc'])
+	
+	@classmethod
+	def compile_anon_session(self):
+		return {
+			'_id': ObjectId('f00000000000000000000012'),
+			'user': ObjectId('f00000000000000000000011'),
+			'host_add': '127.0.0.1',
+			'user_agent': self.anon_token,
+			'timestamp': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
+			'expiry': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
+			'token': self.anon_token
+		}
