@@ -73,29 +73,29 @@ class BaseModule(metaclass=ClassSingleton):
 			results = Data.read(collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Remove all 'bin', 'file' vals from all the docs, if any
-			if 'bin' in self.attrs.values() or 'file' in self.attrs.values() or ['bin'] in self.attrs.values():
-				for i in range(0, results['docs'].__len__()):
-					for attr in self.attrs.keys():
-						if self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']:
-							results['docs'][i][attr] = True if results['docs'][i][attr] else False
-					# [DOC] Remove any 'bin', 'file' diff val, if any 
-					if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
-						for ii in range(0, results['docs'][i]['diff'].__len__()):
-							for attr in self.attrs.keys():
-								if (self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']) and attr in results['docs'][i]['diff'][ii]['vars'].keys():
-									results['docs'][i]['diff'][ii]['vars'][attr] = None
-			if ['file'] in self.attrs.values():
-				for i in range(0, results['docs'].__len__()):
-					for attr in self.attrs.keys():
-						if self.attrs[attr] == ['file'] and attr in results['docs'][i]._attrs().keys() and type(results['docs'][i][attr]) == list:
-							for file in results['docs'][i][attr]:
-								del file['content']
-					# [DOC] Remove any 'bin', 'file' diff val, if any 
-					if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
-						for ii in range(0, results['docs'][i]['diff'].__len__()):
-							for attr in self.attrs.keys():
-								if self.attrs[attr] == ['file'] and attr in results['docs'][i]['diff'][ii]['vars'].keys():
-									results['docs'][i]['diff'][ii]['vars'][attr] = None
+			# if 'bin' in self.attrs.values() or 'file' in self.attrs.values() or ['bin'] in self.attrs.values():
+			# 	for i in range(0, results['docs'].__len__()):
+			# 		for attr in self.attrs.keys():
+			# 			if self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']:
+			# 				results['docs'][i][attr] = True if results['docs'][i][attr] else False
+			# 		# [DOC] Remove any 'bin', 'file' diff val, if any 
+			# 		if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
+			# 			for ii in range(0, results['docs'][i]['diff'].__len__()):
+			# 				for attr in self.attrs.keys():
+			# 					if (self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']) and attr in results['docs'][i]['diff'][ii]['vars'].keys():
+			# 						results['docs'][i]['diff'][ii]['vars'][attr] = None
+			# if ['file'] in self.attrs.values():
+			# 	for i in range(0, results['docs'].__len__()):
+			# 		for attr in self.attrs.keys():
+			# 			if self.attrs[attr] == ['file'] and attr in results['docs'][i]._attrs().keys() and type(results['docs'][i][attr]) == list:
+			# 				for file in results['docs'][i][attr]:
+			# 					del file['content']
+			# 		# [DOC] Remove any 'bin', 'file' diff val, if any 
+			# 		if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
+			# 			for ii in range(0, results['docs'][i]['diff'].__len__()):
+			# 				for attr in self.attrs.keys():
+			# 					if self.attrs[attr] == ['file'] and attr in results['docs'][i]['diff'][ii]['vars'].keys():
+			# 						results['docs'][i]['diff'][ii]['vars'][attr] = None
 			results, session, query, doc = self.on_read(results=results, session=session, query=query, doc=doc)
 		if self.use_template:
 			results, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, session=session, query=query, doc=doc)
