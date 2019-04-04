@@ -1,6 +1,6 @@
 from config import Config
 from event import Event
-from utils import ClassSingleton
+from utils import ClassSingleton, DictObj
 from base_model import BaseModel
 
 from pymongo import MongoClient
@@ -343,7 +343,6 @@ class MongoDb(metaclass=ClassSingleton):
 			update_count = 0
 			diff = doc['diff']
 			del doc['diff']
-			diff['vars']
 			# update_results = []
 			for update_doc in read_results['docs']:
 				# #logger.debug('final update object: %s.', {'$set':doc, '$push':{'diff':diff}})
@@ -353,8 +352,10 @@ class MongoDb(metaclass=ClassSingleton):
 				if shadow_doc.keys().__len__() == 0:
 					continue
 				diff['vars'] = {attr:update_doc[attr] for attr in shadow_doc.keys()}
+				if type(diff['user']) == BaseModel or type(diff['user']) == DictObj:
+					diff['user'] = diff['user']._id
 				# #logger.debug('shadow_doc: %s.', shadow_doc)
-				#logger.debug('attempting to update doc:%s with values:%s', update_doc._id, shadow_doc)
+				logger.debug('attempting to update doc:%s with values:%s, and diff:%s', update_doc._id, shadow_doc, diff)
 				# update_results.append(
 				results = collection.update_one({'_id':update_doc._id}, {'$set':shadow_doc, '$push':{'diff':diff}})
 				update_count += results.modified_count
