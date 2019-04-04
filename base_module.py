@@ -638,7 +638,7 @@ class BaseMethod:
 		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
 		# 1/0
 		# [DOC] check if $diff oper is set to add it to events
-		if '$diff' not in query.keys():
+		if '$diff' not in query.keys() or query['$diff'] != True:
 			skip_events.append(Event.__DIFF__)
 
 		if Config.debug:
