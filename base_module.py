@@ -100,19 +100,23 @@ class BaseModule(metaclass=ClassSingleton):
 		if self.use_template:
 			results, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, session=session, query=query, doc=doc)
 		# [DOC] Check if full diff log is requested.
-		if 'diff' in self.attrs.keys() and Event.__DIFF__ not in skip_events:
-			users = {}
-			for doc in results['docs']:
-				# try:
-				for diff in doc['diff']:
-					if 'user' not in diff.keys():
-						diff['user'] = ObjectId('f00000000000000000000011')
-					if diff['user'] not in users.keys():
-						user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query={'_id':{'val':diff['user']}, '$extn':False})
-						users[diff['user']] = user_results.args.docs[0]
-					diff['user'] = users[diff['user']]
-				# except Exception:
-				# 	pass
+		if 'diff' in self.attrs.keys():
+			if Event.__DIFF__ not in skip_events:
+				users = {}
+				for doc in results['docs']:
+					# try:
+					for diff in doc['diff']:
+						if 'user' not in diff.keys():
+							diff['user'] = ObjectId('f00000000000000000000011')
+						if diff['user'] not in users.keys():
+							user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query={'_id':{'val':diff['user']}, '$extn':False})
+							users[diff['user']] = user_results.args.docs[0]
+						diff['user'] = users[diff['user']]
+					# except Exception:
+					# 	pass
+			else:
+				for doc in results['docs']:
+					doc['diff'] = []
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
 			# [DOC] Call method events
