@@ -9,4 +9,4 @@ EXPOSE 8081
 
 COPY . .
 
-# CMD [ "python", "./limpd.py" ]
+CMD [ "python", "./limpd.py" ]
