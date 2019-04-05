@@ -44,7 +44,7 @@ if args.env:
 	#logger.debug('Found env flag: %s', args.env)
 	env = args.env
 else:
-	env = None
+	env = os.getenv('ENV') or None
 if args.packages:
 	packages = args.packages.split(',') + ['core']
 else:
