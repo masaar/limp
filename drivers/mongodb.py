@@ -11,8 +11,8 @@ logger = logging.getLogger('limp')
 
 # metaclass=ClassSingleton
 class MongoDb(metaclass=ClassSingleton):
-	conn = False
-	db = False
+	# conn = False
+	# db = False
 
 	def singleton(self):
 		pass
@@ -26,12 +26,13 @@ class MongoDb(metaclass=ClassSingleton):
 		if Config.data_ca:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 			connection_config['ssl_ca_certs'] = os.path.join(__location__, '..', 'certs', Config.data_ca_name)
-		self.conn = MongoClient(Config.data_server, **connection_config)
-		self.db = self.conn[Config.data_name]
+		conn = MongoClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
+		# db = self.conn[Config.data_name]
+		return conn
 	
-	def read(self, collection, attrs, extns, modules, query):
-		if not self.conn:
-			self.create_conn()
+	def read(self, conn, collection, attrs, extns, modules, query):
+		# if not self.conn:
+		# 	self.create_conn()
 		#logger.debug('mongodb.read')
 		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		or_query = []
@@ -202,7 +203,7 @@ class MongoDb(metaclass=ClassSingleton):
 
 		# logger.debug('final query: %s, %s.', collection, aggregate_query)
 
-		collection = self.db[collection]
+		collection = conn[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
 		try:
 			docs_total = docs_total.next()['__docs_total']
@@ -277,7 +278,7 @@ class MongoDb(metaclass=ClassSingleton):
 					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
-					extn_results = extn_module.methods['read'](skip_events=skip_events, query={'_id':{'val':doc[extn]}, '$limit':1})
+					extn_results = extn_module.methods['read'](skip_events=skip_events, env={'conn':conn}, query={'_id':{'val':doc[extn]}, '$limit':1})
 					# [TODO] Consider a fallback for extn no-match cases
 					if extn_results['args']['count']:
 						doc[extn] = extn_results['args']['docs'][0]
@@ -314,10 +315,10 @@ class MongoDb(metaclass=ClassSingleton):
 			'groups': {} if not group else groups
 		}
 
-	def create(self, collection, attrs, extns, modules, doc):
-		if not self.conn:
-			self.create_conn()
-		collection = self.db[collection]
+	def create(self, conn, collection, attrs, extns, modules, doc):
+		# if not self.conn:
+		# 	self.create_conn()
+		collection = conn[collection]
 		# #logger.debug('Inserting doc: %s.', doc)
 		_id = collection.insert_one(doc).inserted_id
 		return {
@@ -325,15 +326,15 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[BaseModel({'_id':_id})]
 		}
 	
-	def update(self, collection, attrs, extns, modules, query, doc):
-		if not self.conn:
-			self.create_conn()
+	def update(self, conn, collection, attrs, extns, modules, query, doc):
+		# if not self.conn:
+		# 	self.create_conn()
 		# [DOC] Perform a read query to get all matching documents
-		read_results = self.read(collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
+		read_results = self.read(conn=conn, collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
 		# print('read_results', read_results)
 		docs = [doc._id for doc in read_results['docs']]
 		# [DOC] Perform update query on matching docs
-		collection = self.db[collection]
+		collection = conn[collection]
 		results = None
 		if 'diff' not in doc.keys():
 			# #logger.debug('attempting to update docs:%s with values:%s', docs, doc)
@@ -377,18 +378,18 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[{'_id':doc} for doc in docs]
 		}
 	
-	def delete(self, collection, attrs, extns, modules, query, force_delete):
-		if not self.conn:
-			self.create_conn()
+	def delete(self, conn, collection, attrs, extns, modules, query, force_delete):
+		# if not self.conn:
+		# 	self.create_conn()
 		if not force_delete:
-			return self.update(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
+			return self.update(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
 		else:
 			# [DOC] Perform a read query to get all matching documents
-			results = self.read(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+			results = self.read(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 			docs = [doc._id for doc in results['docs']]
 			#logger.debug('attempting to delete docs:%s', docs)
 			# [DOC] Perform update query on matching docs
-			collection = self.db[collection]
+			collection = conn[collection]
 			results = collection.delete_many({'_id':{'$in':docs}})
 			#logger.debug('delete results: %s', results)
 			return {

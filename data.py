@@ -12,25 +12,28 @@ class Data(metaclass=ClassSingleton):
 		if self.driver == 'mongodb':
 			from drivers.mongodb import MongoDb
 			self.driver = MongoDb
+	
+	def create_conn(self):
+		return self.driver.create_conn()
 
-	def read(self, collection, attrs, extns, modules, query):
+	def read(self, conn, collection, attrs, extns, modules, query):
 		query = self.sanitise_attrs(query)
-		return self.driver.read(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		return self.driver.read(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 	
-	def create(self, collection, attrs, extns, modules, doc):
+	def create(self, conn, collection, attrs, extns, modules, doc):
 		doc = self.sanitise_attrs(doc)
-		return self.driver.create(collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
+		return self.driver.create(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
 	
-	def update(self, collection, attrs, extns, modules, query, doc):
+	def update(self, conn, collection, attrs, extns, modules, query, doc):
 		query = self.sanitise_attrs(query)
 		doc = self.sanitise_attrs(doc)
-		return self.driver.update(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
+		return self.driver.update(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 	
-	def delete(self, collection, attrs, extns, modules, query, force_delete):
+	def delete(self, conn, collection, attrs, extns, modules, query, force_delete):
 		# attrs = self.sanitise_attrs(attrs)
 		# _id = self.sanitise_attrs([_id])[0]
 		query = self.sanitise_attrs(query)
-		return self.driver.delete(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
+		return self.driver.delete(conn=conn, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
 	
 	def sanitise_attrs(self, attrs):
 		if type(attrs) == dict:

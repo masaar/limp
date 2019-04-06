@@ -62,7 +62,7 @@ class User(BaseModule):
 		}
 	}
 
-	def on_read(self, results, session, query, doc):
+	def on_read(self, results, env, session, query, doc):
 		# for doc in results['docs']:
 		# groups = {}
 		for i in range(0, results['docs'].__len__()):
@@ -73,7 +73,7 @@ class User(BaseModule):
 			del user['phone_hash']
 			# for group in user.groups:
 			# 	if group not in groups.keys():
-			# 		group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':group}})
+			# 		group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':group}})
 			# 		groups[group] = group_results['args']['docs'][0]
 			# 	group = groups[group]
 			# 	# #logger.debug('group, %s permissions: %s', group.name, group.privileges)
@@ -82,10 +82,10 @@ class User(BaseModule):
 			# 		for i in range(0, group.privileges[privilege].__len__()):
 			# 			if group.privileges[privilege][i] not in user.privileges[privilege]:
 			# 				user.privileges[privilege].append(group.privileges[privilege][i])
-		return (results, session, query, doc)
+		return (results, env, session, query, doc)
 	
-	def pre_create(self, session, query, doc):
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'__OR:username':{'val':doc['username']}, '__OR:email':{'val':doc['email']}, '__OR:phone':{'val':doc['phone']}, '$limit':1})
+	def pre_create(self, env, session, query, doc):
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'__OR:username':{'val':doc['username']}, '__OR:email':{'val':doc['email']}, '__OR:phone':{'val':doc['phone']}, '$limit':1})
 		if results['args']['count']:
 			return {
 				'status':400,
@@ -103,13 +103,13 @@ class User(BaseModule):
 			doc['status'] = 'active'
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
-		# print('(session, query, doc)', (session, query, doc))
-		return (session, query, doc)
+		# print('(env, session, query, doc)', (env, session, query, doc))
+		return (env, session, query, doc)
 	
-	def pre_update(self, session, query, doc):
+	def pre_update(self, env, session, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
-			results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query=query)
+			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
 			if not results['args']['count']:
 				return {
 					'status':400,
@@ -124,13 +124,13 @@ class User(BaseModule):
 				}
 			results['args']['docs'][0]['attrs'].update(doc['attrs'])
 			doc['attrs'] = results['args']['docs'][0]['attrs']
-		return (session, query, doc)
+		return (env, session, query, doc)
 	
 	# [TODO] Add pre_update method to check for duplications at time of updating
 
 	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm _id is valid
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id']['val']}})
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -139,7 +139,7 @@ class User(BaseModule):
 			}
 		user = results['args']['docs'][0]
 		for group in user.groups:
-			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':group}})
+			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':group}})
 			group = group_results['args']['docs'][0]
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
@@ -155,7 +155,7 @@ class User(BaseModule):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':doc['group']}, '$limit':1})
+		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':doc['group']}, '$limit':1})
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -163,7 +163,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={**query, '$limit':1})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={**query, '$limit':1})
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -180,14 +180,14 @@ class User(BaseModule):
 			}
 		user.groups.append(doc['group'])
 		# [DOC] Update the user
-		results = self.methods['update'](skip_events=[Event.__PERM__], session=session, query=query, doc={'groups':user.groups})
+		results = self.methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={'groups':user.groups})
 		return results
 	
 	def delete_group(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':doc['group']}, '$limit':1})
+		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':doc['group']}, '$limit':1})
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -195,7 +195,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={**query, '$limit':1})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={**query, '$limit':1})
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -212,7 +212,7 @@ class User(BaseModule):
 			}
 		user.groups = [group for group in user.groups if str(group) != str(doc['group'])]
 		# [DOC] Update the user
-		results = self.methods['update'](skip_events=[Event.__PERM__], session=session, query=query, doc={'groups':user.groups})
+		results = self.methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={'groups':user.groups})
 		return results
 
 class Group(BaseModule):
@@ -242,7 +242,7 @@ class Group(BaseModule):
 		}
 	}
 
-	def pre_create(self, session, query, doc):
+	def pre_create(self, env, session, query, doc):
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
-		return (session, query, doc)
+		return (env, session, query, doc)

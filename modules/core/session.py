@@ -52,14 +52,14 @@ class Session(BaseModule):
 		if 'username' in doc.keys(): key = 'username'
 		elif 'phone' in doc.keys(): key = 'phone'
 		elif 'email' in doc.keys(): key = 'email'
-		results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query={key:{'val':doc[key]}, '{}_hash'.format(key):{'val':doc['hash']}, '$limit':1})
+		results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={key:{'val':doc[key]}, '{}_hash'.format(key):{'val':doc['hash']}, '$limit':1})
 		if not results['args']['count']:
 			return {
 				'status':403,
 				'msg':'Wrong auth credentials.',
 				'args':{'code':'CORE_SESSION_INVALID_CREDS'}
 			}
-		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]}})
+		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0]}})
 		#logger.debug('auth success')
 		token = secrets.token_urlsafe(32)
 		session = {
@@ -71,12 +71,12 @@ class Session(BaseModule):
 			'token':token
 		}
 		# logger.debug('creating session:%s', session)
-		results = self.methods['create'](skip_events=[Event.__PERM__, Event.__SOFT__], session=session, doc=session)
+		results = self.methods['create'](skip_events=[Event.__PERM__, Event.__SOFT__], env=env, session=session, doc=session)
 		# results['args']['docs'][0]._attrs().update(session)
 		# logger.debug('session_results: %s', results)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,
@@ -91,7 +91,7 @@ class Session(BaseModule):
 				'msg':'Reauth is not required for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_REAUTH'}
 			}
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id']['val']}})
 		if not results['args']['count']:
 			return {
 				'status':403,
@@ -106,17 +106,17 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_INVALID_REAUTH_HASH'}
 			}
 		if results['args']['docs'][0].expiry < datetime.datetime.fromtimestamp(time.time()):
-			results = self.methods['delete'](skip_events=[Event.__PERM__, Event.__SOFT__], session=session, query={'_id':{'val':session._id}})
+			results = self.methods['delete'](skip_events=[Event.__PERM__, Event.__SOFT__], env=env, session=session, query={'_id':{'val':session._id}})
 			return {
 				'status':403,
 				'msg':'Session had expired.',
 				'args':{'code':'CORE_SESSION_SESSION_EXPIRED'}
 			}
 		# [DOC] update user's last_login timestamp
-		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user}}, doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
-		self.methods['update'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0]._id}}, doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
+		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0].user}}, doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
+		self.methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0]._id}}, doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 		return {
 			'status':200,
@@ -131,7 +131,7 @@ class Session(BaseModule):
 				'msg':'Singout is not allowed for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_SIGNOUT'}
 			}
-		results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':query['_id']['val']}})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id']['val']}})
 		#logger.debug('session find results: %s.', results)
 		if not results['args']['count']:
 			return {
@@ -139,7 +139,7 @@ class Session(BaseModule):
 				'msg':'Session is invalid.',
 				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
 			}
-		results = self.methods['delete'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':session._id}})
+		results = self.methods['delete'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':session._id}})
 		print('session/signout:', results)
 		return {
 			'status':200,

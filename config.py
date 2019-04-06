@@ -52,13 +52,16 @@ class Config:
 				os.makedirs(os.path.join(__location__, 'certs'))
 			with open(os.path.join(__location__, 'certs', self.data_ca_name), 'w') as f:
 				f.write(self.data_ca)
+		
+		from data import Data
+		conn = Data.create_conn()
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000010'}})
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, query={'_id':{'val':'f00000000000000000000010'}})
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
-			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
+			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, doc={
 				'_id': ObjectId('f00000000000000000000010'),
 				'username': self.admin_username,
 				'email': self.admin_email,
@@ -84,26 +87,26 @@ class Config:
 			})
 			logger.debug('ADMIN user creation results: %s', admin_results)
 
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000011'}})
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, query={'_id':{'val':'f00000000000000000000011'}})
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
-			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=self.compile_anon_user())
+			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000012'}})
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, query={'_id':{'val':'f00000000000000000000012'}})
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=self.compile_anon_session())
+			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':'f00000000000000000000013'}})
+		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, query={'_id':{'val':'f00000000000000000000013'}})
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
-			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc={
+			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, doc={
 				'_id': ObjectId('f00000000000000000000013'),
 				'user': ObjectId('f00000000000000000000010'),
 				'name': {
@@ -120,23 +123,22 @@ class Config:
 		logger.debug('Testing app-specific groups collection.')
 		# [DOC] test app-specific groups
 		for group in self.groups:
-			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], query={'_id':{'val':group['_id']}})
+			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, query={'_id':{'val':group['_id']}})
 			if not group_results.args.count:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
-				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], doc=group)
+				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env={'conn':conn}, doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
 		
 		logger.debug('Testing data indexes')
-		from data import Data
 		for index in self.data_indexes:
 			logger.debug('Attempting to create data index: %s', index)
-			Data.driver.db[index['collection']].create_index(index['index'])
+			conn[index['collection']].create_index(index['index'])
 
 		logger.debug('Testing docs.')
 		for doc in self.docs:
-			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], query={'_id':{'val':doc['doc']['_id']}})
+			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env={'conn':conn}, query={'_id':{'val':doc['doc']['_id']}})
 			if not doc_results.args.count:
-				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], doc=doc['doc'])
+				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], env={'conn':conn}, doc=doc['doc'])
 	
 	@classmethod
 	def compile_anon_user(self):

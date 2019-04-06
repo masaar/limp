@@ -55,22 +55,22 @@ class BaseModule(metaclass=ClassSingleton):
 		# for tax in self.taxs:
 		# 	pass
 
-	def pre_read(self, session, query, doc):
-		return (session, query, doc)
-	def on_read(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def pre_read(self, env, session, query, doc):
+		return (env, session, query, doc)
+	def on_read(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if self.use_template:
-			session, query, doc = getattr(BaseTemplate, '{}_pre_read'.format(self.template))(session=session, query=query, doc=doc)
+			env, session, query, doc = getattr(BaseTemplate, '{}_pre_read'.format(self.template))(env=env, session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
-			# session, query, doc = self.pre_read(session=session, query=query, doc=doc)
-			pre_read = self.pre_read(session=session, query=query, doc=doc)
+			# env, session, query, doc = self.pre_read(env=env, session=session, query=query, doc=doc)
+			pre_read = self.pre_read(env=env, session=session, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
-			session, query, doc = pre_read
+			env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
-			results = Data.read(collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		else:
-			results = Data.read(collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Remove all 'bin', 'file' vals from all the docs, if any
 			# if 'bin' in self.attrs.values() or 'file' in self.attrs.values() or ['bin'] in self.attrs.values():
@@ -96,9 +96,9 @@ class BaseModule(metaclass=ClassSingleton):
 			# 				for attr in self.attrs.keys():
 			# 					if self.attrs[attr] == ['file'] and attr in results['docs'][i]['diff'][ii]['vars'].keys():
 			# 						results['docs'][i]['diff'][ii]['vars'][attr] = None
-			results, session, query, doc = self.on_read(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = self.on_read(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
-			results, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		# [DOC] Check if full diff log is requested.
 		if 'diff' in self.attrs.keys():
 			if Event.__DIFF__ not in skip_events:
@@ -109,7 +109,7 @@ class BaseModule(metaclass=ClassSingleton):
 						if 'user' not in diff.keys():
 							diff['user'] = ObjectId('f00000000000000000000011')
 						if diff['user'] not in users.keys():
-							user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query={'_id':{'val':diff['user']}, '$extn':False})
+							user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={'_id':{'val':diff['user']}, '$extn':False})
 							users[diff['user']] = user_results.args.docs[0]
 						diff['user'] = users[diff['user']]
 					# except Exception:
@@ -128,17 +128,17 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_create(self, session, query, doc):
-		return (session, query, doc)
-	def on_create(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def pre_create(self, env, session, query, doc):
+		return (env, session, query, doc)
+	def on_create(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if self.use_template:
-			session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(session=session, query=query, doc=doc)
+			env, session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(env=env, session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
-			pre_create = self.pre_create(session=session, query=query, doc=doc)
+			pre_create = self.pre_create(env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
-			session, query, doc = pre_create
+			env, session, query, doc = pre_create
 		# [TODO]: validate data
 		# [DOC] Deleted all extra doc args
 		del_args = []
@@ -223,14 +223,14 @@ class BaseModule(metaclass=ClassSingleton):
 					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
 					'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
 				}
-		results = Data.create(collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
+		results = Data.create(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
-			results, session, query, doc = self.on_create(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = self.on_create(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
-			results, session, query, doc = getattr(BaseTemplate, '{}_on_create'.format(self.template))(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_create'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
-			results = self.methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
+			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
 			results = results['args']
 		# [DOC] Call method events
 		# module_name = self.__module__.replace('modules.', '').split('.')[1]
@@ -247,10 +247,10 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_update(self, session, query, doc):
-		return (session, query, doc)
-	def on_update(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def pre_update(self, env, session, query, doc):
+		return (env, session, query, doc)
+	def on_update(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	def update(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm _id is valid
 		# [BAK] {**query, '$limit':1}
@@ -261,13 +261,13 @@ class BaseModule(metaclass=ClassSingleton):
 		# 		'msg':'Document is invalid.',
 		# 		'args':{'code':'{}_{}_INVALID_DOC'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
 		# 	}
-		# if Event.__PRE__ not in skip_events: session, query, doc = self.pre_update(session=session, query=query, doc=doc)
+		# if Event.__PRE__ not in skip_events: env, session, query, doc = self.pre_update(env=env, session=session, query=query, doc=doc)
 		if self.use_template:
-			session, query, doc = getattr(BaseTemplate, '{}_pre_update'.format(self.template))(session=session, query=query, doc=doc)
+			env, session, query, doc = getattr(BaseTemplate, '{}_pre_update'.format(self.template))(env=env, session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
-			pre_update = self.pre_update(session=session, query=query, doc=doc)
+			pre_update = self.pre_update(env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
-			session, query, doc = pre_update
+			env, session, query, doc = pre_update
 		# [TODO] validate data
 		for attr in self.attrs.keys():
 			if attr not in doc.keys(): continue
@@ -339,12 +339,12 @@ class BaseModule(metaclass=ClassSingleton):
 			# user = session_results.args.docs[0].user
 			doc['diff'] = {'user':session.user, 'time':datetime.datetime.fromtimestamp(time.time()), 'vars':{}}
 		#logger.debug('attempting to update documents matching query:%s, with doc:%s', query, doc)
-		results = Data.update(collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
-		# if Event.__ON__ not in skip_events: results, session, query, doc = self.on_update(results=results, session=session, query=query, doc=doc)
+		results = Data.update(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
+		# if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if Event.__ON__ not in skip_events:
-			results, session, query, doc = self.on_update(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
-			results, session, query, doc = getattr(BaseTemplate, '{}_on_update'.format(self.template))(results=results, session=session, query=query, doc=doc)
+			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_update'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		#logger.debug('docs update results: %s.', results)
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
@@ -357,17 +357,17 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_delete(self, session, query, doc):
-		return (session, query, doc)
-	def on_delete(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def pre_delete(self, env, session, query, doc):
+		return (env, session, query, doc)
+	def on_delete(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	def delete(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [TODO] refactor for template use
-		if Event.__PRE__ not in skip_events: session, query, doc = self.pre_delete(session=session, query=query, doc=doc)
+		if Event.__PRE__ not in skip_events: env, session, query, doc = self.pre_delete(env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] delete soft action is to just flag the doc as deleted, without force removing it from db.
-		results = Data.delete(collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
-		if Event.__ON__ not in skip_events: results, session, query, doc = self.on_delete(results=results, session=session, query=query, doc=doc)
+		results = Data.delete(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
+		if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_delete(results=results, env=env, session=session, query=query, doc=doc)
 		return {
 			'status':200,
 			'msg':'Deleted {} docs.'.format(results['count']),
@@ -377,7 +377,7 @@ class BaseModule(metaclass=ClassSingleton):
 	def retrieve_file(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		attr, filename = query['var']['val'].split(';')
 		del query['var']
-		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query=query)
+		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query=query)
 		if not results['args']['count']:
 			return {
 				'status': 404,
@@ -489,59 +489,59 @@ class BaseTemplate:
 	
 	# content method:
 	@classmethod
-	def content_pre_read(self, session, query, doc):
-		return (session, query, doc)
+	def content_pre_read(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_on_read(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_on_read(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_pre_create(self, session, query, doc):
+	def content_pre_create(self, env, session, query, doc):
 		if 'subtitle' not in doc.keys(): doc['subtitle'] = {locale:'' for locale in Config.locales}
 		if 'permalink' not in doc.keys(): doc['permalink'] = re.sub(r'\s+', '-', re.sub(r'[^\s\-\w]', '', doc['title'][Config.locale]))
 		if 'tags' not in doc.keys(): doc['tags'] = []
 		if 'cat' not in doc.keys(): doc['cat'] = False
-		return (session, query, doc)
+		return (env, session, query, doc)
 	@classmethod
-	def content_on_create(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_on_create(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_pre_update(self, session, query, doc):
-		return (session, query, doc)
+	def content_pre_update(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_on_update(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_on_update(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_pre_delete(self, session, query, doc):
-		return (session, query, doc)
+	def content_pre_delete(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_on_delete(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_on_delete(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 
 	# cat methods:
 	@classmethod
-	def content_cat_pre_read(self, session, query, doc):
-		return (session, query, doc)
+	def content_cat_pre_read(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_cat_on_read(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_cat_on_read(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_cat_pre_create(self, session, query, doc):
-		return (session, query, doc)
+	def content_cat_pre_create(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_cat_on_create(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_cat_on_create(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_cat_pre_update(self, session, query, doc):
-		return (session, query, doc)
+	def content_cat_pre_update(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_cat_on_update(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_cat_on_update(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 	@classmethod
-	def content_cat_pre_delete(self, session, query, doc):
-		return (session, query, doc)
+	def content_cat_pre_delete(self, env, session, query, doc):
+		return (env, session, query, doc)
 	@classmethod
-	def content_cat_on_delete(self, results, session, query, doc):
-		return (results, session, query, doc)
+	def content_cat_on_delete(self, results, env, session, query, doc):
+		return (results, env, session, query, doc)
 
 class BaseMethod:
 
@@ -591,6 +591,8 @@ class BaseMethod:
 
 	# def __call__(self, check_permissions=True, skip_events=None, env={}, args={}):
 	def __call__(self, skip_events=[], env={}, session=None, query={}, doc={}):
+		if 'conn' not in env.keys():
+			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, session, query, doc.keys())
 		
 		test_query = self.test_args('query', query)
@@ -645,7 +647,7 @@ class BaseMethod:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		else:
 			try:
-				# #logger.debug('2. calling: %s.%s, with sid:%s, query:%s, doc:%s. skip_events:%s.', self.module, self.method, session, query, doc, skip_events)
+				# #logger.debug('2. calling: %s.%s, with sid:%s, query:%s, doc:%s. skip_events:%s.', self.module, self.method, env, session, query, doc, skip_events)
 				results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			except Exception as e:
 				logger.error('An error occured. Details: %s.', traceback.format_exc())

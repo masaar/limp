@@ -7,6 +7,7 @@ from bson import ObjectId
 from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj
 from base_module import Event
 from config import Config
+from data import Data
 
 import traceback, jwt, argparse, json, re, signal, urllib.parse, os, datetime
 
@@ -101,13 +102,16 @@ async def http_handler(request):
 
 async def websocket_handler(request):
 	files = {}
+	conn = Data.create_conn()
 	try:
 		env = {
+			'conn':conn,
 			'REMOTE_ADDR':request.remote,
 			'HTTP_USER_AGENT':request.headers['User-Agent']
 		}
 	except:
 		env = {
+			'conn':conn,
 			'REMOTE_ADDR':request.remote,
 			'HTTP_USER_AGENT':''
 		}
