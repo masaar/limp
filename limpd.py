@@ -81,8 +81,9 @@ async def http_handler(request):
 	if module in modules.keys() and \
 	method in modules[module].methods.keys() and \
 	modules[module].methods[method].get_method:
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__], query={'_id':{'val':ObjectId('f00000000000000000000012')}})
-		results = modules[module].methods[method](skip_events=[Event.__PERM__], session=session_results.args.docs[0], query={'_id':{'val':_id}, 'var':{'val':var}})
+		conn = Data.create_conn()
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__], env={'conn':conn}, query={'_id':{'val':ObjectId('f00000000000000000000012')}})
+		results = modules[module].methods[method](skip_events=[Event.__PERM__], env={'conn':conn}, session=session_results.args.docs[0], query={'_id':{'val':_id}, 'var':{'val':var}})
 		if results['status'] == 404:
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
 			return JSONEncoder().encode({'status':404, 'msg':'Requested content not found.'}).encode('utf-8')
