@@ -595,11 +595,12 @@ class BaseMethod:
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, session, query, doc.keys())
 		
-		test_query = self.test_args('query', query)
-		if test_query != True: return test_query
-	
-		test_doc = self.test_args('doc', doc)
-		if test_doc != True: return test_doc
+		if Event.__ARGS__ not in skip_events:
+			test_query = self.test_args('query', query)
+			if test_query != True: return test_query
+		
+			test_doc = self.test_args('doc', doc)
+			if test_doc != True: return test_doc
 		
 		# if self.requires_id and '_id' not in args.keys():
 		# 	return {
