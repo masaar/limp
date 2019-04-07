@@ -133,6 +133,7 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_create(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
+		logger.debug('create method, session: %s', session)
 		if self.use_template:
 			env, session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(env=env, session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
@@ -147,9 +148,10 @@ class BaseModule(metaclass=ClassSingleton):
 				del_args.append(arg)
 		for arg in del_args:
 			del doc[arg]
+		logger.debug('create method, session: %s', session)
 		# [DOC] Append host_add, user_agent, create_time, diff if it's present in attrs.
 		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session:
-			doc['user'] = session.user
+			doc['user'] = session.user._id
 		if 'create_time' in self.attrs.keys():
 			doc['create_time'] = datetime.datetime.fromtimestamp(time.time())
 		if 'diff' in self.attrs.keys():
@@ -217,7 +219,7 @@ class BaseModule(metaclass=ClassSingleton):
 					}
 			# [DOC] Pass value to validator
 			if doc[attr] != None and not validate_attr(doc[attr], self.attrs[attr]):
-				# #logger.debug('attr `%s`, `%s` of type `%s` does not match required type.', attr, args[attr], type(args[attr]))
+				logger.debug('attr `%s`, `%s` of type `%s` does not match required type.', attr, doc[attr], type(self.attrs[attr]))
 				return {
 					'status':400,
 					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
