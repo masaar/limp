@@ -1,6 +1,8 @@
 from bson import ObjectId
 from event import Event
 
+from pymongo.collection import Collection
+
 import os, jwt, logging, datetime
 
 logger = logging.getLogger('limp')
@@ -15,6 +17,8 @@ class Config:
 	data_ssl = False
 	data_ca_name = None
 	data_ca = None
+
+	data_azure_mongo = False
 
 	sms_auth = {}
 
@@ -55,6 +59,13 @@ class Config:
 		
 		from data import Data
 		conn = Data.create_conn()
+
+		if self.data_azure_mongo:
+			for module in modules:
+				try:
+					conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+				except Exception as err:
+					logger.error(err)
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
