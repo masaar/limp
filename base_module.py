@@ -26,6 +26,7 @@ class BaseModule(metaclass=ClassSingleton):
 
 	def singleton(self):
 		if not getattr(self, 'attrs', False): self.attrs = {}
+		if not getattr(self, 'diff', False): self.diff = False
 		if not getattr(self, 'optional_attrs', False): self.optional_attrs = []
 		if not getattr(self, 'methods', False): self.methods = {}
 		if self.use_template:
@@ -72,30 +73,6 @@ class BaseModule(metaclass=ClassSingleton):
 		else:
 			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
-			# [DOC] Remove all 'bin', 'file' vals from all the docs, if any
-			# if 'bin' in self.attrs.values() or 'file' in self.attrs.values() or ['bin'] in self.attrs.values():
-			# 	for i in range(0, results['docs'].__len__()):
-			# 		for attr in self.attrs.keys():
-			# 			if self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']:
-			# 				results['docs'][i][attr] = True if results['docs'][i][attr] else False
-			# 		# [DOC] Remove any 'bin', 'file' diff val, if any 
-			# 		if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
-			# 			for ii in range(0, results['docs'][i]['diff'].__len__()):
-			# 				for attr in self.attrs.keys():
-			# 					if (self.attrs[attr] == 'bin' or self.attrs[attr] == 'file' or self.attrs[attr] == ['bin']) and attr in results['docs'][i]['diff'][ii]['vars'].keys():
-			# 						results['docs'][i]['diff'][ii]['vars'][attr] = None
-			# if ['file'] in self.attrs.values():
-			# 	for i in range(0, results['docs'].__len__()):
-			# 		for attr in self.attrs.keys():
-			# 			if self.attrs[attr] == ['file'] and attr in results['docs'][i]._attrs().keys() and type(results['docs'][i][attr]) == list:
-			# 				for file in results['docs'][i][attr]:
-			# 					del file['content']
-			# 		# [DOC] Remove any 'bin', 'file' diff val, if any 
-			# 		if 'diff' in self.attrs.keys() and type(results['docs'][i]['diff']) == list:
-			# 			for ii in range(0, results['docs'][i]['diff'].__len__()):
-			# 				for attr in self.attrs.keys():
-			# 					if self.attrs[attr] == ['file'] and attr in results['docs'][i]['diff'][ii]['vars'].keys():
-			# 						results['docs'][i]['diff'][ii]['vars'][attr] = None
 			results, env, session, query, doc = self.on_read(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
@@ -336,10 +313,10 @@ class BaseModule(metaclass=ClassSingleton):
 				'args':{}
 			}
 		# [DOC] If doc has diff attribute, use it
-		if 'diff' in self.attrs.keys():
-			# session_results = self.modules['session'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':sid}, '$extn':False})
-			# user = session_results.args.docs[0].user
-			doc['diff'] = {'user':session.user, 'time':datetime.datetime.fromtimestamp(time.time()), 'vars':{}}
+		# if 'diff' in self.attrs.keys():
+		# 	# session_results = self.modules['session'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':sid}, '$extn':False})
+		# 	# user = session_results.args.docs[0].user
+		# 	doc['diff'] = {'user':session.user, 'time':datetime.datetime.fromtimestamp(time.time()), 'vars':{}}
 		#logger.debug('attempting to update documents matching query:%s, with doc:%s', query, doc)
 		results = Data.update(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
 		# if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
@@ -347,6 +324,15 @@ class BaseModule(metaclass=ClassSingleton):
 			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_update'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
+		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
+		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
+			diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
+				'module':self.module_name,
+				'vars':doc
+			})
+			logger.debug('diff results: %s', diff_results)
+		else:
+			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
 		#logger.debug('docs update results: %s.', results)
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
@@ -643,8 +629,8 @@ class BaseMethod:
 		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
 		# 1/0
 		# [DOC] check if $diff oper is set to add it to events
-		if '$diff' not in query.keys() or query['$diff'] != True:
-			skip_events.append(Event.__DIFF__)
+		# if '$diff' not in query.keys() or query['$diff'] != True:
+		# 	skip_events.append(Event.__DIFF__)
 
 		if Config.debug:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)

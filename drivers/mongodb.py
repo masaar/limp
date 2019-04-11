@@ -336,30 +336,30 @@ class MongoDb(metaclass=ClassSingleton):
 		# [DOC] Perform update query on matching docs
 		collection = conn[collection]
 		results = None
-		if 'diff' not in doc.keys():
+		# if 'diff' not in doc.keys():
 			# #logger.debug('attempting to update docs:%s with values:%s', docs, doc)
-			results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
-			update_count = results.modified_count
-		else:
-			update_count = 0
-			diff = doc['diff']
-			del doc['diff']
-			# update_results = []
-			for update_doc in read_results['docs']:
-				# #logger.debug('final update object: %s.', {'$set':doc, '$push':{'diff':diff}})
-				shadow_doc = {attr:doc[attr] for attr in doc.keys() if doc[attr] != update_doc[attr] and attr != 'diff'}
-				# print(update_doc, shadow_doc)
-				# [DOC] Some mass update queries end up with no docs, skip them.
-				if shadow_doc.keys().__len__() == 0:
-					continue
-				diff['vars'] = {attr:update_doc[attr] for attr in shadow_doc.keys()}
-				if type(diff['user']) == BaseModel or type(diff['user']) == DictObj:
-					diff['user'] = diff['user']._id
-				# #logger.debug('shadow_doc: %s.', shadow_doc)
-				logger.debug('attempting to update doc:%s with values:%s, and diff:%s', update_doc._id, shadow_doc, diff)
-				# update_results.append(
-				results = collection.update_one({'_id':update_doc._id}, {'$set':shadow_doc, '$push':{'diff':diff}})
-				update_count += results.modified_count
+		results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
+		update_count = results.modified_count
+		# else:
+		# 	update_count = 0
+		# 	diff = doc['diff']
+		# 	del doc['diff']
+		# 	# update_results = []
+		# 	for update_doc in read_results['docs']:
+		# 		# #logger.debug('final update object: %s.', {'$set':doc, '$push':{'diff':diff}})
+		# 		shadow_doc = {attr:doc[attr] for attr in doc.keys() if doc[attr] != update_doc[attr] and attr != 'diff'}
+		# 		# print(update_doc, shadow_doc)
+		# 		# [DOC] Some mass update queries end up with no docs, skip them.
+		# 		if shadow_doc.keys().__len__() == 0:
+		# 			continue
+		# 		diff['vars'] = {attr:update_doc[attr] for attr in shadow_doc.keys()}
+		# 		if type(diff['user']) == BaseModel or type(diff['user']) == DictObj:
+		# 			diff['user'] = diff['user']._id
+		# 		# #logger.debug('shadow_doc: %s.', shadow_doc)
+		# 		logger.debug('attempting to update doc:%s with values:%s, and diff:%s', update_doc._id, shadow_doc, diff)
+		# 		# update_results.append(
+		# 		results = collection.update_one({'_id':update_doc._id}, {'$set':shadow_doc, '$push':{'diff':diff}})
+		# 		update_count += results.modified_count
 				# )
 		# 1/0
 			# results = update_results[0]
