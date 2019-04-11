@@ -70,6 +70,11 @@ class BaseModule(metaclass=ClassSingleton):
 			env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
 			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		elif '$extn' in query.keys() and type(query['$extn']) == dict:
+			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={
+				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn'].keys() and query['$extn'][extn] == True
+			}, modules=self.modules, query=query)
+			del query['$extn']
 		else:
 			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
@@ -77,23 +82,23 @@ class BaseModule(metaclass=ClassSingleton):
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		# [DOC] Check if full diff log is requested.
-		if 'diff' in self.attrs.keys():
-			if Event.__DIFF__ not in skip_events:
-				users = {}
-				for doc in results['docs']:
-					# try:
-					for diff in doc['diff']:
-						if 'user' not in diff.keys():
-							diff['user'] = ObjectId('f00000000000000000000011')
-						if diff['user'] not in users.keys():
-							user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={'_id':{'val':diff['user']}, '$extn':False})
-							users[diff['user']] = user_results.args.docs[0]
-						diff['user'] = users[diff['user']]
-					# except Exception:
-					# 	pass
-			else:
-				for doc in results['docs']:
-					doc['diff'] = []
+		# if 'diff' in self.attrs.keys():
+		# 	if Event.__DIFF__ not in skip_events:
+		# 		users = {}
+		# 		for doc in results['docs']:
+		# 			# try:
+		# 			for diff in doc['diff']:
+		# 				if 'user' not in diff.keys():
+		# 					diff['user'] = ObjectId('f00000000000000000000011')
+		# 				if diff['user'] not in users.keys():
+		# 					user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={'_id':{'val':diff['user']}, '$extn':False})
+		# 					users[diff['user']] = user_results.args.docs[0]
+		# 				diff['user'] = users[diff['user']]
+		# 			# except Exception:
+		# 			# 	pass
+		# 	else:
+		# 		for doc in results['docs']:
+		# 			doc['diff'] = []
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
 			# [DOC] Call method events
