@@ -547,14 +547,19 @@ class BaseMethod:
 		self.get_method = get_method
 	
 	def test_args(self, args_list, args):
+		arg_list_label = args_list
 		if args_list == 'query':
 			args_list = self.query_args
 		elif args_list == 'doc':
 			args_list = self.doc_args
 
 		for arg in args_list:
+
 			if arg[0] == '!':
-				if arg[1:] not in args.keys():
+				if arg[1:] not in args.keys() \
+				and (arg_list_label != 'query' or \
+				(arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] != None and args[arg[1:]]['val'] != '') \
+				or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] != None and args[arg[1:]] != ''))):
 					return DictObj({
 						'status':400,
 						'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(arg[1:], *self.__module__.replace('modules.', '').upper().split('.'), 'MODULE'),
@@ -565,7 +570,10 @@ class BaseMethod:
 		for arg in args_list:
 			#logger.debug('checking optional_query_arg:%s', arg)
 			if arg[0] == '^':
-				if arg[1:] in args.keys():
+				if arg[1:] in args.keys() \
+				and (arg_list_label != 'query' or \
+				(arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] != None and args[arg[1:]]['val'] != '') \
+				or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] != None and args[arg[1:]] != ''))):
 					optional_args = True
 					break
 				else:
@@ -587,13 +595,6 @@ class BaseMethod:
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, session, query, doc.keys())
-		
-		if Event.__ARGS__ not in skip_events:
-			test_query = self.test_args('query', query)
-			if test_query != True: return test_query
-		
-			test_doc = self.test_args('doc', doc)
-			if test_doc != True: return test_doc
 		
 		# if self.requires_id and '_id' not in args.keys():
 		# 	return {
@@ -620,6 +621,13 @@ class BaseMethod:
 				query.update(permissions_check['query'])
 				doc.update(permissions_check['doc'])
 				# #logger.debug('new query, doc: %s, %s.', query, doc)
+	
+		if Event.__ARGS__ not in skip_events:
+			test_query = self.test_args('query', query)
+			if test_query != True: return test_query
+		
+			test_doc = self.test_args('doc', doc)
+			if test_doc != True: return test_doc
 
 		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
 		# [DOC] check if $soft oper is set to add it to events

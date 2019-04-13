@@ -91,7 +91,7 @@ class MongoDb(metaclass=ClassSingleton):
 
 			if arg.find('.') != -1 and arg.split('.')[0] in extns.keys():
 				extn, arg = arg.split('.')
-				if extn not in attrs.keys() or 'val' not in query[query_arg].keys() or not query[query_arg]['val']: continue
+				if extn not in attrs.keys() or 'val' not in query[query_arg].keys() or (query[query_arg]['val'] == None or query[query_arg]['val'] == ''): continue
 				arg_collection = modules[extns[extn][0]].collection
 				arg_attrs = modules[extns[extn][0]].attrs
 				aggregate_query.append({'$lookup':{'from':arg_collection, 'localField':extn, 'foreignField':'_id', 'as':extn}})
@@ -107,7 +107,7 @@ class MongoDb(metaclass=ClassSingleton):
 				child_arg = '.' + child_arg
 
 			else:
-				if type(query[query_arg]) != dict or (arg != '_id' and arg not in attrs.keys()) or 'val' not in query[query_arg].keys() or not query[query_arg]['val']: continue
+				if type(query[query_arg]) != dict or (arg != '_id' and arg not in attrs.keys()) or 'val' not in query[query_arg].keys() or (query[query_arg]['val'] == None or query[query_arg]['val'] == ''): continue
 				arg_collection = collection
 				arg_attrs = attrs
 				extn = ''
