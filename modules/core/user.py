@@ -122,7 +122,9 @@ class User(BaseModule):
 					'msg':'Updating user attrs can be done only to individual users.',
 					'args':{'code':'CORE_USER_MULTI_ATTRS_UPDATE'}
 				}
-			results['args']['docs'][0]['attrs'].update(doc['attrs'])
+			results['args']['docs'][0]['attrs'].update(
+				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
+			)
 			doc['attrs'] = results['args']['docs'][0]['attrs']
 		return (env, session, query, doc)
 	

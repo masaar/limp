@@ -79,6 +79,12 @@ class BaseModule(metaclass=ClassSingleton):
 			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_read(results=results, env=env, session=session, query=query, doc=doc)
+			# [DOC] if $attrs query arg is present return only required keys.
+			if '$attrs' in query.keys():
+				query['$attrs'].insert(0, '_id')
+				for i in range(0, results['docs'].__len__()):
+					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
+
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		# [DOC] Check if full diff log is requested.
