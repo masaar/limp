@@ -600,7 +600,7 @@ class BaseMethod:
 	def __call__(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
-		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, session, query, doc.keys())
+		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 		
 		# if self.requires_id and '_id' not in args.keys():
 		# 	return {
@@ -634,6 +634,15 @@ class BaseMethod:
 		
 			test_doc = self.test_args('doc', doc)
 			if test_doc != True: return test_doc
+				
+		# [DOC] Convert any BaseModel object in query or docs to ObjectId
+		for arg in query.keys():
+			if type(query[arg]) == dict and 'val' in query[arg].keys() and type(query[arg]['val']) == BaseModel:
+				query[arg]['val'] = query[arg]['val']._id
+		for arg in doc.keys():
+			if type(doc[arg]) == BaseModel:
+				doc[arg] = doc[arg]._id
+
 
 		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
 		# [DOC] check if $soft oper is set to add it to events
