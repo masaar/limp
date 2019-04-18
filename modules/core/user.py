@@ -27,7 +27,7 @@ class User(BaseModule):
 		'status':('active', 'banned', 'deleted', 'disabled_password'),
 		'attrs':'attrs'
 	}
-	optional_attrs = ['website', 'login_time', 'status', 'attrs']
+	optional_attrs = ['website', 'locale', 'login_time', 'status', 'attrs']
 	extns = {
 		# 'groups': ['group', ['*']]
 	}
