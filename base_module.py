@@ -207,7 +207,7 @@ class BaseModule(metaclass=ClassSingleton):
 					}
 			# [DOC] Pass value to validator
 			if doc[attr] != None and not validate_attr(doc[attr], self.attrs[attr]):
-				logger.debug('attr `%s`, `%s` of type `%s` does not match required type.', attr, doc[attr], type(self.attrs[attr]))
+				logger.debug('attr `%s`, value `%s` does not match required type `%s`.', attr, doc[attr], self.attrs[attr])
 				return {
 					'status':400,
 					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),

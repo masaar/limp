@@ -16,7 +16,7 @@ class User(BaseModule):
 		'postal_code':'str',
 		'phone':'phone',
 		'website':'uri:web',
-		'locale':tuple(locale for locale in Config.locales),
+		'locale':'locales',
 		'create_time':'time',
 		'login_time':'time',
 		'groups':['id'],

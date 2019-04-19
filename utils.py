@@ -183,9 +183,10 @@ def validate_attr(attr, attr_type):
 	elif type(attr_type) == str and attr_type == 'locale':
 		if type(attr) != dict: return False
 		for locale in attr.keys():
-			print('checking:', locale)
 			if locale not in Config.locales:
 				return False
+	elif type(attr_type) == str and attr_type == 'locales':
+		return attr in Config.locales
 	return True
 
 def call_event(event, query, context_module, user_module, notification_module):
