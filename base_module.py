@@ -386,9 +386,13 @@ class BaseModule(metaclass=ClassSingleton):
 				}
 			}
 		doc = results['args']['docs'][0]
-		if attr not in doc.keys():
+		if attr not in doc._attrs():
 			return {
-				'status': 404
+				'status': 404,
+				'msg': 'File not found.',
+				'args': {
+					'code': '404 NOT FOUND'
+				}
 			}
 		if type(doc[attr]) == list:
 			for file in doc[attr]:
