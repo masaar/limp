@@ -338,8 +338,15 @@ class MongoDb(metaclass=ClassSingleton):
 		results = None
 		# if 'diff' not in doc.keys():
 			# #logger.debug('attempting to update docs:%s with values:%s', docs, doc)
-		results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
-		update_count = results.modified_count
+		# [DOC] If using Azure Mongo service update docs one by one
+		if Config.data_azure_mongo:
+			update_count = 0
+			for _id in docs:
+				results = collection.update_one({'_id':_id}, {'$set':doc})
+				update_count += results.modified_count
+		else:
+			results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
+			update_count = results.modified_count
 		# else:
 		# 	update_count = 0
 		# 	diff = doc['diff']
@@ -390,10 +397,17 @@ class MongoDb(metaclass=ClassSingleton):
 			#logger.debug('attempting to delete docs:%s', docs)
 			# [DOC] Perform update query on matching docs
 			collection = conn[collection]
-			results = collection.delete_many({'_id':{'$in':docs}})
+			if Config.data_azure_mongo:
+				delete_count = 0
+				for _id in docs:
+					results = collection.delete_one({'_id':_id})
+					delete_count += results.deleted_count
+			else:
+				results = collection.delete_many({'_id':{'$in':docs}})
+				delete_count = results.deleted_count
 			#logger.debug('delete results: %s', results)
 			return {
-				'count':results.deleted_count,
+				'count':delete_count,
 				'docs':docs
 			}
 

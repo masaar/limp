@@ -39,7 +39,11 @@ class DictObj:
 	def __getattr__(self, attr):
 		return self.__attrs[attr]
 	def __getitem__(self, attr):
-		return self.__attrs[attr]
+		try:
+			return self.__attrs[attr]
+		except Exception as e:
+			logger.debug('Unable to __getitem__ %s of %s.', attr, self._attrs())
+			raise e
 	def __setitem__(self, attr, val):
 		self.__attrs[attr] = val
 	def __delitem__(self, attr):
