@@ -150,21 +150,34 @@ class Session(BaseModule):
 	def check_permissions(self, session, module, permissions):
 		module = module.module_name
 		user = session.user
-		# [DOC] If has global privileges '*' redefine it to module name
-		if '*' in user.privileges.keys() and module not in user.privileges.keys():
-			user.privileges[module] = user.privileges['*']
-		if module in user.privileges.keys():
-			if user.privileges[module] == '*':
-				user.privileges[module] = self.privileges
-			if type(user.privileges[module]) == list and '*' in user.privileges[module]:
-				user.privileges[module] += self.privileges
-		if module not in user.privileges.keys(): user.privileges[module] = []
 
 		for permission in permissions:
 			logger.debug('checking permission: %s against: %s', permission, user.privileges)
-			if permission[0] == '*' \
-			or (permission[0].startswith('__NOT:') and permission[0].replace('__NOT:', '') not in user.privileges[module]) \
-			or permission[0] in user.privileges[module]:
+			permission_pass = False
+			if permission[0] == '*':
+				permission_pass = True
+			
+			if not permission_pass:
+				if permission[0].find('.') == -1:
+					permission_module = module
+					permission_attr = permission[0]
+				elif permission[0].find('.') != -1:
+					permission_module = permission[0].split('.')[0]
+					permission_attr = permission[0].split('.')[1]
+				
+				if '*' in user.privileges.keys() and permission_module not in user.privileges.keys():
+					user.privileges[permission_module] = user.privileges['*']
+				if permission_module in user.privileges.keys():
+					if user.privileges[permission_module] == '*':
+						user.privileges[permission_module] = self.privileges
+					if type(user.privileges[permission_module]) == list and '*' in user.privileges[permission_module]:
+						user.privileges[permission_module] += self.privileges
+				if permission_module not in user.privileges.keys(): user.privileges[permission_module] = []
+				
+				if permission_attr in user.privileges[permission_module]:
+					permission_pass = True
+
+			if permission_pass:
 				logger.debug('checking permission, query: %s', permission[1])
 				query = {attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == dict}
 				query.update({attr:{'val':permission[1][attr]} for attr in permission[1].keys() if type(permission[1][attr]) == str})
