@@ -72,6 +72,8 @@ class Session(BaseModule):
 		}
 		# logger.debug('creating session:%s', session)
 		results = self.methods['create'](skip_events=[Event.__PERM__, Event.__SOFT__], env=env, session=session, doc=session)
+		if results['status'] != 200:
+			return results
 		# results['args']['docs'][0]._attrs().update(session)
 		# logger.debug('session_results: %s', results)
 		
