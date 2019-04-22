@@ -1,4 +1,4 @@
-from base_module import BaseModule
+from base_module import BaseModule, BaseModel
 from event import Event
 
 from bson import ObjectId
@@ -52,18 +52,19 @@ class Session(BaseModule):
 		if 'username' in doc.keys(): key = 'username'
 		elif 'phone' in doc.keys(): key = 'phone'
 		elif 'email' in doc.keys(): key = 'email'
-		results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={key:{'val':doc[key]}, '{}_hash'.format(key):{'val':doc['hash']}, '$limit':1})
-		if not results['args']['count']:
+		user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={key:{'val':doc[key]}, '{}_hash'.format(key):{'val':doc['hash']}, '$limit':1})
+		if not user_results['args']['count']:
 			return {
 				'status':403,
 				'msg':'Wrong auth credentials.',
 				'args':{'code':'CORE_SESSION_INVALID_CREDS'}
 			}
+		user = user_results['args']['docs'][0]
 		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0]}})
 		#logger.debug('auth success')
 		token = secrets.token_urlsafe(32)
 		session = {
-			'user':results['args']['docs'][0]._id,
+			'user':user._id,
 			'host_add':env['REMOTE_ADDR'],
 			'user_agent':env['HTTP_USER_AGENT'],
 			'timestamp':datetime.datetime.fromtimestamp(time.time()),
@@ -71,15 +72,19 @@ class Session(BaseModule):
 			'token':token
 		}
 		# logger.debug('creating session:%s', session)
-		results = self.methods['create'](skip_events=[Event.__PERM__, Event.__SOFT__], env=env, session=session, doc=session)
+		results = self.methods['create'](skip_events=[Event.__PERM__], env=env, session=session, doc=session)
 		if results['status'] != 200:
 			return results
 		# results['args']['docs'][0]._attrs().update(session)
 		# logger.debug('session_results: %s', results)
+
+		session['_id'] = results.args.docs[0]._id
+		results['args']['docs'][0] = BaseModel(session)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['args']['docs'][0].user._id}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':user._id}})
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
+
 		return {
 			'status':200,
 			'msg':'You were succefully authed.',
