@@ -18,8 +18,6 @@ logger = logging.getLogger('limp')
 class BaseModule(metaclass=ClassSingleton):
 	use_template = False
 	collection = ''
-	# attrs = {}
-	# methods = {}
 	extns = {}
 	modules = {}
 	privileges = ['read', 'create', 'update', 'delete', 'admin']
@@ -32,7 +30,7 @@ class BaseModule(metaclass=ClassSingleton):
 		if self.use_template:
 			self.attrs.update(BaseTemplate.template(self.template, 'attrs'))
 			self.methods.update(BaseTemplate.template(self.template, 'methods'))
-			# self.methods = BaseTemplate.template(self.template, 'methods')
+			self.diff = BaseTemplate.template(self.template, 'diff')
 		for method in self.methods.keys():
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
@@ -441,9 +439,9 @@ class BaseTemplate:
 				'access':'access',
 				'create_time':'time',
 				# 'update_time':'time',
-				'expiry_time':'time',
-				'diff':'diff',
+				'expiry_time':'time'
 			},
+			'diff':True,
 			'methods':{
 				'read':{
 					'permissions':[['read', {}, {}], ['__NOT:read', {'__OR:expiry_time':{'val':'$__time', 'oper':'$gt'}, '__OR:user':'$__user', 'access':'$__access'}, {}]]
@@ -467,6 +465,7 @@ class BaseTemplate:
 				'title':'locale',
 				'desc':'locale'
 			},
+			'diff':False,
 			'methods':{
 				'read':{
 					'permissions':[['*', {}, {}]]
