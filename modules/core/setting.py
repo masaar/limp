@@ -27,7 +27,8 @@ class Setting(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {'$limit':1}, {}], ['update', {'type':'user', 'user':'$__user', '$limit':1}, {'type':None, 'user':None}]],
-			'query_args':['!var']
+			'query_args':['!var'],
+			'doc_args':['!val']
 		},
 		'delete':{
 			'permissions':[['admin', {'$limit':1}, {}]],
@@ -41,7 +42,12 @@ class Setting(BaseModule):
 	}
 
 	def pre_create(self, env, session, query, doc):
-		if type(doc['val']) == list and doc['val'].__len__() == 1 and 'content' in doc['val'][0]:
+		if type(doc['val']) == list and doc['val'].__len__() == 1 and 'content' in doc['val'][0].keys():
+			doc['val'] = doc['val'][0]
+		return (env, session, query, doc)
+	
+	def pre_update(self, env, session, query, doc):
+		if type(doc['val']) == list and doc['val'].__len__() == 1 and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
 		return (env, session, query, doc)
 
