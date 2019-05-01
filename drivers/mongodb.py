@@ -255,7 +255,7 @@ class MongoDb(metaclass=ClassSingleton):
 						for attr in doc[extn]._attrs().keys():
 							if attr not in extn_attrs.keys():
 								del_attrs.append(attr)
-						#logger.debug('extn del_attrs: %s.', del_attrs)
+						# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
 						for attr in del_attrs:
 							del doc[extn][attr]
 					else:
@@ -267,10 +267,17 @@ class MongoDb(metaclass=ClassSingleton):
 					for i in range(0, doc[extn].__len__()):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
-						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], query={'_id':{'val':doc[extn][i]}, '$limit':1})
+						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env={'conn':conn}, query={'_id':{'val':doc[extn][i]}, '$limit':1})
 						if extn_results['args']['count']:
-							# [TODO] Add condition for limited keys import
-							doc[extn][i] = {attr:extn_results['args']['docs'][0][attr] for attr in extn_attrs.keys()}
+							doc[extn][i] = extn_results['args']['docs'][0]
+							# [DOC] delete all unneeded keys from the resulted doc
+							del_attrs = []
+							for attr in doc[extn][i]._attrs().keys():
+								if attr not in extn_attrs.keys():
+									del_attrs.append(attr)
+							# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
+							for attr in del_attrs:
+								del doc[extn][i][attr]
 						else:
 							doc[extn][i] = None
 			if doc:
