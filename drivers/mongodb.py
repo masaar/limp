@@ -28,9 +28,11 @@ class MongoDb(metaclass=ClassSingleton):
 				conn = MongoClient(data_server, **connection_config, connect=True)
 				try:
 					logger.debug('Check if data_server: %s isMaster.', data_server)
-					conn.admin.command('ismaster')
-					conn = conn[Config.data_name]
-					break
+					results = conn.admin.command('ismaster')
+					logger.debug('-Check results: %s', results)
+					if results['ismaster']:
+						conn = conn[Config.data_name]
+						break
 				except Exception as err:
 					logger.debug('Not master. Error: %s', err)
 					pass
