@@ -6,12 +6,8 @@ from base_model import BaseModel
 
 from bson import ObjectId
 import traceback, logging, datetime, time, re, copy
-# from base_tax import BaseTax
 
 locales = {locale:'str' for locale in Config.locales}
-# __PRE__ = '__PRE__'
-# __ON__ = '__ON__'
-# __PRE_ON__ = '__PRE_ON__'
 
 logger = logging.getLogger('limp')
 
@@ -42,11 +38,9 @@ class BaseModule(metaclass=ClassSingleton):
 				module=self,
 				method=method,
 				permissions=self.methods[method]['permissions'],
-				# # attrs=self.methods[method]['attrs'],
 				query_args=self.methods[method]['query_args'],
 				doc_args=self.methods[method]['doc_args'],
 				get_method=self.methods[method]['get_method']
-				# func=getattr(self, self.methods[method]['func'])
 			)
 		for attr in self.attrs.keys():
 			if self.attrs[attr] == 'locale':
@@ -85,24 +79,6 @@ class BaseModule(metaclass=ClassSingleton):
 
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
-		# [DOC] Check if full diff log is requested.
-		# if 'diff' in self.attrs.keys():
-		# 	if Event.__DIFF__ not in skip_events:
-		# 		users = {}
-		# 		for doc in results['docs']:
-		# 			# try:
-		# 			for diff in doc['diff']:
-		# 				if 'user' not in diff.keys():
-		# 					diff['user'] = ObjectId('f00000000000000000000011')
-		# 				if diff['user'] not in users.keys():
-		# 					user_results = self.modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query={'_id':{'val':diff['user']}, '$extn':False})
-		# 					users[diff['user']] = user_results.args.docs[0]
-		# 				diff['user'] = users[diff['user']]
-		# 			# except Exception:
-		# 			# 	pass
-		# 	else:
-		# 		for doc in results['docs']:
-		# 			doc['diff'] = []
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
 			# [DOC] Call method events
@@ -140,17 +116,10 @@ class BaseModule(metaclass=ClassSingleton):
 			doc['user'] = session.user._id
 		if 'create_time' in self.attrs.keys():
 			doc['create_time'] = datetime.datetime.fromtimestamp(time.time())
-		if 'diff' in self.attrs.keys():
-			doc['diff'] = []
 		if 'host_add' in self.attrs.keys() and 'host_add' not in doc.keys():
 			doc['host_add'] = env['REMOTE_ADDR']
 		if 'user_agent' in self.attrs.keys() and 'user_agent' not in doc.keys():
 			doc['user_agent'] = env['HTTP_USER_AGENT']
-		# [DOC] Append user to args if it's present in attrs.
-		# if 'user' in self.attrs.keys() and 'sid' in args.keys() and 'user' not in args.keys():
-		# 	# results = self.modules['session'].methods['read']\(check_permissions\=False, args={'_id':{'val':args\['sid']}, '/limit':1})
-		# 	results = self.modules['session'].methods['read']\(skip_events=[Event.__PERM__], args={'_id':{'val':args\['sid']}, '$limit':1})
-		# 	args\['user'] = results['args']['docs'][0].user
 		# [DOC] Check presence and validate all attrs in doc args
 		#logger.debug('%s has following attrs: %s.', self.__module__, self.attrs.keys())
 		for attr in self.attrs.keys():
@@ -220,9 +189,6 @@ class BaseModule(metaclass=ClassSingleton):
 		if Event.__SOFT__ in skip_events:
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
 			results = results['args']
-		# [DOC] Call method events
-		# module_name = self.__module__.replace('modules.', '').split('.')[1]
-		#logger.debug('Checking create event on module: %s', self.module_name)
 
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
@@ -240,16 +206,6 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_update(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def update(self, skip_events=[], env={}, session=None, query={}, doc={}):
-		# [DOC] Confirm _id is valid
-		# [BAK] {**query, '$limit':1}
-		# results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], session=session, query=query)
-		# if not results['args']['count']:
-		# 	return {
-		# 		'status':400,
-		# 		'msg':'Document is invalid.',
-		# 		'args':{'code':'{}_{}_INVALID_DOC'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
-		# 	}
-		# if Event.__PRE__ not in skip_events: env, session, query, doc = self.pre_update(env=env, session=session, query=query, doc=doc)
 		if self.use_template:
 			env, session, query, doc = getattr(BaseTemplate, '{}_pre_update'.format(self.template))(env=env, session=session, query=query, doc=doc)
 		if Event.__PRE__ not in skip_events:
@@ -321,25 +277,30 @@ class BaseModule(metaclass=ClassSingleton):
 				'msg':'Nothing to update.',
 				'args':{}
 			}
-		# [DOC] If doc has diff attribute, use it
-		# if 'diff' in self.attrs.keys():
-		# 	# session_results = self.modules['session'].methods['read'](skip_events=[Event.__PERM__], session=session, query={'_id':{'val':sid}, '$extn':False})
-		# 	# user = session_results.args.docs[0].user
-		# 	doc['diff'] = {'user':session.user, 'time':datetime.datetime.fromtimestamp(time.time()), 'vars':{}}
-		#logger.debug('attempting to update documents matching query:%s, with doc:%s', query, doc)
 		results = Data.update(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
-		# if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
 			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_update'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc)
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
-			diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
-				'module':self.module_name,
-				'vars':doc
-			})
-			logger.debug('diff results: %s', diff_results)
+			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
+			if type(self.diff) == list:
+				for attr in doc.keys():
+					# [DOC] If at least on attr is not in the execluded list, create diff doc.
+					if attr not in self.diff:
+						diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
+							'module':self.module_name,
+							'vars':doc
+						})
+						logger.debug('diff results: %s', diff_results)
+						break
+			else:
+				diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
+					'module':self.module_name,
+					'vars':doc
+				})
+				logger.debug('diff results: %s', diff_results)
 		else:
 			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
 		#logger.debug('docs update results: %s.', results)
@@ -599,17 +560,10 @@ class BaseMethod:
 		
 		return True
 
-	# def __call__(self, check_permissions=True, skip_events=None, env={}, args={}):
 	def __call__(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
-		
-		# if self.requires_id and '_id' not in args.keys():
-		# 	return {
-		# 		'status':400,
-		# 		'msg':'Method requires \'_id\' to be defined.'
-		# 	}
 
 		if Event.__PERM__ not in skip_events and session:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
@@ -622,14 +576,8 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
 				})
 			else:
-				# [DOC] Unpack 'val' from the return of session.check_permissions method for non-read methods, as it returns read-compatible pairs (e.g. 'key':{'val':'val_goes_here'})
-				# if self.method != 'read' and type(permissions_check) == dict:
-				# 	for arg_update in permissions_check.keys():
-				# 		permissions_check[arg_update] = permissions_check[arg_update]['val']
-				# args.update(permissions_check)
 				query.update(permissions_check['query'])
 				doc.update(permissions_check['doc'])
-				# #logger.debug('new query, doc: %s, %s.', query, doc)
 	
 		if Event.__ARGS__ not in skip_events:
 			test_query = self.test_args('query', query)
@@ -658,7 +606,6 @@ class BaseMethod:
 			skip_events.append(Event.__EXTN__)
 			del query['$extn']
 		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
-		# 1/0
 		# [DOC] check if $diff oper is set to add it to events
 		# if '$diff' not in query.keys() or query['$diff'] != True:
 		# 	skip_events.append(Event.__DIFF__)
