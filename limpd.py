@@ -24,9 +24,6 @@ parser.add_argument('--packages', help='Specify list of packages separated by co
 parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
 args = parser.parse_args()
 
-# print('modules', modules)
-# print('privileges', {k:v.privileges for k, v in modules.items()})
-
 signal.signal(signal.SIGINT, signal_handler)
 
 import logging
@@ -52,14 +49,24 @@ else:
 	packages = None
 
 modules = import_modules(env=env, packages=packages)
-logger.debug('Loaded modules: %s', modules.keys())
-logger.debug('Config has attrs: %s', Config.__dict__)
-# [TODO] Update config_data method to make use of the new available tools.
+# [DOC] If realm mode is not enabled drop realm module.
+if not Config.realm:
+	del modules['realm']
 Config.config_data(modules=modules)
 
-# for module in modules.keys():
-# 	logger.debug('module %s has attrs: %s', module, modules[module].attrs)
+logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
+logger.debug('Config has attrs: %s', Config.__dict__)
 
+async def root_handler(request):
+	headers = [
+		('Server', 'limpd'),
+		('Powered-By', 'Masaar, https://masaar.com'),
+		('Access-Control-Allow-Origin', '*'),
+		('Access-Control-Allow-Methods', 'GET'),
+		('Access-Control-Allow-Headers', 'Content-Type'),
+		('Access-Control-Expose-Headers', 'Content-Disposition')
+	]
+	return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
 
 async def http_handler(request):
 	headers = [
@@ -121,6 +128,17 @@ async def websocket_handler(request):
 	await ws.prepare(request)
 	logger.info('Websocket connection ready')
 
+	if Config.realm:
+		try:
+			env['realm'] = request.match_info['realm'].lower()
+		except Exception:
+			await ws.send_str(JSONEncoder().encode({
+				'status':400,
+				'msg':'Realm mode is enabled. You have to access API via realm.',
+				'args':{'code':'CORE_CONN_REALM'}
+			}))
+			return ws
+
 	await ws.send_str(JSONEncoder().encode({
 		'status':200,
 		'msg':'Connection establised',
@@ -139,8 +157,7 @@ async def websocket_handler(request):
 					anon_session['user'] = DictObj(anon_user)
 					session = DictObj(anon_session)
 				res = json.loads(msg.data)
-				# if (res.keys().__len__() == 1 and list(res.keys())[0] == 'token'):
-				logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
+				# logger.debug('attempting to decode JWT: %s, %s', res['token'], session.token)
 				try:
 					res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
 				except Exception:
@@ -193,7 +210,9 @@ async def websocket_handler(request):
 					request['sid'] = 'f00000000000000000000012'
 
 				method = modules[module].methods[request['path'][1].lower()]
-				results = method(skip_events=[], env=env, session=session, query=request['query'], doc=parse_file_obj(request['doc'], files))
+				query = request['query']
+				doc = parse_file_obj(request['doc'], files)
+				results = method(skip_events=[], env=env, session=session, query=query, doc=doc)
 
 				logger.debug('files: %s', files)
 
@@ -243,8 +262,10 @@ if __name__ == '__main__':
 		except Exception as e:
 			logger.warning('Port should be in integer format. Defaulting to %s.', port)
 	app = aiohttp.web.Application()
+	app.router.add_route('GET', '/', http_handler)
 	app.router.add_route('GET', '/{module}/{method}/{_id}/{var}', http_handler)
 	app.router.add_route('*', '/ws', websocket_handler)
+	app.router.add_route('*', '/ws/{realm}', websocket_handler)
 	aiohttp.web.run_app(app, host='0.0.0.0', port=port)
 	logger.info('Welcome to LIMPd.')
 	logger.info('Serving on {}...'.format(port))

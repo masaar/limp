@@ -79,10 +79,13 @@ class Session(BaseModule):
 		# logger.debug('session_results: %s', results)
 
 		session['_id'] = results.args.docs[0]._id
+		session['user'] = user
 		results['args']['docs'][0] = BaseModel(session)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':user._id}})
+		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=results['args']['docs'][0], query={'_id':{'val':user._id}})
+		if user_results['status'] != 200:
+			return user_results
 		results['args']['docs'][0]['user'] = user_results['args']['docs'][0]
 
 		return {

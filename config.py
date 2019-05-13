@@ -46,6 +46,8 @@ class Config:
 
 	docs = []
 
+	realm = False
+
 
 	@classmethod
 	def config_data(self, modules):
@@ -150,6 +152,14 @@ class Config:
 			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env={'conn':conn}, query={'_id':{'val':doc['doc']['_id']}})
 			if not doc_results.args.count:
 				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], env={'conn':conn}, doc=doc['doc'])
+		
+		logger.debug('Testing realm mode.')
+		if Config.realm:
+			for module in modules.keys():
+				modules[module].attrs['realm'] = 'str'
+				for method in modules[module].methods.keys():
+					modules[module].methods[method].query_args.append('!realm')
+					modules[module].methods[method].doc_args.append('!realm')
 	
 	@classmethod
 	def compile_anon_user(self):

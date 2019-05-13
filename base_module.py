@@ -45,8 +45,12 @@ class BaseModule(metaclass=ClassSingleton):
 		for attr in self.attrs.keys():
 			if self.attrs[attr] == 'locale':
 				self.attrs[attr] = locales
-		# for tax in self.taxs:
-		# 	pass
+		# [DOC] If realm mode enabled, add realm attr to attrs, methods.
+		# if Config.realm:
+		# 	self.attrs['realm'] = 'str'
+		# 	for method in self.methods.keys():
+		# 		self.methods[method].query_args.append('!realm')
+		# 		self.methods[method].doc_args.append('!realm')
 
 	def pre_read(self, env, session, query, doc):
 		return (env, session, query, doc)
@@ -61,14 +65,14 @@ class BaseModule(metaclass=ClassSingleton):
 			if type(pre_read) in [DictObj, dict]: return pre_read
 			env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
-			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+			results = Data.read(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		elif '$extn' in query.keys() and type(query['$extn']) == dict:
-			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={
+			results = Data.read(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns={
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn'].keys() and query['$extn'][extn] == True
 			}, modules=self.modules, query=query)
 			del query['$extn']
 		else:
-			results = Data.read(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+			results = Data.read(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_read(results=results, env=env, session=session, query=query, doc=doc)
 			# [DOC] if $attrs query arg is present return only required keys.
@@ -180,7 +184,7 @@ class BaseModule(metaclass=ClassSingleton):
 					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
 					'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
 				}
-		results = Data.create(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
+		results = Data.create(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_create(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
@@ -277,7 +281,7 @@ class BaseModule(metaclass=ClassSingleton):
 				'msg':'Nothing to update.',
 				'args':{}
 			}
-		results = Data.update(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
+		results = Data.update(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
 		if self.use_template:
@@ -324,7 +328,7 @@ class BaseModule(metaclass=ClassSingleton):
 		if Event.__PRE__ not in skip_events: env, session, query, doc = self.pre_delete(env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] delete soft action is to just flag the doc as deleted, without force removing it from db.
-		results = Data.delete(conn=env['conn'], collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
+		results = Data.delete(conn=env['conn'], session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
 		if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_delete(results=results, env=env, session=session, query=query, doc=doc)
 		return {
 			'status':200,
@@ -527,13 +531,14 @@ class BaseMethod:
 
 			if arg[0] == '!':
 				if arg[1:] not in args.keys() \
-				and (arg_list_label != 'query' or \
-				(arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] != None and args[arg[1:]]['val'] != '') \
-				or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] != None and args[arg[1:]] != ''))):
+				or (
+					arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] == None or args[arg[1:]]['val'] == '') \
+					or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] == None or args[arg[1:]] == '')
+				):
 					return DictObj({
 						'status':400,
-						'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(arg[1:], *self.__module__.replace('modules.', '').upper().split('.'), 'MODULE'),
-						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'), 'MODULE')})
+						'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(arg[1:], self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 					})
 		
 		optional_args = True
@@ -554,8 +559,8 @@ class BaseMethod:
 		if optional_args != True:
 			return DictObj({
 				'status':400,
-				'msg':'Missing at least one attr from [\'{}\'] from request on module \'{}_{}\'.'.format('\', \''.join(optional_args), *self.__module__.replace('modules.', '').upper().split('.'), 'MODULE'),
-				'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'), 'MODULE')})
+				'msg':'Missing at least one attr from [\'{}\'] from request on module \'{}_{}\'.'.format('\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+				'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 			})
 		
 		return True
@@ -564,6 +569,15 @@ class BaseMethod:
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
+
+		if Config.realm:
+			try:
+				query['realm'] = {'val':session.user.attrs['realm']}
+				doc['realm'] = session.user.attrs['realm']
+			except Exception:
+				query['realm'] = {'val':env['realm']}
+				doc['realm'] = env['realm']
+			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
 		if Event.__PERM__ not in skip_events and session:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
