@@ -41,7 +41,8 @@ class MongoDb(metaclass=ClassSingleton):
 			conn = MongoClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
 		return conn
 	
-	def read(self, conn, session, collection, attrs, extns, modules, query):
+	def read(self, env, session, collection, attrs, extns, modules, query):
+		conn = env['conn']
 		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		or_query = []
 		access_query = {}
@@ -248,7 +249,7 @@ class MongoDb(metaclass=ClassSingleton):
 					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
-					extn_results = extn_module.methods['read'](skip_events=skip_events, env={'conn':conn}, session=session, query={'_id':{'val':doc[extn]}, '$limit':1})
+					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, session=session, query={'_id':{'val':doc[extn]}, '$limit':1})
 					# [TODO] Consider a fallback for extn no-match cases
 					if extn_results['args']['count']:
 						doc[extn] = extn_results['args']['docs'][0]
@@ -269,7 +270,7 @@ class MongoDb(metaclass=ClassSingleton):
 					for i in range(0, doc[extn].__len__()):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
-						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env={'conn':conn}, session=session, query={'_id':{'val':doc[extn][i]}, '$limit':1})
+						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query={'_id':{'val':doc[extn][i]}, '$limit':1})
 						if extn_results['args']['count']:
 							doc[extn][i] = extn_results['args']['docs'][0]
 							# [DOC] delete all unneeded keys from the resulted doc
@@ -291,7 +292,8 @@ class MongoDb(metaclass=ClassSingleton):
 			'groups': {} if not group else groups
 		}
 
-	def create(self, conn, session, collection, attrs, extns, modules, doc):
+	def create(self, env, session, collection, attrs, extns, modules, doc):
+		conn = env['conn']
 		collection = conn[collection]
 		_id = collection.insert_one(doc).inserted_id
 		return {
@@ -299,9 +301,10 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[BaseModel({'_id':_id})]
 		}
 	
-	def update(self, conn, session, collection, attrs, extns, modules, query, doc):
+	def update(self, env, session, collection, attrs, extns, modules, query, doc):
+		conn = env['conn']
 		# [DOC] Perform a read query to get all matching documents
-		read_results = self.read(conn=conn, session=session, collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
+		read_results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
 		docs = [doc._id for doc in read_results['docs']]
 		# [DOC] Perform update query on matching docs
 		collection = conn[collection]
@@ -320,12 +323,13 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[{'_id':doc} for doc in docs]
 		}
 	
-	def delete(self, conn, session, collection, attrs, extns, modules, query, force_delete):
+	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
+		conn = env['conn']
 		if not force_delete:
-			return self.update(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
+			return self.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
 		else:
 			# [DOC] Perform a read query to get all matching documents
-			results = self.read(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+			results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 			docs = [doc._id for doc in results['docs']]
 			# [DOC] Perform update query on matching docs
 			collection = conn[collection]

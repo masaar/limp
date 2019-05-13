@@ -230,6 +230,14 @@ class Group(BaseModule):
 		}
 	}
 
+	def pre_read(self, env, session, query, doc):
+		if Config.realm and '_id' in query.keys() and str(query['_id']['val']) == 'f00000000000000000000013':
+			try:
+				del query['realm']
+			except:
+				pass
+		return (env, session, query, doc)
+
 	def pre_create(self, env, session, query, doc):
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}

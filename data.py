@@ -16,24 +16,24 @@ class Data(metaclass=ClassSingleton):
 	def create_conn(self):
 		return self.driver.create_conn()
 
-	def read(self, conn, session, collection, attrs, extns, modules, query):
+	def read(self, env, session, collection, attrs, extns, modules, query):
 		query = self.sanitise_attrs(query)
-		return self.driver.read(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		return self.driver.read(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 	
-	def create(self, conn, session, collection, attrs, extns, modules, doc):
+	def create(self, env, session, collection, attrs, extns, modules, doc):
 		doc = self.sanitise_attrs(doc)
-		return self.driver.create(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
+		return self.driver.create(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
 	
-	def update(self, conn, session, collection, attrs, extns, modules, query, doc):
+	def update(self, env, session, collection, attrs, extns, modules, query, doc):
 		query = self.sanitise_attrs(query)
 		doc = self.sanitise_attrs(doc)
-		return self.driver.update(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
+		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 	
-	def delete(self, conn, session, collection, attrs, extns, modules, query, force_delete):
+	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
 		# attrs = self.sanitise_attrs(attrs)
 		# _id = self.sanitise_attrs([_id])[0]
 		query = self.sanitise_attrs(query)
-		return self.driver.delete(conn=conn, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
+		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
 	
 	def sanitise_attrs(self, attrs):
 		if type(attrs) == dict:
