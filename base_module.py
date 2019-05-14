@@ -521,6 +521,8 @@ class BaseMethod:
 		elif args_list == 'doc':
 			args_list = self.doc_args
 
+		logger.debug('testing args, list: %s, args: %s', arg_list_label, args)
+
 		for arg in args_list:
 
 			if arg[0] == '!':
@@ -531,7 +533,7 @@ class BaseMethod:
 				):
 					return DictObj({
 						'status':400,
-						'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(arg[1:], self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg[1:], self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
 						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 					})
 		
@@ -553,7 +555,7 @@ class BaseMethod:
 		if optional_args != True:
 			return DictObj({
 				'status':400,
-				'msg':'Missing at least one attr from [\'{}\'] from request on module \'{}_{}\'.'.format('\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+				'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
 				'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 			})
 		
@@ -564,13 +566,9 @@ class BaseMethod:
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
-		if Config.realm and session:
-			try:
-				query['realm'] = {'val':session.user.realm}
-				doc['realm'] = session.user.realm
-			except Exception:
-				query['realm'] = {'val':env['realm']}
-				doc['realm'] = env['realm']
+		if Config.realm:
+			query['realm'] = {'val':env['realm']}
+			doc['realm'] = env['realm']
 			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
 		if Event.__PERM__ not in skip_events and session:

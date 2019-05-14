@@ -80,6 +80,17 @@ async def http_handler(request):
 
 	logger.debug('Received new GET request: %s', request.match_info)
 
+	if Config.realm:
+		try:
+			realm = request.match_info['realm'].lower()
+		except Exception:
+			headers.append(('Content-Type', 'application/json; charset=utf-8'))
+			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({
+				'status':400,
+				'msg':'Realm mode is enabled. You have to access API via realm.',
+				'args':{'code':'CORE_CONN_REALM'}
+			}).encode('utf-8'))
+
 	module = request.match_info['module'].lower()
 	method = request.match_info['method'].lower()
 	_id = request.match_info['_id']
@@ -89,11 +100,15 @@ async def http_handler(request):
 	method in modules[module].methods.keys() and \
 	modules[module].methods[method].get_method:
 		conn = Data.create_conn()
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__], env={'conn':conn}, query={'_id':{'val':ObjectId('f00000000000000000000012')}})
-		results = modules[module].methods[method](skip_events=[Event.__PERM__], env={'conn':conn}, session=session_results.args.docs[0], query={'_id':{'val':_id}, 'var':{'val':var}})
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__], env={'conn':conn, 'realm':realm}, query={'_id':{'val':ObjectId('f00000000000000000000012')}})
+		logger.debug('http session_results: %s', session_results)
+		results = modules[module].methods[method](skip_events=[Event.__PERM__], env={'conn':conn, 'realm':realm}, session=session_results.args.docs[0], query={'_id':{'val':_id}, 'var':{'val':var}})
 		if results['status'] == 404:
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
-			return JSONEncoder().encode({'status':404, 'msg':'Requested content not found.'}).encode('utf-8')
+			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({
+				'status':404,
+				'msg':'Requested content not found.'
+			}).encode('utf-8'))
 		elif results['status'] == 291:
 			expiry_time = datetime.datetime.utcnow() + datetime.timedelta(days=30)
 			headers.append(('Content-Type', results['args']['type']))
@@ -262,8 +277,9 @@ if __name__ == '__main__':
 		except Exception as e:
 			logger.warning('Port should be in integer format. Defaulting to %s.', port)
 	app = aiohttp.web.Application()
-	app.router.add_route('GET', '/', http_handler)
+	app.router.add_route('GET', '/', root_handler)
 	app.router.add_route('GET', '/{module}/{method}/{_id}/{var}', http_handler)
+	app.router.add_route('GET', '/{realm}/{module}/{method}/{_id}/{var}', http_handler)
 	app.router.add_route('*', '/ws', websocket_handler)
 	app.router.add_route('*', '/ws/{realm}', websocket_handler)
 	aiohttp.web.run_app(app, host='0.0.0.0', port=port)

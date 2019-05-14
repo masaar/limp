@@ -129,6 +129,8 @@ class MongoDb(metaclass=ClassSingleton):
 						query[query_arg]['val'] = ObjectId(query[query_arg]['val'])
 				if oper == 'or': or_query.append({extn+arg+child_arg:query[query_arg]['val']})
 				else: aggregate_query.append({'$match':{extn+arg+child_arg:query[query_arg]['val']}})
+			elif arg == 'realm':
+				aggregate_query.append({'$match':{'$or':[{'realm':query[query_arg]['val']}, {'realm':'__global'}]}})
 			elif type(arg_attrs[arg]) == dict:
 				child_aggregate_query = []
 				for child_attr in [child_attr for child_attr in arg_attrs[arg].keys()]:
