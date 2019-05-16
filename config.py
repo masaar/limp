@@ -12,10 +12,7 @@ class Config:
 
 	test = False
 	test_flush = False
-	tests = {
-		'unit':{},
-		'integration':{}
-	}
+	tests = {}
 
 	data_driver = 'mongodb'
 	data_server = 'mongodb://localhost'
@@ -196,9 +193,10 @@ class Config:
 		if self.test:
 			logger.debug('Running tests')
 			from utils import DictObj
-			Test.run_test(modules=modules, env=env, session=DictObj({
+			Test.run_test(test_name=self.test, modules=modules, env=env, session=DictObj({
 				'user':DictObj(self.compile_anon_user())
 			}))
+			exit()
 	
 	@classmethod
 	def compile_anon_user(self):

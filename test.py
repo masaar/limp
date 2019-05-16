@@ -6,122 +6,174 @@ logger = logging.getLogger('limp')
 class Test():
 	
 	@classmethod
-	def run_test(self, modules, env, session):
-		tests = {}
+	def run_test(self, test_name, modules, env, session):
 		from config import Config
+		if test_name not in Config.tests.keys():
+			logger.error('Specified test is not defined in loaded config.')
+			exit()
+		test = Config.tests[test_name]
+		results = {
+			'test':Config.tests[test_name],
+			'status':'PASSED',
+			'success_rate':100,
+			'steps':[]
+		}
+		for step in test:
+			if step['step'] == 'call':
+				logger.debug('Starting to test \'call\' step: %s', step)
+				results['steps'].append(self.run_call(modules=modules, env=env, session=session, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance']))
+			elif step['step'] == 'test':
+				logger.debug('Starting to test \'test\' step: %s', step)
+				test_results = self.run_test(test_name=step['test'], modules=modules, env=env, session=session)
+				if test_results['status'] == 'PASSED':
+					test_results['status'] = True
+				else:
+					test_results['status'] = False
+				results['steps'].append(test_results)
+			elif step['step'] == 'auth':
+				logger.debug('Starting to test \'auth\' step: %s', step)
+				auth_results = self.run_auth(modules=modules, env=env, session=session, results=results, var=step['var'], val=step['val'], hash=step['hash'])
+				if auth_results['status']:
+					logger.debug('Changing session after successful auth step.')
+					session = auth_results['results'].args.docs[0]
+				results['steps'].append(auth_results)
+			else:
+				logger.error('Unknown step \'%s\'. Exiting.', step['step'])
+				exit()
 
-		test_type, test_target = Config.test.split(':') #pylint: disable=no-member
-		if test_type == 'unit':
-			if test_target in Config.tests['unit'].keys():
-				tests[test_target] = {}
-				for call in Config.tests['unit'][test_target]['calls']:
-					i = 1
-					while True:
-						if '{}#{}'.format(call['method'], i) in tests[test_target]:
-							i += 1
-						else:
-							tests[test_target]['{}#{}'.format(call['method'], i)] = {
-								'query':call['query'],
-								'doc':call['doc']
-							}
-							break
-					query = tests[test_target]['{}#{}'.format(call['method'], i)]['query']
-					for attr in query.keys():
-						if type(query[attr]) == dict and type(query[attr]['val']) == str and query[attr]['val'].startswith('$__'):
-							query[attr]['val'] = self.extract_attrs(tests=tests, attr=query[attr]['val'])
-					doc = tests[test_target]['{}#{}'.format(call['method'], i)]['doc']
-					for attr in doc.keys():
-						if type(doc[attr]) == str and doc[attr].startswith('$__'):
-							doc[attr] = self.extract_attrs(tests=tests, attr=doc[attr])
-						elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
-							doc[attr] = self.generate_attr(doc[attr]['__attr'])
-					try:
-						results = modules[test_target].methods[call['method']](env=env, session=session, query=call['query'], doc=call['doc'])
-						acceptance = True
-						for measure in call['acceptance'].keys():
-							if measure == 'status':
-								if results.status != call['acceptance'][measure]:
-									acceptance = False
-									break
-							elif measure == 'args.count':
-								try:
-									if results.args.count != call['acceptance'][measure]:
-										acceptance = False
-										break
-								except:
-									acceptance = False
-									break
-						if acceptance == False:
-							tests[test_target]['{}#{}'.format(call['method'], i)] = {
-								'status':False,
-								'measure':measure,
-								'query':call['query'],
-								'doc':call['doc'],
-								'results':results,
-								'acceptance':call['acceptance']
-							}
-						else:
-							tests[test_target]['{}#{}'.format(call['method'], i)] = {
-								'status':True,
-								'query':call['query'],
-								'doc':call['doc'],
-								'results':results,
-								'acceptance':call['acceptance']
-							}
-					except Exception as e:
-						tb = traceback.format_exc()
-						tests[test_target]['{}#{}'.format(call['method'], i)] = {
-							'status':False,
-							'measure':False,
-							'query':call['query'],
-							'doc':call['doc'],
-							'results':{
-								'status':500,
-								'msg':str(e),
-								'args':{'tb':tb, 'code':'SERVER_ERROR'}
-							},
-							'acceptance':call['acceptance']
-						}
-		tests_count = 0
-		modules_count = 0
-		success_rate = 100
-		for module in tests.keys():
-			modules_count += 1
-			for test in tests[module].keys():
-				tests_count += 1
-				if tests[module][test]['status']:
-					test_rate = 100
-				else:
-					test_rate = 0
-				success_rate = (((tests_count-1) * success_rate) + test_rate) / tests_count
-		if int(success_rate) == 0:
-			tests_status = 'FAILED'
-		elif int(success_rate) == 100:
-			tests_status = 'PASSED'
+		if results['steps'].__len__() == 0:
+			logger.debug('No steps tested. Exiting')
+			exit()
+		if test_name == Config.test:
+			success_count = 0
+			for step in results['steps']:
+				print(step)
+				if step['status']:
+					success_count += 1
+			results['success_rate'] = int((success_count / results['steps'].__len__()) * 100)
+			if results['success_rate'] == 0:
+				results['status'] = 'FAILED'
+			elif results['success_rate'] == 100:
+				results['status'] = 'PASSED'
+			else:
+				results['status'] = 'PARTIAL'
+			logger.debug('Finished testing %s steps with success rate of: %s%%', results['steps'].__len__(), results['success_rate'])
+			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			tests_log = os.path.join(__location__, 'tests', '[{}] test-{}'.format(results['status'], datetime.date.today().strftime('%d-%b-%Y')))
+			if os.path.exists('{}.json'.format(tests_log)):
+				i = 1
+				while True:
+					if os.path.exists('{}.{}.json'.format(tests_log, i)):
+						i += 1
+					else:
+						tests_log = '{}.{}'.format(tests_log, i)
+						break
+			tests_log += '.json'
+			from utils import JSONEncoder
+			with open(tests_log, 'w') as f:
+				f.write(json.dumps(json.loads(JSONEncoder().encode(results)), indent=4))
+				logger.debug('Full tests log available at: %s', tests_log)
 		else:
-			tests_status = 'PARTIAL'
-		logger.debug('Finished testing %s tests in %s modules with success rate of: %s%%', tests_count, modules_count, int(success_rate))
-		__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-		tests_log = os.path.join(__location__, 'tests', '[{}] test-{}'.format(tests_status, datetime.date.today().strftime('%d-%b-%Y')))
-		if os.path.exists('{}.json'.format(tests_log)):
-			i = 1
-			while True:
-				if os.path.exists('{}.{}.json'.format(tests_log, i)):
-					i += 1
-				else:
-					tests_log = '{}.{}'.format(tests_log, i)
-					break
-		tests_log += '.json'
-		from utils import JSONEncoder
-		with open(tests_log, 'w') as f:
-			f.write(json.dumps(json.loads(JSONEncoder().encode(tests)), indent=4))
-			logger.debug('Full tests log available at: %s', tests_log)
-		exit()
+			return results
+
+	@classmethod
+	def run_call(self, modules, env, session, results, module, method, query, doc, acceptance):
+		call_results = {
+			'step':'call',
+			'module':module,
+			'method':method,
+			'query':query,
+			'doc':doc,
+			'acceptance':acceptance,
+			'status':True
+		}
+		for attr in query.keys():
+			if type(query[attr]) == dict and type(query[attr]['val']) == str and query[attr]['val'].startswith('$__'):
+				query[attr]['val'] = self.extract_attr(results=results, attr_path=query[attr]['val'])
+		for attr in doc.keys():
+			if type(doc[attr]) == str and doc[attr].startswith('$__'):
+				doc[attr] = self.extract_attr(results=results, attr_path=doc[attr])
+			elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
+				doc[attr] = self.generate_attr(doc[attr]['__attr'])
+		try:
+			results = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
+			for measure in acceptance.keys():
+				# [TODO] Add handler for session.user measure
+				if measure == 'status':
+					if results.status != acceptance[measure]:
+						call_results['status'] = False
+						break
+				elif measure == 'args.count':
+					try:
+						if results.args.count != acceptance[measure]:
+							call_results['status'] = False
+							break
+					except:
+						call_results['status'] = False
+						break
+			if call_results['status'] == False:
+				call_results.update({
+					'measure':measure,
+					'results':results
+				})
+			else:
+				call_results.update({
+					'results':results
+				})
+		except Exception as e:
+			tb = traceback.format_exc()
+			call_results.update({
+				'measure':measure,
+				'results':{
+					'status':500,
+					'msg':str(e),
+					'args':{'tb':tb, 'code':'SERVER_ERROR'}
+				}
+			})
+		return call_results
 	
 	@classmethod
-	def extract_attrs(self, tests, attr):
-		attr = attr[3:].split('.')
-		return tests[attr[0]][attr[1]][attr[2]][attr[3]]
+	def run_auth(self, modules, env, session, results, var, val, hash):
+		if val.startswith('$__'):
+			val = self.extract_attr(results, val)
+		if hash.startswith('$__'):
+			hash = self.extract_attr(results, hash)
+		auth_results = {
+			'step':'auth',
+			'var':var,
+			'val':val,
+			'hash':hash,
+			'status':True
+		}
+		try:
+			results = modules['session'].methods['auth'](env={'REMOTE_ADDR':'127.0.0.1', 'HTTP_USER_AGENT':'LIMPd Test', **env}, session=session, doc={var:val, 'hash':hash})
+			if results.status != 200:
+				auth_results['status'] = False
+			auth_results.update({'results':results})
+		except Exception as e:
+			tb = traceback.format_exc()
+			auth_results.update({
+				'results':{
+					'status':500,
+					'msg':str(e),
+					'args':{'tb':tb, 'code':'SERVER_ERROR'}
+				}
+			})
+		return auth_results
+	
+	@classmethod
+	def extract_attr(self, results, attr_path):
+		attr_path = attr_path[3:].split('.')
+		attr = results
+		for child_attr in attr_path:
+			logger.debug('Attempting to extract %s from %s', child_attr, attr)
+			if child_attr.startswith('steps:'):
+				attr = attr['steps'][int(child_attr[6:])]
+			elif child_attr.startswith('docs:'):
+				attr = attr['docs'][int(child_attr[5:])]
+			else:
+				attr = attr[child_attr]
+		return attr
 
 	@classmethod
 	def generate_doc(self, _id, attrs, doc={}):
@@ -153,13 +205,13 @@ class Test():
 		elif attr_type == 'time':
 			return datetime.datetime.today()
 		elif attr_type == 'file':
-			return {
+			return [{
 				'name':'__name',
 				'lastModified':100000,
 				'type':'text/plain',
 				'size':6,
 				'content':b'__file'
-			}
+			}]
 		elif attr_type == 'geo':
 			return {
 				'type':'Point',
