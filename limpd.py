@@ -8,6 +8,7 @@ from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_fi
 from base_module import Event
 from config import Config
 from data import Data
+from test import Test
 
 import traceback, jwt, argparse, json, re, signal, urllib.parse, os, datetime
 
@@ -17,11 +18,13 @@ with open(os.path.join(__location__, 'version.txt')) as f:
 	__version__ = f.read()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--version', action='version', version='LIMPd v{}'.format(__version__))
+parser.add_argument('--version', help='Show LIMP version and exit', action='version', version='LIMPd v{}'.format(__version__))
 parser.add_argument('--env', help='Choose specific env')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
-parser.add_argument('--packages', help='Specify list of packages separated by commas to be loaded only.')
+parser.add_argument('--packages', help='List of packages separated by commas to be loaded')
 parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
+parser.add_argument('--test', help='Run specified test.')
+parser.add_argument('--test-flush', help='Flush previous test data collections', action='store_true')
 args = parser.parse_args()
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -35,18 +38,15 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 # [DOC] Parse runtime args
+Config.test = args.test
+Config.test_flush = args.test_flush
+env = args.env or os.getenv('ENV') or None
 if args.debug:
 	Config.debug = True
 	logger.setLevel(logging.DEBUG)
-if args.env:
-	#logger.debug('Found env flag: %s', args.env)
-	env = args.env
-else:
-	env = os.getenv('ENV') or None
-if args.packages:
+packages = args.packages
+if packages:
 	packages = args.packages.split(',') + ['core']
-else:
-	packages = None
 
 modules = import_modules(env=env, packages=packages)
 # [DOC] If realm mode is not enabled drop realm module.

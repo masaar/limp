@@ -347,3 +347,9 @@ class MongoDb(metaclass=ClassSingleton):
 				'count':delete_count,
 				'docs':docs
 			}
+	
+	def drop(self, env, session, collection):
+		conn = env['conn']
+		collection = conn[collection]
+		drop_results = collection.drop()
+		return True

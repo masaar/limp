@@ -30,10 +30,11 @@ class Data(metaclass=ClassSingleton):
 		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 	
 	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
-		# attrs = self.sanitise_attrs(attrs)
-		# _id = self.sanitise_attrs([_id])[0]
 		query = self.sanitise_attrs(query)
 		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
+
+	def drop(self, env, session, collection):
+		return self.driver.drop(env=env, session=session, collection=collection)
 	
 	def sanitise_attrs(self, attrs):
 		if type(attrs) == dict:
@@ -48,6 +49,4 @@ class Data(metaclass=ClassSingleton):
 				attrs[attr] = self.sanitise_attrs(attrs[attr])
 			elif isinstance(attrs[attr], BaseModel):
 				attrs[attr] = attrs[attr]._id
-			# elif type(attrs[attr]) == datetime.datetime:
-			# 	attrs[attr] = (attrs[attr].timestamp())
 		return attrs

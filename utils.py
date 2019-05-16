@@ -86,25 +86,6 @@ def import_modules(env=None, packages=None):
 		module.modules = modules
 	return modules
 
-def objectify_args(args):
-	args_object = {}
-	for arg in args.keys():
-		arg_object = args_object
-		arg_split = re.split(r'([^\\\]\.)', arg)
-		for i in range(0, arg_split.__len__()):
-			if i != arg_split.__len__() -1 and arg_split[i+1] and arg_split[i+1][-1] == '.':
-				arg_split[i] += arg_split[i+1][0]
-				arg_split[i+1] = '.'
-		arg_split = [path.replace('\\.', '.') for path in arg_split if path != '.']
-		for arg_path in arg_split:
-			if arg_path == arg_split[-1]:
-				arg_object[arg_path] = args[arg]
-			else:
-				if arg_path not in arg_object.keys():
-					arg_object[arg_path] = {}
-				arg_object = arg_object[arg_path]
-	return args_object
-
 def parse_file_obj(doc, files):
 	for attr in doc.keys():
 		if attr in files.keys():
@@ -117,13 +98,7 @@ def parse_file_obj(doc, files):
 					'size':file['size'],
 					'content':binary.Binary(bytes([int(byte) for byte in file['content'].split(',')]))
 				})
-			# for child_attr in doc[attr]:
-			# 	child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
 			del files[attr]
-		# if type(doc[attr]) == list:
-		# 	for child_attr in doc[attr]:
-		# 		if type(child_attr) == dict and 'name' in child_attr.keys() and 'lastModified' in child_attr.keys() and 'type' in child_attr.keys() and 'size' in child_attr.keys():
-		# 			child_attr['content'] = binary.Binary(bytes([int(byte) for byte in child_attr['content'].split(',')]))
 	return doc
 
 def sigtime():
@@ -178,7 +153,7 @@ def validate_attr(attr, attr_type):
 	elif attr_type == 'attrs':
 		return type(attr) == dict or type(attr) == list
 	elif type(attr_type) == str and attr_type == 'access':
-		return type(attr) == dict and 'anon' in attr.keys() and type(attr['anon']) == bool and 'users' in attr.keys() and type(attr['users']) == list and 'groups' in attr.keys() and type(attr['users']) == list
+		return type(attr) == dict and 'anon' in attr.keys() and type(attr['anon']) == bool and 'users' in attr.keys() and type(attr['users']) == list and 'groups' in attr.keys() and type(attr['groups']) == list
 	elif type(attr_type) == list:
 		if type(attr) != list: return False
 		for child_attr in attr:

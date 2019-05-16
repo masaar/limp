@@ -1,7 +1,6 @@
 from bson import ObjectId
 from event import Event
-
-from pymongo.collection import Collection
+from test import Test
 
 import os, jwt, logging, datetime
 
@@ -10,6 +9,13 @@ logger = logging.getLogger('limp')
 
 class Config:
 	debug = False
+
+	test = False
+	test_flush = False
+	tests = {
+		'unit':{},
+		'integration':{}
+	}
 
 	data_driver = 'mongodb'
 	data_server = 'mongodb://localhost'
@@ -51,7 +57,7 @@ class Config:
 
 	@classmethod
 	def config_data(self, modules):
-		# [DOC] Checking SSL settings
+		# [DOC] Check SSL settings
 		if self.data_ca:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 			if not os.path.exists(os.path.join(__location__, 'certs')):
@@ -60,7 +66,7 @@ class Config:
 				f.write(self.data_ca)
 		
 		from data import Data
-		conn = Data.create_conn()
+		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
 		env = {'conn':conn}
 		if self.realm:
 			env['realm'] = '__global'
@@ -80,6 +86,18 @@ class Config:
 				for method in modules[module].methods.keys():
 					modules[module].methods[method].query_args.append('!realm')
 					modules[module].methods[method].doc_args.append('!realm')
+		
+		# [DOC] Check test mode
+		if self.test:
+			logger.debug('Test mode detected.')
+			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			if not os.path.exists(os.path.join(__location__, 'tests')):
+				os.makedirs(os.path.join(__location__, 'tests'))
+			for module in modules.keys():
+				logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
+				modules[module].collection = 'test_{}'.format(modules[module].collection)
+				if self.test_flush:
+					Data.drop(env=env, session=None, collection=modules[module].collection) #pylint: disable=no-value-for-parameter
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
@@ -174,6 +192,13 @@ class Config:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
 				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], env=env, doc=doc['doc'])
+		
+		if self.test:
+			logger.debug('Running tests')
+			from utils import DictObj
+			Test.run_test(modules=modules, env=env, session=DictObj({
+				'user':DictObj(self.compile_anon_user())
+			}))
 	
 	@classmethod
 	def compile_anon_user(self):

@@ -3,7 +3,7 @@ from event import Event
 
 from bson import ObjectId
 
-import logging, random, datetime, time, json, jwt, secrets
+import logging, datetime, time, json, jwt, secrets
 logger = logging.getLogger('limp')
 
 class Session(BaseModule):
@@ -160,6 +160,7 @@ class Session(BaseModule):
 	def check_permissions(self, session, module, permissions):
 		module = module.module_name
 		user = session.user
+		print('user', user)
 
 		for permission in permissions:
 			logger.debug('checking permission: %s against: %s', permission, user.privileges)
