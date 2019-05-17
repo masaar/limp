@@ -19,6 +19,7 @@ with open(os.path.join(__location__, 'version.txt')) as f:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', help='Show LIMP version and exit', action='version', version='LIMPd v{}'.format(__version__))
+parser.add_argument('--install-deps', help='Install dependencies for LIMP and packages.', action='store_true')
 parser.add_argument('--env', help='Choose specific env')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 parser.add_argument('--packages', help='List of packages separated by commas to be loaded')
@@ -39,6 +40,20 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 # [DOC] Parse runtime args
+if args.install_deps:
+	logger.setLevel(logging.DEBUG)
+	logger.debug('Detected install_deps flag.')
+	import subprocess, sys, os.path
+	logger.debug('Attempting to install dependencies of LIMP.')
+	# subprocess.call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+	dirs = [d for d in os.listdir(os.path.join(__location__, 'modules')) if os.path.isdir(os.path.join(__location__, 'modules', d))]
+	for package in dirs:
+		logger.debug('Checking package \'%s\' for \'requirements.txt\' file.', package)
+		if os.path.exists(os.path.join(__location__, 'modules', package, 'requirements.txt')):
+			logger.debug('File \'requirements.txt\' found! Attempting to install package dependencies.')
+			subprocess.call([sys.executable, '-m', 'pip', 'install', '-r', os.path.join(__location__, 'modules', package, 'requirements.txt')])
+	exit()
 Config.test = args.test
 Config.test_flush = args.test_flush
 Config.test_force = args.test_force
