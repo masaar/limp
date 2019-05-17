@@ -25,6 +25,7 @@ parser.add_argument('--packages', help='List of packages separated by commas to 
 parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
 parser.add_argument('--test', help='Run specified test.')
 parser.add_argument('--test-flush', help='Flush previous test data collections', action='store_true')
+parser.add_argument('--test-force', help='Force running all test steps even if one is failed', action='store_true')
 args = parser.parse_args()
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -40,6 +41,7 @@ logger.setLevel(logging.INFO)
 # [DOC] Parse runtime args
 Config.test = args.test
 Config.test_flush = args.test_flush
+Config.test_force = args.test_force
 env = args.env or os.getenv('ENV') or None
 if args.debug:
 	Config.debug = True

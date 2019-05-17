@@ -12,6 +12,7 @@ class Config:
 
 	test = False
 	test_flush = False
+	test_force = False
 	tests = {}
 
 	data_driver = 'mongodb'

@@ -16,12 +16,26 @@ class Test():
 			'test':Config.tests[test_name],
 			'status':'PASSED',
 			'success_rate':100,
+			'stats':{
+				'passed':0,
+				'failed':0,
+				'skipped':0,
+				'total':0
+			},
 			'steps':[]
 		}
+		step_failed = False
 		for step in test:
+			results['stats']['total'] += 1
+
+			if step_failed and not Config.test_force:
+				results['stats']['skipped'] += 1
+				continue
+
 			if step['step'] == 'call':
 				logger.debug('Starting to test \'call\' step: %s', step)
-				results['steps'].append(self.run_call(modules=modules, env=env, session=session, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance']))
+				call_results = self.run_call(modules=modules, env=env, session=session, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
+				results['steps'].append(call_results)
 			elif step['step'] == 'test':
 				logger.debug('Starting to test \'test\' step: %s', step)
 				test_results = self.run_test(test_name=step['test'], modules=modules, env=env, session=session)
@@ -40,26 +54,28 @@ class Test():
 			else:
 				logger.error('Unknown step \'%s\'. Exiting.', step['step'])
 				exit()
+			
+			if not results['steps'][-1]['status']:
+				results['stats']['failed'] += 1
+				if not Config.test_force:
+					step_failed = True
+			else:
+				results['stats']['passed'] += 1
 
 		if results['steps'].__len__() == 0:
 			logger.debug('No steps tested. Exiting')
 			exit()
 		if test_name == Config.test:
-			success_count = 0
-			for step in results['steps']:
-				print(step)
-				if step['status']:
-					success_count += 1
-			results['success_rate'] = int((success_count / results['steps'].__len__()) * 100)
+			results['success_rate'] = int((results['stats']['passed'] / results['stats']['total']) * 100)
 			if results['success_rate'] == 0:
 				results['status'] = 'FAILED'
 			elif results['success_rate'] == 100:
 				results['status'] = 'PASSED'
 			else:
 				results['status'] = 'PARTIAL'
-			logger.debug('Finished testing %s steps with success rate of: %s%%', results['steps'].__len__(), results['success_rate'])
+			logger.debug('Finished testing %s steps [Passed: %s, Failed: %s, Skipped: %s] with success rate of: %s%%', results['stats']['total'], results['stats']['passed'], results['stats']['failed'], results['stats']['skipped'], results['success_rate'])
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-			tests_log = os.path.join(__location__, 'tests', '[{}] test-{}'.format(results['status'], datetime.date.today().strftime('%d-%b-%Y')))
+			tests_log = os.path.join(__location__, 'tests', 'LIMP-TEST_{}_{}'.format(test_name, datetime.date.today().strftime('%d-%b-%Y')))
 			if os.path.exists('{}.json'.format(tests_log)):
 				i = 1
 				while True:

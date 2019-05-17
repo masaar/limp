@@ -93,7 +93,6 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_create(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
-		logger.debug('create method, session: %s', session)
 		if self.use_template:
 			env, session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		if Event.__PRE__ not in skip_events:
@@ -108,7 +107,6 @@ class BaseModule(metaclass=ClassSingleton):
 				del_args.append(arg)
 		for arg in del_args:
 			del doc[arg]
-		logger.debug('create method, session: %s', session)
 		# [DOC] Append host_add, user_agent, create_time, diff if it's present in attrs.
 		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session:
 			doc['user'] = session.user._id
@@ -403,7 +401,7 @@ class BaseTemplate:
 			'diff':True,
 			'methods':{
 				'read':{
-					'permissions':[['read', {}, {}], ['__NOT:read', {'__OR:expiry_time':{'val':'$__time', 'oper':'$gt'}, '__OR:user':'$__user', 'access':'$__access'}, {}]]
+					'permissions':[['read', {}, {}], ['*', {'__OR:expiry_time':{'val':'$__time', 'oper':'$gt'}, '__OR:user':'$__user', 'access':'$__access'}, {}]]
 				},
 				'create':{
 					'permissions':[['admin', {}, {}], ['create', {}, {'user':'$__user'}]]
