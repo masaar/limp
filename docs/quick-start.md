@@ -74,23 +74,34 @@ Let's go through the main points:
 6. LIMPd checks loaded config `groups` and creates them.
 7. LIMPd checks loaded config `data_indexes` and creates them.
 8. LIMPd checks loaded config `docs` and creates them.
+9. Once all previous checks are done, LIMP would be ready ro serve connections on `http://localhost:8081` for `HTTP/1 GET` interface, and `ws://localhost:8081/ws` for `HTTP/2 Websocket` interface.
 
-## Interacting with LIMP
-To start interacting with `limp-sample-app` you just run, go to [LIMP Sandbox on Github](https://masaar.github.io/limp-sandbox/dist/limp-sandbox/). Which is a tool we originally built to test early versions of [LIMP SDK for Angular](https://github.com/masaar/ng-limp), but continued to develop as standalone sandbox playground.
+# Interacting with LIMP
+To start interacting with `limp-sample-app` you just run, go to [LIMP Sandbox on Github](https://masaar.github.io/limp-sandbox/dist/limp-sandbox/). Which is a tool we originally built to test early versions of [LIMP SDK for Angular](https://github.com/masaar/ng-limp), but continued to be develop as standalone sandbox playground.
 
-To begin using LIMP Sandbox, from first panel `SDK Init` click on `init()` button. Note that in Firefox we observed the behaviour where the browser would refuse to connect to local websockets served over the insecure `ws` protocol. If you are on Firefox, use any Chromium-based browser instead. If you see a successful connection message in the output area then, congrats! Your setup is working. Then you can start by sending an `auth`entication call using the default credentials for the superadmin user using:
+To begin using LIMP Sandbox, from first panel `SDK Init` click on `init()` button, which would connect to LIMP on the specified `API URI` using `API Anon Token`. Note that in Firefox we observed the behaviour where the browser would refuse to connect to local websockets served over the insecure `ws` protocol. If you are on Firefox, use any Chromium-based browser instead. If you see a successful connection message in the output area then, congrats! Your setup is working. Then you can start by sending an `auth`entication call using the default credentials for the `ADMIN` user using:
 ```
 ADMIN@LIMP.MASAAR.COM
 __ADMIN
 ```
-You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your backend using the 'call()' button. For instance you can query all the users by passing the following values:
+You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your app using the `SDK Call` panel. For instance you can query all the users by passing the following values:
 ```
 endpoint: user/read
 query: {}
 doc: {}
 ```
-This should give you additional messages in the output with two users: superadmin and anonymous user. To query a specific user, pass its '_id' value as a query param like:
-```
-query: { _id: { val : "ID_GOES_HERE" } }
-```
-If you are running `limp-sample-app` you can also use the sample tools available in the sandbox. For example, create a `blog_cat`, then copy its '_id' and create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
+This should give you additional messages in the output with two users: `ADMIN` and `ANON` users. To query a specific user, pass its `_id` value as a query param `_id`.
+
+Since you are using `limp-sample-app` you should explore the following modules and endpoints:
+
+## Introduction
+Our `limp-sample-app` is an app representing a company website. It has a blog that is served and managed using `Blog` and `BlogCat` modules, as well as staff directory served and managed using `Staff` module.
+
+## Staff
+To create a new staff record, or any records at all in the LIMP ecosystem, you call the module `create` method using the endpoint `staff/create`.
+
+Start by setting `Endpoint` in `SDK Call` to `staff/create`. Next Start adding the following `doc` attrs using the `+` button next to `Doc`. LIMP Sandbox has the ability to allow developers to add multiple attrs at once, either in the `doc` or `query` object. After you click on `+` button you would be greeted with a prompt box asking you the names of the attrs you want to add. Copy and paste in the prompt box the following: `photo,name,jobtitle,bio` and then click on `Ok`. You would notice new four fields are now present under the `Doc` section of `SDK Call` panel.
+
+Change attr `photo` type to `file` from the select menu before the text input. All other fields should be changed to type `locale`. These types are just example of how much LIMP is powerful is it allows you to deal with all data types without being worried at all about how your app has to deal with them. In part this is possible because `HTTP/2 Websocket` protocol allows typed-JSON data to be transmitted bi-directionally, but also because LIMP has sophisticated workflow to handle data types.
+
+Once you change the types you would notice `photo` attr field is now a file input, while other attrs are having two input fields each; `val.ar_AE` and `val.en_AE`. Since LIMP was developed by Masaar which is serving customers with multi-language requirements, this feature was built right in the core of LIMP. You can learn more about such features by referring to [Apps Localisation](/apps-localisation.md). Now let's create the first staff by inputting some data in all the attrs, and then click on `call()`. Make sure you have already been `auth`enticated as `ADMIN` as currently there's no other user which has the [privilege](/tutorial.md#privileges) to create staff docs.

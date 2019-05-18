@@ -3,16 +3,19 @@ LIMP is a backend framework that is designed for use by Masaar for rapid app dev
 
 # Features
 ## Modern
-LIMP is based on modern approaches of apps development. It enabled both backend developers and front-end developers with set of tools to acheive better and more from very simple and powerful set of tools.
+LIMP is based on modern approaches of apps development. It enabled both backend developers and front-end developers with set of tools to achieve better and more from very simple and powerful set of tools.
 
 ## Multi-Environment Ready
-LIMP gives the developers the ability to get started with single app that is having the ability to run the exact same app on different [environements](#package-configuration) without any custom configurations.
+LIMP gives the developers the ability to get started with single app that is having the ability to run the exact same app on different [environments](#package-configuration) without any custom configurations.
 
 ## Test-Driven Development Out-of-the-Box
 That's correct! You can now develop your app and [test](#limp-tests-workflow) it with minimal set of instructions in [under 5 minutes](#5min-app).
 
 ## Easy to Install, Upgrade and deploy
 LIMP has simple workflow to [set it up](#setting-up-limp). Upgrading it is also as simple as pulling latest version of LIMP from this repository, as well as the latest version of the packages your app uses for its functionalities. Deploying is as a simple as creating a [Docker](https://www.docker.com).
+
+## Multi-language and Localisation-ready
+Yes! No more dealing with custom handlers for multi-language apps. Your app is multi-language out-of-the-box. Not only this, but your app can keep adding locales and change them along the way. This is a paradise for developers working on global scale apps.
 
 # Docs Index
 [Dependencies](/docs/dependencies.md)
