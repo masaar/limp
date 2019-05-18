@@ -168,6 +168,9 @@ class BaseModule(metaclass=ClassSingleton):
 						'msg':'Value for attr \'{}\' couldn\'t be converted to \'datetime\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
 						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
 					}
+			# [DOC] Check file attr and extract first file
+			if self.attrs[attr] == 'file' and type(doc[attr]) == list and doc[attr].__len__() and validate_attr(doc[attr][0], self.attrs[attr]):
+				doc[attr] = doc[attr][0]
 			# [DOC] Pass value to validator
 			if doc[attr] != None and not validate_attr(doc[attr], self.attrs[attr]):
 				logger.debug('attr `%s`, value `%s` does not match required type `%s`.', attr, doc[attr], self.attrs[attr])
