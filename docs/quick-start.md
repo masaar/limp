@@ -71,3 +71,26 @@ Let's go through the main points:
 3. LIMPd checks `users` collection, and creates `ADMIN` and `ANON` users if not present.
 4. LIMPd checks `sessions` collection, and creates `ANON` session required to receive and accept calls from non-authenticated users.
 5. LIMPd checks `groups` collection, and creates `DEFAULT` group required to set the `default_privileges` of the users.
+6. LIMPd checks loaded config `groups` and creates them.
+7. LIMPd checks loaded config `data_indexes` and creates them.
+8. LIMPd checks loaded config `docs` and creates them.
+
+## Interacting with LIMP
+To start interacting with `limp-sample-app` you just run, go to [LIMP Sandbox on Github](https://masaar.github.io/limp-sandbox/dist/limp-sandbox/). Which is a tool we originally built to test early versions of [LIMP SDK for Angular](https://github.com/masaar/ng-limp), but continued to develop as standalone sandbox playground.
+
+To begin using LIMP Sandbox, from first panel `SDK Init` click on `init()` button. Note that in Firefox we observed the behaviour where the browser would refuse to connect to local websockets served over the insecure `ws` protocol. If you are on Firefox, use any Chromium-based browser instead. If you see a successful connection message in the output area then, congrats! Your setup is working. Then you can start by sending an `auth`entication call using the default credentials for the superadmin user using:
+```
+ADMIN@LIMP.MASAAR.COM
+__ADMIN
+```
+You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your backend using the 'call()' button. For instance you can query all the users by passing the following values:
+```
+endpoint: user/read
+query: {}
+doc: {}
+```
+This should give you additional messages in the output with two users: superadmin and anonymous user. To query a specific user, pass its '_id' value as a query param like:
+```
+query: { _id: { val : "ID_GOES_HERE" } }
+```
+If you are running `limp-sample-app` you can also use the sample tools available in the sandbox. For example, create a `blog_cat`, then copy its '_id' and create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.

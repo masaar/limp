@@ -16,38 +16,7 @@ LIMP has simple workflow to [set it up](#setting-up-limp). Upgrading it is also 
 
 # Docs Index
 [Dependencies](/docs/dependencies.md)
-
-# Quick Start
-```
-Make sure you have MongoDB daemon working before proceeding.
-```
-
-## Setting-up LIMP
-To start a new LIMP app, all you need is to clone this repository and then clone https://github.com/masaar/limp-sample-app inside `modules` folder. Then run the following commands (make sure your default `python` command is set to version 3.5+ and not 2.x):
-```
-python limpd.py --install-deps
-python limpd.py --env dev --debug
-```
-First command would install LIMP [dependencies](#Dependencies).
-Second command would then connect to the database named in https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L15 on the server https://github.com/masaar/limp-sample-app/blob/master/__init__.py#L9. If you need to use different settings please change the previously referred values. After succeful connection, LIMPd would attempt to create the necessary collections and documents required for its basic functionalities. LIMP defaults to running on port `8081`. If you are running it on your `localhost` you can access the HTTP/1 GET interface from `http://localhost:8081`, and for HTTP/2 Websocket `ws://localhost:8081/ws`.
-
-## Interacting with LIMP
-To start interacting with the app you created, simply clone https://github.com/masaar/limp-sandbox and run it. You can then see the 'LIMP Sandbox' interface. If you see a succesful connection message in the output area then, congrats! Your setup is working. Then you can start by sending an `auth`entication call using the default credentials for the superadmin user using:
-```
-ADMIN@LIMP.MASAAR.COM
-__ADMIN
-```
-You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your backend using the 'call()' button. For instance you can query all the users by passing the following values:
-```
-endpoint: user/read
-query: {}
-doc: {}
-```
-This should give you additional messages in the output with two users: superadmin and anonymous user. To query a specific user, pass its '_id' value as a query param like:
-```
-query: { _id: { val : "ID_GOES_HERE" } }
-```
-If you are running `limp-sample-app` you can also use the sample tools available in the sandbox. For example, create a `blog_cat`, then copy its '_id' and create a `blog` bound to the same `blog_cat`. You can see all the queries you are making as well as the output you receive from LIMPd.
+[Quick Start](/docs/quick-start.md)
 
 ## Query Object
 The call `query` object is the most essential object. Although, you need to specify an `endpoint` to make any call, `query` is the object that allows you to get access to any specific data you need. The `query` object looks like this.:
