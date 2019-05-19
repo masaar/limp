@@ -8,6 +8,7 @@ cd limp/modules
 git clone https://github.com/masaar/limp-sample-app
 ```
 
+## Install Dependencies
 Once both repos are cloned, you can install LIMP dependencies using the command:
 ```bash
 python limpd.py --install-deps
