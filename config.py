@@ -32,7 +32,6 @@ class Config:
 	locale = 'ar_AE'
 
 	events = {}
-	templates = {}
 	l10n = {}
 
 	admin_username = '__ADMIN'

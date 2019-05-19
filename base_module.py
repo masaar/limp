@@ -23,10 +23,6 @@ class BaseModule(metaclass=ClassSingleton):
 		if not getattr(self, 'diff', False): self.diff = False
 		if not getattr(self, 'optional_attrs', False): self.optional_attrs = []
 		if not getattr(self, 'methods', False): self.methods = {}
-		if self.use_template:
-			self.attrs.update(BaseTemplate.template(self.template, 'attrs')) #pylint: disable=no-member
-			self.methods.update(BaseTemplate.template(self.template, 'methods')) #pylint: disable=no-member
-			self.diff = BaseTemplate.template(self.template, 'diff') #pylint: disable=no-member
 		for method in self.methods.keys():
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
@@ -51,8 +47,6 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_read(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query={}, doc={}):
-		if self.use_template:
-			env, session, query, doc = getattr(BaseTemplate, '{}_pre_read'.format(self.template))(env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		if Event.__PRE__ not in skip_events:
 			# env, session, query, doc = self.pre_read(env=env, session=session, query=query, doc=doc)
 			pre_read = self.pre_read(env=env, session=session, query=query, doc=doc)
@@ -75,8 +69,6 @@ class BaseModule(metaclass=ClassSingleton):
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
 
-		if self.use_template:
-			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_read'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
 			# [DOC] Call method events
@@ -93,8 +85,6 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_create(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
-		if self.use_template:
-			env, session, query, doc = getattr(BaseTemplate, '{}_pre_create'.format(self.template))(env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		if Event.__PRE__ not in skip_events:
 			pre_create = self.pre_create(env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
@@ -182,8 +172,6 @@ class BaseModule(metaclass=ClassSingleton):
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_create(results=results, env=env, session=session, query=query, doc=doc)
-		if self.use_template:
-			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_create'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
@@ -205,8 +193,6 @@ class BaseModule(metaclass=ClassSingleton):
 	def on_update(self, results, env, session, query, doc):
 		return (results, env, session, query, doc)
 	def update(self, skip_events=[], env={}, session=None, query={}, doc={}):
-		if self.use_template:
-			env, session, query, doc = getattr(BaseTemplate, '{}_pre_update'.format(self.template))(env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		if Event.__PRE__ not in skip_events:
 			pre_update = self.pre_update(env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
@@ -279,8 +265,6 @@ class BaseModule(metaclass=ClassSingleton):
 		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
 			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
-		if self.use_template:
-			results, env, session, query, doc = getattr(BaseTemplate, '{}_on_update'.format(self.template))(results=results, env=env, session=session, query=query, doc=doc) #pylint: disable=no-member
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
 			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
@@ -383,127 +367,6 @@ class BaseModule(metaclass=ClassSingleton):
 				'code': '404 NOT FOUND'
 			}
 		}
-
-class BaseTemplate:
-	templates = {
-		'content':{
-			'attrs':{
-				'user':'id',
-				'status':('scheduled', 'draft', 'pending', 'rejected', 'published'),
-				'title':'locale',
-				'subtitle':'locale',
-				'permalink':'str',
-				'content':'locale',
-				'tags':['str'],
-				'cat':'id',
-				'access':'access',
-				'create_time':'time',
-				# 'update_time':'time',
-				'expiry_time':'time'
-			},
-			'diff':True,
-			'methods':{
-				'read':{
-					'permissions':[['read', {}, {}], ['*', {'__OR:expiry_time':{'val':'$__time', 'oper':'$gt'}, '__OR:user':'$__user', 'access':'$__access'}, {}]]
-				},
-				'create':{
-					'permissions':[['admin', {}, {}], ['create', {}, {'user':'$__user'}]]
-				},
-				'update':{
-					'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'user':None}]],
-					'query_args':['!_id']
-				},
-				'delete':{
-					'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}, {}]],
-					'query_args':['!_id']
-				}
-			}
-		},
-		'content_cat':{
-			'attrs':{
-				'user':'id',
-				'title':'locale',
-				'desc':'locale'
-			},
-			'diff':False,
-			'methods':{
-				'read':{
-					'permissions':[['*', {}, {}]]
-				},
-				'create':{
-					'permissions':[['create', {}, {'user':'$__user'}]]
-				},
-				'update':{
-					'permissions':[['update', {}, {}], ['__NOT:update', {'user':'$__user'}, {'user':None}]],
-					'query_args':['!_id']
-				},
-				'delete':{
-					'permissions':[['delete', {}, {}], ['__NOT:delete', {'user':'$__user'}, {}]],
-					'query_args':['!_id']
-				}
-			}
-		}
-	}
-	
-	@classmethod
-	def template(self, template, attr):
-		return self.templates[template][attr]
-	
-	# content method:
-	@classmethod
-	def content_pre_read(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_on_read(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_pre_create(self, env, session, query, doc):
-		if 'subtitle' not in doc.keys(): doc['subtitle'] = {locale:'' for locale in Config.locales}
-		if 'permalink' not in doc.keys(): doc['permalink'] = re.sub(r'\s+', '-', re.sub(r'[^\s\-\w]', '', doc['title'][Config.locale]))
-		if 'tags' not in doc.keys(): doc['tags'] = []
-		if 'cat' not in doc.keys(): doc['cat'] = False
-		return (env, session, query, doc)
-	@classmethod
-	def content_on_create(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_pre_update(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_on_update(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_pre_delete(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_on_delete(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-
-	# cat methods:
-	@classmethod
-	def content_cat_pre_read(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_cat_on_read(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_cat_pre_create(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_cat_on_create(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_cat_pre_update(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_cat_on_update(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
-	@classmethod
-	def content_cat_pre_delete(self, env, session, query, doc):
-		return (env, session, query, doc)
-	@classmethod
-	def content_cat_on_delete(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
 
 class BaseMethod:
 
