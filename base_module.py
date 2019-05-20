@@ -13,7 +13,7 @@ logger = logging.getLogger('limp')
 
 class BaseModule(metaclass=ClassSingleton):
 	use_template = False
-	collection = ''
+	collection = False
 	extns = {}
 	modules = {}
 	privileges = ['read', 'create', 'update', 'delete', 'admin']

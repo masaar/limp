@@ -71,8 +71,11 @@ class Config:
 		if self.data_azure_mongo:
 			for module in modules:
 				try:
-					logger.debug('Attempting to create shard collection: %s.', modules[module].collection)
-					conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+					if modules[module].collection:
+						logger.debug('Attempting to create shard collection: %s.', modules[module].collection)
+						conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+					else:
+						logger.debug('Skipping service module: %s.', module)
 				except Exception as err:
 					logger.error(err)
 		
@@ -91,10 +94,13 @@ class Config:
 			if not os.path.exists(os.path.join(__location__, 'tests')):
 				os.makedirs(os.path.join(__location__, 'tests'))
 			for module in modules.keys():
-				logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
-				modules[module].collection = 'test_{}'.format(modules[module].collection)
-				if self.test_flush:
-					Data.drop(env=env, session=None, collection=modules[module].collection) #pylint: disable=no-value-for-parameter
+				if modules[module].collection:
+					logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
+					modules[module].collection = 'test_{}'.format(modules[module].collection)
+					if self.test_flush:
+						Data.drop(env=env, session=None, collection=modules[module].collection) #pylint: disable=no-value-for-parameter
+				else:
+					logger.debug('Skipping service module %s', module)
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
