@@ -33,26 +33,8 @@ Yes! No more dealing with custom handlers for multi-language apps. Your app is m
   * [Privilege](/docs/api-privilege.md)
   * [Events Workflow](/docs/api-event.md)
   * [Realm Mode](/docs/api-realm.md)
+* [Development Guidelines](/docs/dev-guide.md)
 * [Building SDK](/docs/build-sdk.md)
 * [Technical Specs](/docs/technical.md)
 * [CLI Interface](/docs/cli.md)
-
-
-
-## Module Elements
-...
-
-### collection
-...
-
-### attrs
-...
-
-### optional_attrs
-...
-
-### extns
-...
-
-### methods
-...
+* [Contribution Guidelines](/CONTRIBUTING.md)
