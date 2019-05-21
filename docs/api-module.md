@@ -383,3 +383,26 @@ Another difference of `on` event is that it has `results` of the `CRUD` operatio
 def on_(self, results, env, session, query, doc):
 	return (results, env, session, query, doc)
 ```
+
+
+## Interaction with Other Modules
+Within LIMP ecosystem, reaching any other method, whether on the same module or another can be achieved using the following:
+```python
+self.methods['method_name'](skip_events=[], env=env, session=session, query={}, doc{}) # Same module method
+self.modules['module_name'].methods['method_name'](skip_events=[], env=env, session=session, query={}, doc{}) # Another module method
+```
+Ultimately, this unified structure allows two modules to access each other without ending in a dead loop where each module is calling the other.
+
+`env` and `session` should always be passed as is without changing. We shall have this area of LIMP documented separately but for now keep passing them in a chain.
+
+`skip_events` is a simple list of events that you would like to skip on this call. Those events can be imported as:
+```python
+from event import Event
+```
+The events we have and we can use to skip are:
+1. `__PERM__`: The most iconic event. It's the permission check event from the call. Basically, skipping this event allow users to reach methods they weren't allowed to before. A good example of this is having a proxy module that translates the call to a private module.
+2. `__PRE__`: The event to skip `pre` event of a `CRUD` operation method. This is useful if you know the method you are calling has a `pre` event that might result in your call be manipulate in an unwanted way.
+3. `__ON__`: Similar to `__PRE__` but for `on` event of a `CRUD` operation methods.
+4. `__ARGS__`: Skip args check event. This is the event where LIMP would confirm your `query` and `doc` args passed are exactly as required by both the method definition in `methods` and as well as `attrs` and `optional_attrs`. This is helpful when you want to problematically skip `query_args` or `doc_args` check to achieve a sequence, usually not available to other public cases.
+
+Beside, `skip_events`, `env` and `session` there are the regular `query` and `doc` objects which were explored in [quick start guide](/docs/quick-start.md)
