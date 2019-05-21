@@ -1,8 +1,8 @@
 # LIMP Package
 Technically, a LIMP package is a Python package. However, what is super to regular Python package, is LIMP package has the following elements:
 1. Config: Every package in LIMP has to define a `config` method that returns LIMP `Config` matching dict. More on this in the section [Package Config](#package-config).
-2. Dependencies: LIMP package can define extra `requirements.txt` file including all the package dependencies which then be installed using [install dependencies](/docs/quick-start#install-dependencies).
-3. Modules: What is more essential to the package than the other two elements is the presence of modules. More on modules in the [full API reference of modules](/docs/api-module.md).
+2. Dependencies: LIMP package can define extra `requirements.txt` file including all the package dependencies which then be installed using [install dependencies](/blob/master/docs/quick-start#install-dependencies).
+3. Modules: What is more essential to the package than the other two elements is the presence of modules. More on modules in the [full API reference of modules](/blob/master/docs/api-module.md).
 
 Since elements #2 and #3 are out of the scope of the doc, the following is only reference to element #1. Config.
 
@@ -40,7 +40,7 @@ An environment projection object. This can be used to create environment config 
 Such feature allow the developers of the app to develop in their development `env` and then deploy the app to their `prod` host, and it would still work without a single change to any of the package or app config. Default `{}`.
 
 ### `tests`
-The `test` workflow tests. Learn more about the workflow and how to make use of the TDD-approach in LIMP in the reference of [tests in LIMP](/docs/tests.md). Default `{}`.
+The `test` workflow tests. Learn more about the workflow and how to make use of the TDD-approach in LIMP in the reference of [tests in LIMP](/blob/master/docs/tests.md). Default `{}`.
 
 ### `data_driver`
 Data driver of choice. It is always set to `'mongodb'` by omitting a value due to the fact LIMP currently does not support any other drivers.
@@ -76,7 +76,7 @@ Python list of locales used by the package. The form of the locale used in LIMP 
 Default locale of the app. It should be one of the values passed in `locales`. Default `ar_AE`.
 
 ### `events`
-Events workflow object of the package. Learn more about the workflow in the reference of [LIMP events](/docs/api-event.md). Default `{}`.
+Events workflow object of the package. Learn more about the workflow in the reference of [LIMP events](/blob/master/docs/api-event.md). Default `{}`.
 
 ### `l10n`
 App-specific locale dictionary. Default `{}`.
@@ -97,13 +97,13 @@ App-specific locale dictionary. Default `{}`.
 `ANON_TOKEN`. Default `'__ANON_TOKEN_f00000000000000000000012'`
 
 ### `anon_privileges`
-`ANON` user privileges. These are the privileges that any anonymous user of the app would have. Learn more about privileges from the reference of [LIMP privileges](/docs/api-privilege.md). Default `{}`.
+`ANON` user privileges. These are the privileges that any anonymous user of the app would have. Learn more about privileges from the reference of [LIMP privileges](/blob/master/docs/api-privilege.md). Default `{}`.
 
 ### `groups`
 App-specific users groups to create. This is a list of docs, each representing a group. Default `[]`.
 
 ### `default_privileges`
-`DEFAULT` group privileges. These are the privileges that all your app users would have. Learn more about privileges from the reference of [privileges in LIMP](/docs/api-privilege.md). Default `{}`.
+`DEFAULT` group privileges. These are the privileges that all your app users would have. Learn more about privileges from the reference of [privileges in LIMP](/blob/master/docs/api-privilege.md). Default `{}`.
 
 ### `data_indexes`
 List of app-specific data indexes to create for data collections. This is an array of all the indexes you want to create for your app to function. For instance, to create a MongoDB `$text` index on collection `staff` you can set `data_indexes` to:
@@ -118,7 +118,7 @@ List of app-specific data indexes to create for data collections. This is an arr
 Notice that the name you are passing is the `collection` name and not the module name. Also, the `index` attr is the native `index` format you pass to your MongoDB driver. Default `[]`.
 
 ### `docs`
-List of app-specific docs to create for the app functionalities. Every list item is a dict with two attrs; `module` and `doc`. The docs would be created using LIMP [base methods](/docs/api-module.md#base-methods). For instance, to create `setting` doc in your app you should set `docs` to:
+List of app-specific docs to create for the app functionalities. Every list item is a dict with two attrs; `module` and `doc`. The docs would be created using LIMP [base methods](/blob/master/docs/api-module.md#base-methods). For instance, to create `setting` doc in your app you should set `docs` to:
 ```python
 [
 	{
@@ -137,4 +137,4 @@ List of app-specific docs to create for the app functionalities. Every list item
 ```
 
 ### `realm`
-Flag to set the app to run in Realm mode. This is an advanced use-case of LIMP that has very specific scenario. Learn more about this mode in the [full reference of Realm mode](/docs/api-realm.md)
+Flag to set the app to run in Realm mode. This is an advanced use-case of LIMP that has very specific scenario. Learn more about this mode in the [full reference of Realm mode](/blob/master/docs/api-realm.md)
