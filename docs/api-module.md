@@ -58,7 +58,7 @@ Modules names in LIMP are essential. They are identifier that you would use to c
 
 ## `collection`
 The `collection` attr is the name of the collection you are saving the docs of this module in. This is an optional attr. Meaning, You can skip it. However, if you skip `collection` it defaults to `False` which results in the module be converted to `Service Module`. A service module is a module that has number of methods that are, either:
-1. **Proxy to Another Module**: A very common use-case for service modules is creating a service module to provide proxy access to [`User` module](/blob/master/docs/api-user-session.md).
+1. **Proxy to Another Module**: A very common use-case for service modules is creating a service module to provide proxy access to [`User` module](/docs/api-user-session.md).
 2. **Shared Methods**: Another interesting use-case for service modules is creating a module that has set of methods that are common and shared for reuse by other modules.
 
 Technically, nothing changes in the module itself between `Regular Module` and `Service Module`, thus if at any point you realised you need to swap between the both, you can simply do the necessary change to `collection` attr accordingly. The only difference is a `Service Module` has bo access to the base methods, which would be explained later in this doc.
@@ -85,7 +85,7 @@ The `attrs` attr is a dict representing the attrs every doc in your module colle
 ### Special Attrs
 Another aspect of `attrs` is that it has set of special attrs. These attrs value get dynamically set whether the user passed them or not; which are:
 1. `user`: If attr `user` is defined in the `attrs` dict, it would be auto populated with the current session user `_id`.
-2. `create_time`: If attr `create_time` is defined in the `attrs` dict, it would be auto populated with the time of passing the doc for insertion to the [Data Controller](/blob/master/docs/data-drivers.md).
+2. `create_time`: If attr `create_time` is defined in the `attrs` dict, it would be auto populated with the time of passing the doc for insertion to the [Data Controller](/docs/data-drivers.md).
 
 
 ## `optional_attrs`
@@ -209,7 +209,7 @@ Now that we defined all the required module attrs. We need to start making use o
 def method_name(self, skip_events=[], env={}, session=None, query={}, doc={}):
 	pass
 ```
-You should always use this signature and not any other, even with a slight change. The reason is LIMP doesn't call the methods directly, rather it calls the methods via an abstracted workflow within an object ([`BaseMethod`](https://github.com/masaar/limp/blob/master/base_module.py#L370)) that handles required checks before making the actual call.
+You should always use this signature and not any other, even with a slight change. The reason is LIMP doesn't call the methods directly, rather it calls the methods via an abstracted workflow within an object ([`BaseMethod`](https://github.com/masaar/limp/base_module.py#L370)) that handles required checks before making the actual call.
 
 Your method should always return the following dict structure:
 ```python
@@ -246,7 +246,7 @@ class Math(BaseModule):
 The module is a service module because it doesn't have a `collection` attr, also `attrs` are missing completely meaning this is a service module of second condition *Shared Methods* and not *Proxy Module*. The rest is self-descriptive. The only thing you need to pay attention to is the form of `results` returned by the method `add`.
 
 ## Base Methods
-This is great so far. But, how can we handle more complicated methods? Essentially, how can we execute the `CRUD` operations for a module? Continuing on the DRY standard we adapted in many versions of LIMP in development, we were able to introduce what we call `Base Methods`. Base Methods are set of methods, 5 in count, that provide the essential `CRUD` functionalities to any module. They can be found in [`BaseModule` class](https://github.com/masaar/limp/blob/master/base_module.py). The idea is to allow any developer to carry on the `CRUD` operations without the need to rewrite the same piece of instructions again again.
+This is great so far. But, how can we handle more complicated methods? Essentially, how can we execute the `CRUD` operations for a module? Continuing on the DRY standard we adapted in many versions of LIMP in development, we were able to introduce what we call `Base Methods`. Base Methods are set of methods, 5 in count, that provide the essential `CRUD` functionalities to any module. They can be found in [`BaseModule` class](https://github.com/masaar/limp/base_module.py). The idea is to allow any developer to carry on the `CRUD` operations without the need to rewrite the same piece of instructions again again.
 
 Let's take another look at our `Staff` module in `limp-sample-app`:
 ```python
@@ -288,7 +288,7 @@ class Staff(BaseModule):
 		}
 	}
 ```
-If you finished the [quick start guide](/blob/master/docs/quick-start.md) you would have been successfully able to create and read staff docs. But, where are the actual instructions to do so? This is the magic of Base Methods. The methods are defined in the `BaseModule` class itself, making them available to any module to use, however a call can only reach them if they are defined in the `methods` module attr, since only methods defined in there are available for calls. This allows us to provide open book `CRUD` methods, without forcing developers to break DRY standard. Additionally, we still give users all the power to decide who can access every method by setting custom `permissions`, `query_args`, and `doc_args` to every of the following Base Methods:
+If you finished the [quick start guide](/docs/quick-start.md) you would have been successfully able to create and read staff docs. But, where are the actual instructions to do so? This is the magic of Base Methods. The methods are defined in the `BaseModule` class itself, making them available to any module to use, however a call can only reach them if they are defined in the `methods` module attr, since only methods defined in there are available for calls. This allows us to provide open book `CRUD` methods, without forcing developers to break DRY standard. Additionally, we still give users all the power to decide who can access every method by setting custom `permissions`, `query_args`, and `doc_args` to every of the following Base Methods:
 1. `read`.
 2. `create`.
 3. `update`.

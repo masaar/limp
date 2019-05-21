@@ -7,7 +7,7 @@ If you also are interested in contributing back to the FOSS community, please he
 * Found a bug! Report it to us on Github, or if you know how to fix it, we would appreciate your efforts to fix it on a forked repo and sending a Pull Request.
 * Develop more advanced sample apps as reference to other LIMP developers and share it on Github. Let's know about it and we will add it to LIMP docs.
 * Help us improve the docs. Look for ways to improve the docs. Don't hesitate to [fork the repo](https://github.com/masaar/limp), update the docs and send us a Pull Request.
-* Help us writing an advanced tutorial. Currently, the [tutorial](/blob/master/docs/tutorial.md) section is a WIP.
+* Help us writing an advanced tutorial. Currently, the [tutorial](/docs/tutorial.md) section is a WIP.
 * Suggest features that are inline with LIMP goal and purpose. We welcome any suggestion.
 * Contribute to the source code directly! Yes, we welcome contributions to the source code. Fork the repo, work on whatever you think is missing or require an improvement in LIMP, and send us a Pull Request. Just in case, make sure no issue opened reporting the same as feature or todo-item where we are working on it, so your efforts don't go wasted.
 
