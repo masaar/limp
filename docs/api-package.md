@@ -75,9 +75,6 @@ Python list of locales used by the package. The form of the locale used in LIMP 
 ### `locale`
 Default locale of the app. It should be one of the values passed in `locales`. Default `ar_AE`.
 
-### `events`
-Events workflow object of the package. Learn more about the workflow in the reference of [LIMP events](/docs/api-event.md). Default `{}`.
-
 ### `l10n`
 App-specific locale dictionary. Default `{}`.
 

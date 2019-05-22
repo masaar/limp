@@ -3,7 +3,7 @@ LIMP is a backend framework that is designed for use by Masaar for rapid app dev
 
 # Features
 ## Modern
-LIMP is based on modern approaches of apps development. It enabled both backend developers and front-end developers with set of tools to achieve better and more from very simple and powerful set of tools.
+LIMP is based on modern approaches of apps development. It enables both backend developers and front-end developers with set of tools to achieve better and more from very simple and powerful set of tools.
 
 ## Type Driven
 LIMP has sophisticated workflow to handle types. It has the tools to convert types when needed. And, it has the process to reject wrong data types. This gives developers huge relieve and peace of mind when developing complicated apps that require type accuracy.
@@ -28,13 +28,13 @@ Yes! No more dealing with custom handlers for multi-language apps. Your app is m
 * [Quick Start](/docs/quick-start.md)
 * [Tutorial](/docs/tutorial.md)
 * [Tests Workflow](/docs.tests.md)
+* [Design your App](/docs/design-app.md)
 * API References:
   * [Call](/docs/api-call.md)
   * [Package](/docs/api-package.md)
   * [Module](/docs/api-module.md)
   * [User and Session](/docs/api-user-session.md)
   * [Privilege](/docs/api-privilege.md)
-  * [Events Workflow](/docs/api-event.md)
   * [Realm Mode](/docs/api-realm.md)
 * [Data Controller and Drivers](/docs/data-drivers.md)
 * [Development Guidelines](/docs/dev-guide.md)

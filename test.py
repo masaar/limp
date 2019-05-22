@@ -8,6 +8,7 @@ class Test():
 	@classmethod
 	def run_test(self, test_name, modules, env, session):
 		from config import Config
+		from utils import DictObj
 		if test_name not in Config.tests.keys():
 			logger.error('Specified test is not defined in loaded config.')
 			exit()
@@ -38,7 +39,7 @@ class Test():
 				results['steps'].append(call_results)
 			elif step['step'] == 'test':
 				logger.debug('Starting to test \'test\' step: %s', step)
-				test_results = self.run_test(test_name=step['test'], modules=modules, env=env, session=session)
+				test_results, session = self.run_test(test_name=step['test'], modules=modules, env=env, session=session)
 				if test_results['status'] == 'PASSED':
 					test_results['status'] = True
 				else:
@@ -51,6 +52,15 @@ class Test():
 					logger.debug('Changing session after successful auth step.')
 					session = auth_results['results'].args.docs[0]
 				results['steps'].append(auth_results)
+			elif step['step'] == 'signout':
+				logger.debug('Starting to test \'signout\' step: %s', step)
+				signout_results = self.run_call(modules=modules, env=env, session=session, results=results, module='session', method='signout', query={'_id':{'val':session._id}}, doc={}, acceptance={
+					'status':200
+				})
+				if signout_results['status']:
+					logger.debug('Changing session after successful signout step.')
+					session = DictObj({'user':DictObj(Config.compile_anon_user())})
+				results['steps'].append(signout_results)
 			else:
 				logger.error('Unknown step \'%s\'. Exiting.', step['step'])
 				exit()
@@ -90,7 +100,7 @@ class Test():
 				f.write(json.dumps(json.loads(JSONEncoder().encode(results)), indent=4))
 				logger.debug('Full tests log available at: %s', tests_log)
 		else:
-			return results
+			return (results, session)
 
 	@classmethod
 	def run_call(self, modules, env, session, results, module, method, query, doc, acceptance):

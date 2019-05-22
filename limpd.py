@@ -58,7 +58,7 @@ Config.test = args.test
 Config.test_flush = args.test_flush
 Config.test_force = args.test_force
 env = args.env or os.getenv('ENV') or None
-if args.debug:
+if args.debug or args.test:
 	Config.debug = True
 	logger.setLevel(logging.DEBUG)
 packages = args.packages
