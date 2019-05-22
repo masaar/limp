@@ -27,7 +27,7 @@ Yes! No more dealing with custom handlers for multi-language apps. Your app is m
 * [Dependencies](/docs/dependencies.md)
 * [Quick Start](/docs/quick-start.md)
 * [Tutorial](/docs/tutorial.md)
-* [Tests Workflow](/docs.tests.md)
+* [Tests Workflow](/docs/tests.md)
 * [Design your App](/docs/design-app.md)
 * API References:
   * [Call](/docs/api-call.md)
