@@ -212,5 +212,124 @@ By running the test again, you still would see happy results (sorry, no more tri
 
 That wraps up the reference on how to write tests for LIMP tests workflow. Let's know if you need more steps types. Feel free to create your own and share it with us. And, we would be happy to accept any suggestion in this regard.
 
+## Test `steps` of `test`
+Let's up our game a little. What about attempting to create two staff docs and try to read that we are having two, rather than the simple one doc scenario we tested earlier? This might not look of benefit here, but in complicated scenario this could be a good addition to the your knowledge of the tests workflow in LIMP. Let's update our `staff-read` test and duplicate the `test` step in the beginning, in order to have the workflow run `staff-create` twice which is basically creating two staff docs. Also, we definitely need to update our `call` step on `read` operation in order to test that the results are going to be `2` docs rather than the current `1` value. The test should look like this after the changes:
+```python
+'staff-read':[
+	{
+		'step':'test',
+		'test':'staff-create'
+	},
+	{
+		'step':'test',
+		'test':'staff-create'
+	},	
+	{
+		'step':'signout'
+	},
+	{
+		'step':'call',
+		'module':'staff',
+		'method':'read',
+		'query':{},
+		'doc':{},
+		'acceptance':{
+			'status':200,
+			'args.count':2
+		}
+	}
+]
+```
+Let's run it. The results are not that bloom:
+```
+2019-05-23 11:39:49,038  [DEBUG]  Finished testing 4 steps [Passed: 1, Failed: 1, Skipped: 2] with success rate of: 25% 2019-05-23 11:39:49,040  [DEBUG]  Full tests log available at: X:\path\to\limp\tests\LIMP-TEST_staff-read_23-May-2019.json
+```
+What did happen? The report would tell us. Let's have a look at the last failed step `results` and see what do we have:
+```python
+"results": {
+	"status": 400,
+	"msg": "You are already authed",
+	"args": {
+		"code": "CORE_TEST_USER_AUTHED"
+	}
+}
+```
+Alright! When we ran `staff-create` test again, which is having the steps `auth` and `call`, it resulted in `auth` step run on top of an authenticated session. This behaviour is not allowed in LIMP--In LIMP if you need to authenticate as another user, you need to call `session/signout` and `session/auth` again. This is a security measurement that we use in LIMP you can know more about on the reference for [user and session in LIMP](/docs/api-user-session.md).
+
+In order to get over this situation, and rather than going anti-DRY by writing a separate `call` step for the second staff create step, `test` step has one more attr-- Attr `steps` was introduced for such situations. You can selectively choose which steps from the test to run. In our case, we need only the second step to run, so we can set `steps` to `[1]`. Note that the `steps` should list the steps on zero-based index. The second step in our `staff-read` should look like this now:
+```python
+{
+	'step':'test',
+	'test':'staff-create',
+	'steps':[1]
+}
+```
+One test run more, and.. Yay! We have:
+```
+2019-05-23 11:48:50,975  [DEBUG]  Finished testing 4 steps [Passed: 4, Failed: 0, Skipped: 0] with success rate of: 100%
+2019-05-23 11:48:50,978  [DEBUG]  Full tests log available at: X:\path\to\limp\tests\LIMP-TEST_staff-read_23-May-2019.1.json
+```
+We were successfully able to skip the `auth` step from the `staff-create` test as part of our second step in `staff-read` step. If you want to make sure this is what happened, refer to the report and you would find that the `stats` of the second `test` step shows we are having one `skipped` step.
+
+## Tests Variables
+What if your module is in fact a complicated algorithm that you need to test not only that it succeeded but also its values. In that case you can make use of test variables. Test variables are variables that allow you to access values from the same step or other steps. You can use to access static or dynamically-generated values, as well as results values of the other steps.
+
+To fiddle with them, let's decide that rather than testing, in `staff-read` test, that we have total of two docs, let's test `call` on one of the two docs created. We know we can always `read` a specific doc in LIMP ecosystem by passing the `_id` of the doc in the call `query`, but since the `_id` is a dynamic value, we need to use tests variables in order to achieve the same. Change the last step in your `staff-read` test to this:
+```python
+{
+	'step':'call',
+	'module':'staff',
+	'method':'read',
+	'query':{
+		'_id':{'val':'$__steps:0.steps:1.results.args.docs:0._id'}
+	},
+	'doc':{},
+	'acceptance':{
+		'status':200,
+		'args.count':1
+	}
+}
+```
+You notice that we have added `_id` to the `query` now. We also have a value for that `_id` but that's not an acceptable `BSON ObjectId`, that's a test variables. Let's break it down:
+1. `$__`: Tests variables start with `$__`. The tests variables scope is the results of the test. This is exactly the same object you get it in the report. For that, to access any variable you need to consider that scope.
+2. `steps:0`: In our case we wanted to read the first staff doc as part of the test. So, we know the first doc was created as part of first `test` step. The steps details are always accessible using `steps` list. But, since it's a list, to specify the zero-based item index you need you have to use a colon-annotation that we came up with for list handling in tests variables. This results in `steps:0`. This gets translates into `['steps'][0]`.
+3. `steps:1`: Since the first step is itself a test, it means it has more steps in it. What we are looking at is the second step of it, which is `call` on `staff/create` endpoint. This gets translated to `['steps'][1]`
+4. `results.args`: Self-descriptive reference to `args` attr of `results` attr of the step we are at it now. This gets translated to `['results']['args']`.
+5. `docs:0`: Attr `docs` of LIMP method which is the generic attr to contain the docs resulted from the method operation, is a list. Since this is the results of a `create` operation. We have a single doc in `docs` list. To access it we use the same colon-annotation. This gets translated `['docs'][0]`.
+6. `_id`: Finally we specify we need the `_id` attr of the doc we are at. This gets translated to `['_id']`.
+
+The final compiled version of the variable `$__steps:0.steps:1.results.args.docs:0._id`:
+```python
+results['steps'][0]['steps'][1]['results']['args']['docs'][0]['_id']
+```
+You can check the last report yourself in order to figure out what value are we getting here.
+
+Also, since we are now having a `read` operation specifying one doc, we need to change the `acceptance` measurement `args.count` to `1`. And, let's run the test. We are having the following results:
+```
+2019-05-23 12:05:05,289  [DEBUG]  Finished testing 4 steps [Passed: 4, Failed: 0, Skipped: 0] with success rate of: 100%
+2019-05-23 12:05:05,292  [DEBUG]  Full tests log available at: X:\path\to\limp\tests\LIMP-TEST_staff-read_23-May-2019.2.json
+```
+
+Shall we up the game a little more? Let's add a `acceptance` measurement that is a variable itself. Update `acceptance` of our `call` step in `staff-read` test to:
+```python
+'acceptance':{
+	'status':200,
+	'args.count':1,
+	'args.docs:0.name.ar_AE':'$__steps:0.steps:1.doc.name.ar_AE'
+}
+```
+Now, let's change our `staff-create` test `call` step `doc` to all generators like this:
+```python
+'doc':{
+	'photo':{'__attr':'file'},
+	'name':{'__attr':'locale'},
+	'jobtitle':{'__attr':'locale'},
+	'bio':{'__attr':'locale'}
+}
+```
+With this we are ultimately generating custom values for every staff doc being created dynamically. After applying these changes we are achieving level of testing that allows you to generate dynamic docs, send `create` operation calls and `read` operation calls, while making sure you are reading exactly the doc that got generated over the test workflow.
+
+Having the ability to access any value from the test allows for endless scenarios of very advanced sophisticated tests.
+
 ## Tests Workflow `test-force` arg
 One last aspect to share it with you in LIMP tests workflow is running it with `test-force` arg. By running LIMPd test mode with this arg you ultimately force LIMPd to continue running all tests even if any failed. This is usually not what a developer would like to do, but since we are trying to make a framework for all use-cases we considered adding this feature as well.

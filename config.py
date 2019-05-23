@@ -199,9 +199,9 @@ class Config:
 		if self.test:
 			logger.debug('Running tests')
 			from utils import DictObj
-			Test.run_test(test_name=self.test, modules=modules, env=env, session=DictObj({
-				'user':DictObj(self.compile_anon_user())
-			}))
+			anon_session = self.compile_anon_session()
+			anon_session['user'] = DictObj(self.compile_anon_user())
+			Test.run_test(test_name=self.test, steps=False, modules=modules, env=env, session=DictObj(anon_session))
 			exit()
 	
 	@classmethod

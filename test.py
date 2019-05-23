@@ -1,12 +1,12 @@
 from bson import ObjectId
 
-import logging, traceback, math, random, datetime, os, json
+import logging, traceback, math, random, datetime, os, json, copy
 logger = logging.getLogger('limp')
 
 class Test():
 	
 	@classmethod
-	def run_test(self, test_name, modules, env, session):
+	def run_test(self, test_name, steps, modules, env, session):
 		from config import Config
 		from utils import DictObj
 		if test_name not in Config.tests.keys():
@@ -25,9 +25,16 @@ class Test():
 			},
 			'steps':[]
 		}
+
 		step_failed = False
-		for step in test:
+		for i in range(0, test.__len__()):
 			results['stats']['total'] += 1
+			step = copy.deepcopy(test[i])
+
+			if steps and i not in steps:
+				results['stats']['total'] -= 1
+				results['stats']['skipped'] += 1
+				continue
 
 			if step_failed and not Config.test_force:
 				results['stats']['skipped'] += 1
@@ -39,7 +46,11 @@ class Test():
 				results['steps'].append(call_results)
 			elif step['step'] == 'test':
 				logger.debug('Starting to test \'test\' step: %s', step)
-				test_results, session = self.run_test(test_name=step['test'], modules=modules, env=env, session=session)
+				if 'steps' in step.keys():
+					test_steps = step['steps']
+				else:
+					test_steps = False
+				test_results, session = self.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=session)
 				if test_results['status'] == 'PASSED':
 					test_results['status'] = True
 				else:
@@ -47,10 +58,24 @@ class Test():
 				results['steps'].append(test_results)
 			elif step['step'] == 'auth':
 				logger.debug('Starting to test \'auth\' step: %s', step)
-				auth_results = self.run_auth(modules=modules, env=env, session=session, results=results, var=step['var'], val=step['val'], hash=step['hash'])
-				if auth_results['status']:
-					logger.debug('Changing session after successful auth step.')
-					session = auth_results['results'].args.docs[0]
+				if str(session._id) != 'f00000000000000000000012':
+					auth_results = {
+						'step':'auth',
+						'var':step['var'],
+						'val':step['val'],
+						'hash':step['hash'],
+						'status':False,
+						'results':{
+							'status':400,
+							'msg':'You are already authed',
+							'args':{'code':'CORE_TEST_USER_AUTHED'}
+						}
+					}
+				else:
+					auth_results = self.run_auth(modules=modules, env=env, session=session, results=results, var=step['var'], val=step['val'], hash=step['hash'])
+					if auth_results['status']:
+						logger.debug('Changing session after successful auth step.')
+						session = auth_results['results'].args.docs[0]
 				results['steps'].append(auth_results)
 			elif step['step'] == 'signout':
 				logger.debug('Starting to test \'signout\' step: %s', step)
@@ -73,16 +98,16 @@ class Test():
 				results['stats']['passed'] += 1
 
 		if results['steps'].__len__() == 0:
-			logger.debug('No steps tested. Exiting')
+			logger.error('No steps tested. Exiting')
 			exit()
+		results['success_rate'] = int((results['stats']['passed'] / results['stats']['total']) * 100)
+		if results['success_rate'] == 0:
+			results['status'] = 'FAILED'
+		elif results['success_rate'] == 100:
+			results['status'] = 'PASSED'
+		else:
+			results['status'] = 'PARTIAL'
 		if test_name == Config.test:
-			results['success_rate'] = int((results['stats']['passed'] / results['stats']['total']) * 100)
-			if results['success_rate'] == 0:
-				results['status'] = 'FAILED'
-			elif results['success_rate'] == 100:
-				results['status'] = 'PASSED'
-			else:
-				results['status'] = 'PARTIAL'
 			logger.debug('Finished testing %s steps [Passed: %s, Failed: %s, Skipped: %s] with success rate of: %s%%', results['stats']['total'], results['stats']['passed'], results['stats']['failed'], results['stats']['skipped'], results['success_rate'])
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 			tests_log = os.path.join(__location__, 'tests', 'LIMP-TEST_{}_{}'.format(test_name, datetime.date.today().strftime('%d-%b-%Y')))
@@ -110,7 +135,6 @@ class Test():
 			'method':method,
 			'query':query,
 			'doc':doc,
-			'acceptance':acceptance,
 			'status':True
 		}
 		for attr in query.keys():
@@ -122,30 +146,16 @@ class Test():
 			elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
 				doc[attr] = self.generate_attr(doc[attr]['__attr'])
 		try:
-			results = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
+			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
+			call_results['acceptance'] = copy.deepcopy(acceptance)
 			for measure in acceptance.keys():
-				# [TODO] Add handler for session.user measure
-				if measure == 'status':
-					if results.status != acceptance[measure]:
-						call_results['status'] = False
-						break
-				elif measure == 'args.count':
-					try:
-						if results.args.count != acceptance[measure]:
-							call_results['status'] = False
-							break
-					except:
-						call_results['status'] = False
-						break
+				if type(call_results['acceptance'][measure]) == str and call_results['acceptance'][measure].startswith('$__'):
+					call_results['acceptance'][measure] = self.extract_attr(results, call_results['acceptance'][measure])
+				if self.extract_attr(call_results['results'], '$__{}'.format(measure)) != call_results['acceptance'][measure]:
+					call_results['status'] = False
+					break
 			if call_results['status'] == False:
-				call_results.update({
-					'measure':measure,
-					'results':results
-				})
-			else:
-				call_results.update({
-					'results':results
-				})
+				call_results['measure'] = measure
 		except Exception as e:
 			tb = traceback.format_exc()
 			call_results.update({
@@ -192,12 +202,12 @@ class Test():
 		attr_path = attr_path[3:].split('.')
 		attr = results
 		for child_attr in attr_path:
-			logger.debug('Attempting to extract %s from %s', child_attr, attr)
-			if child_attr.startswith('steps:'):
-				attr = attr['steps'][int(child_attr[6:])]
-			elif child_attr.startswith('docs:'):
-				attr = attr['docs'][int(child_attr[5:])]
-			else:
+			# logger.debug('Attempting to extract %s from %s', child_attr, attr)
+			try:
+				child_attr.index(':')
+				child_attr = child_attr.split(':')
+				attr = attr[child_attr[0]][int(child_attr[1])]
+			except:
 				attr = attr[child_attr]
 		return attr
 
@@ -215,24 +225,24 @@ class Test():
 		elif attr_type == 'id':
 			return ObjectId()
 		elif attr_type == 'str':
-			return '__str-{}'.format(math.ceil(random.random() * 100))
+			return '__str-{}'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'int':
-			return math.ceil(random.random() * 100)
+			return math.ceil(random.random() * 10000)
 		elif type(attr_type) == tuple:
 			return attr_type[0]
 		elif attr_type == 'bool':
 			return True
 		elif attr_type == 'email':
-			return 'some-{}@email.com'.format(math.ceil(random.random() * 1000))
+			return 'some-{}@email.com'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'phone':
-			return '+97150{}'.format(math.ceil(random.random() * 100))
+			return '+97150{}'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'uri:web':
-			return 'https://some.uri.com'
+			return 'https://some.uri-{}.com'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'time':
 			return datetime.datetime.today()
 		elif attr_type == 'file':
 			return [{
-				'name':'__name',
+				'name':'__file-{}'.format(math.ceil(random.random() * 10000)),
 				'lastModified':100000,
 				'type':'text/plain',
 				'size':6,
@@ -257,7 +267,7 @@ class Test():
 			return [self.generate_attr(attr_type[0])]
 		elif attr_type == 'locale':
 			from config import Config
-			return {locale:'__locale' for locale in Config.locales}
+			return {locale:'__locale-{}'.format(math.ceil(random.random() * 10000)) for locale in Config.locales}
 		elif attr_type == 'locales':
 			from config import Config
 			return Config.locale
