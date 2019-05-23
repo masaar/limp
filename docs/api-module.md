@@ -87,6 +87,10 @@ Another aspect of `attrs` is that it has set of special attrs. These attrs value
 1. `user`: If attr `user` is defined in the `attrs` dict, it would be auto populated with the current session user `_id`.
 2. `create_time`: If attr `create_time` is defined in the `attrs` dict, it would be auto populated with the time of passing the doc for insertion to the [Data Controller](/docs/data-drivers.md).
 
+## `diff`
+Just like the regular diff tool, LIMP has built-in diff workflow. If you set `diff` to `True`, any update on a doc in the module would be `diff`'ed and a `Diff` module doc would be created in reference to the original values before the change. Pay attention to this *`Diff` module doc is a representation of the original values before the `update` operation*. With this in mind, you can create a changes-tree of any doc in any module that has diff workflow enabled. 
+
+`diff` attr also allows you to selectively *exclude* specific attrs from the diff workflow handling. For instance, your `Blog` module can have attr `views` that gets increased by one every time blog doc is read. You don't want to record a diff workflow on the `views` getting increased by `1`, as this would fill your database with huge nonsense docs in your `Diff` module collection. The attrs you want to exclude can be added to a list and set `diff` to that list, e.g. `['views']`.
 
 ## `optional_attrs`
 Attrs that are defined in `attrs` are the attr that are going to be required to create a doc and they are the same attrs that are going to be matched for update. However, in the simplest cases you might want to problematically set a value of one of the attrs, rather than asking a use for it. 

@@ -35,7 +35,7 @@ LIMP currently only has an Angular SDK. We are working with other developers to 
 	doc: { [key: 'username' | 'email' | 'phone']: String, hash: String; }
 }
 /*
-[DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following obejct:
+[DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following object:
 {
 	hash: [authVar: String; authVal: String; password: String;];
 }

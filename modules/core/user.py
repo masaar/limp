@@ -10,11 +10,11 @@ class User(BaseModule):
 	attrs = {
 		'username':'str',
 		'email':'email',
+		'phone':'phone',
 		'name':'locale',
 		'bio':'locale',
 		'address':'locale',
 		'postal_code':'str',
-		'phone':'phone',
 		'website':'uri:web',
 		'locale':'locales',
 		'create_time':'time',
