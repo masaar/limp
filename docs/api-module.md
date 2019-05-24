@@ -63,6 +63,8 @@ The `collection` attr is the name of the collection you are saving the docs of t
 
 Technically, nothing changes in the module itself between `Regular Module` and `Service Module`, thus if at any point you realised you need to swap between the both, you can simply do the necessary change to `collection` attr accordingly. The only difference is a `Service Module` has bo access to the base methods, which would be explained later in this doc.
 
+The convention of the `collection` value is it should be the `snake_case` plural form of the module name. If the module name is two words or more, the `collection` name shall be the plural form of every word in the module name. For instance our `BoilerplateModule` has the `collection` set to (Do this:) `boilerplates_modules` rather than (Don't do this:) `boilerplate_modules` or `boilerplates_module`.
+
 ## `attrs`
 The `attrs` attr is a dict representing the attrs every doc in your module collection should have, and the associated types. LIMP is type-driven. This means, you can simply defined every type you expect for your module `attrs` and LIMP would take the burden on checking the types, or convert them if required. The List of available types are:
 1. **`any`**: This means your attr can have any type, ultimately skipping type-check on it altogether.
@@ -84,7 +86,7 @@ The `attrs` attr is a dict representing the attrs every doc in your module colle
 
 ### Special Attrs
 Another aspect of `attrs` is that it has set of special attrs. These attrs value get dynamically set whether the user passed them or not; which are:
-1. `user`: If attr `user` is defined in the `attrs` dict, it would be auto populated with the current session user `_id`.
+1. `user`: If attr `user` is defined in the `attrs` dict, it would be auto populated with the current session user `_id`. This basically sets a user as the owner of the doc.
 2. `create_time`: If attr `create_time` is defined in the `attrs` dict, it would be auto populated with the time of passing the doc for insertion to the [Data Controller](/docs/data-drivers.md).
 
 ## `diff`
@@ -388,6 +390,12 @@ def on_(self, results, env, session, query, doc):
 	return (results, env, session, query, doc)
 ```
 
+### Delete Mode
+By default, LIMP doesn't delete any doc from any collection of any module. The `delete` operation simply flags a doc as `__deleted`, which the default [`Data Controller and Drivers`](/docs/data-drivers.md) read query then ignores. This behaviour was introduced to allow developers to develop apps that can delete data on two levels:
+1. Flagging docs as `__deleted` ultimately making it impossible for LIMP methods to access these docs, yet keep them present in their own collections.
+2. Forcing the `delete` operation of specific docs completely from the database of the app.
+
+This is helpful when you have an advanced app with possibility that users might request recovery of deleted docs. Although, this is not a backup system, nor should it ease your standards on having a separate backup system, but having the required doc in place and simple marked `__deleted` and being able to recover it by removing the `__deleted` attr from the doc in the database collection should be a huge convenience to the systems admins.
 
 ## Interaction with Other Modules
 Within LIMP ecosystem, reaching any other method, whether on the same module or another can be achieved using the following:

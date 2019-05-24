@@ -82,22 +82,22 @@ App-specific locale dictionary. Default `{}`.
 `ADMIN` username. Default `__ADMIN`.
 
 ### `admin_email`
-`ADMIN` email. Default `ADMIN@LIMP.MASAAR.COM`
+`ADMIN` email. Default `ADMIN@LIMP.MASAAR.COM`.
 
 ### `admin_phone`
-`ADMIN` phone. Default `'+971500000000'`
+`ADMIN` phone. Default `'+971500000000'`.
 
 ### `admin_password`
-`ADMIN` password. Default `'__ADMIN'`
+`ADMIN` password. Default `'__ADMIN'`.
 
 ### `anon_token`
-`ANON_TOKEN`. Default `'__ANON_TOKEN_f00000000000000000000012'`
+`ANON` user session token. Learn more about session tokens in the dedicated section in [user and session reference](/docs/api-user-session.md#sessions-tokens). Default `'__ANON_TOKEN_f00000000000000000000012'`.
 
 ### `anon_privileges`
 `ANON` user privileges. These are the privileges that any anonymous user of the app would have. Learn more about privileges from the reference of [LIMP privileges](/docs/api-privilege.md). Default `{}`.
 
 ### `groups`
-App-specific users groups to create. This is a list of docs, each representing a group. Default `[]`.
+App-specific users groups to create. This is a list of docs, each representing a group. You can specify `_id` attr in these docs of you want static `_id` value rather than dynamic. Default `[]`.
 
 ### `default_privileges`
 `DEFAULT` group privileges. These are the privileges that all your app users would have. Learn more about privileges from the reference of [privileges in LIMP](/docs/api-privilege.md). Default `{}`.
@@ -115,7 +115,7 @@ List of app-specific data indexes to create for data collections. This is an arr
 Notice that the name you are passing is the `collection` name and not the module name. Also, the `index` attr is the native `index` format you pass to your MongoDB driver. Default `[]`.
 
 ### `docs`
-List of app-specific docs to create for the app functionalities. Every list item is a dict with two attrs; `module` and `doc`. The docs would be created using LIMP [base methods](/docs/api-module.md#base-methods). For instance, to create `setting` doc in your app you should set `docs` to:
+List of app-specific docs to create for the app functionalities. Every list item is a dict with two attrs; `module` and `doc`. The docs would be created using LIMP [base methods](/docs/api-module.md#base-methods). You can specify `_id` attr in these docs of you want static `_id` value rather than dynamic. For instance, to create `setting` doc in your app you should set `docs` to:
 ```python
 [
 	{

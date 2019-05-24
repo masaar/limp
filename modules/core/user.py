@@ -196,7 +196,7 @@ class User(BaseModule):
 			return {
 				'status':400,
 				'msg':'User is not a member of the group.',
-				'args':{'code':'CORE_USER_GROUP_ADDED'}
+				'args':{'code':'CORE_USER_GROUP_NOT_ADDED'}
 			}
 		user.groups = [group for group in user.groups if str(group) != str(doc['group'])]
 		# [DOC] Update the user
@@ -221,7 +221,7 @@ class Group(BaseModule):
 			'permissions':[['admin', {}, {}]]
 		},
 		'update':{
-			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}]],
+			'permissions':[['admin', {}, {}], ['update', {'user':'$__user', 'privileges':None}]],
 			'query_args':['!_id']
 		},
 		'delete':{
@@ -233,4 +233,26 @@ class Group(BaseModule):
 	def pre_create(self, env, session, query, doc):
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
+		return (env, session, query, doc)
+
+	def pre_update(self, env, session, query, doc):
+		# [DOC] Make sure no attrs overwriting would happen
+		if 'attrs' in doc.keys():
+			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
+			if not results['args']['count']:
+				return {
+					'status':400,
+					'msg':'Group is invalid.',
+					'args':{'code':'CORE_GROUP_INVALID_GROUP'}
+				}
+			if results['args']['count'] > 1:
+				return {
+					'status':400,
+					'msg':'Updating group attrs can be done only to individual groups.',
+					'args':{'code':'CORE_GROUP_MULTI_ATTRS_UPDATE'}
+				}
+			results['args']['docs'][0]['attrs'].update(
+				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
+			)
+			doc['attrs'] = results['args']['docs'][0]['attrs']
 		return (env, session, query, doc)
