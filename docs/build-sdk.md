@@ -8,18 +8,25 @@ LIMP currently only has an Angular SDK. We are working with other developers to 
 3. Your calls to LIMP should have the following structure (Typescript-annotated interface):
 ```typescript
 {
-	call_id?: String; // [DOC] A unique token to distinguish which responses from LIMPd belong to which calls.
-	endpoint?: String; // [DOC] The endpoint you are calling, it's in the form of 'MODULE/METHOD'.
-	sid?: String; // [DOC] The session ID you are currently on.
-	query?: any; /*
-	[DOC] The query object which is in the form of
-	{ [attr: String]?: {
-		val: String | Array<String>;
-		oper: '$gt' | '$lt' | '$bet' | '$not';
-		val2: String; },
-	  $search?: String; $sort?: { [attr: String]: 1 | -1 }; $skip?: Number; $limit?: Number; $extn?: Boolean; }
-	*/
-	doc?: any; // [DOC] The doc object is the raw values you are passing to LIMPd. It's should comply with the module `attrs` you are calling.
+	call_id?: string; // [DOC] A unique token to distinguish which responses from LIMPd belong to which calls.
+	endpoint?: string; // [DOC] The endpoint you are calling, it's in the form of 'module/method'.
+	sid?: string; // [DOC] The session ID you are currently on.
+	token?: string;
+	query?: { // [DOC] The query object which is in the form of
+		$search?: string; // [DOC] Special Attr $search
+		$sort?: { [attr: string]: 1 | -1 }; // [DOC] Special Attr $sort
+		$skip?: number; // [DOC] Special Attr $skip
+		$limit?: number; // [DOC] Special Attr $limit
+		$extn?: boolean | Array<string>; // [DOC] Special Attr $extn
+		[attr: string]: { // [DOC] User or app defined query attr
+			val: any; // [DOC] The query attr val
+			oper?: '$gt' | '$lt' | '$bet' | '$not' | '$regex' | '$all' | '$in'; // [DOC] The query attr `val` operator
+			val2?: string; // [DOC] The second val, applicable only for oper `$bet`.
+		} | string | { [attr: string]: 1 | -1 } | number | boolean | Array<string>;
+	};
+	doc?: { // [DOC] The doc object is the raw values you are passing to LIMP app. It should comply with the module `attrs` you are calling.
+		[attr: string]: any;
+	};
 }
 ```
 4. The call should be tokenised using `JWT` standard with the following header, using the session token, or `ANON_TOKEN` if you have not yet been authenticated:
@@ -29,15 +36,15 @@ LIMP currently only has an Angular SDK. We are working with other developers to 
 5. To authenticate the user for the current session you need to make the following call:
 ```typescript
 {
-	call_id: String;
+	call_id: string;
 	endpoint: 'session/auth';
 	sid: 'f00000000000000000000012';
-	doc: { [key: 'username' | 'email' | 'phone']: String, hash: String; }
+	doc: { [key: 'username' | 'email' | 'phone']: string, hash: string; }
 }
 /*
 [DOC] You can get the hash of the auth method of choice from 'username', 'email', or 'phone' by generating the JWT of the following object:
 {
-	hash: [authVar: String; authVal: String; password: String;];
+	hash: [authVar: string; authVal: string; password: string;];
 }
 signed using 'password' value
 */
@@ -45,15 +52,15 @@ signed using 'password' value
 6. To re-authenticate the user from the cached credentials, in a new session, you can make the following call:
 ```typescript
 {
-	call_id: String;
+	call_id: string;
 	endpoint: 'session/reauth';
 	sid: 'f00000000000000000000012';
-	query: { _id: { val: String; }; hash: { val: String; } }
+	query: { _id: { val: string; }; hash: { val: string; } }
 }
 /*
 [DOC] You can get the hash to reauth method by generating the JWT of the following obejct:
 {
-	token: String;
+	token: string;
 }
 signed using cached token value
 */
@@ -61,16 +68,16 @@ signed using cached token value
 7. Files can only be pushed as part of the `doc` object in the call if you are using the special call to `file/upload`. Right before sending the call, attempt to detect any `FileList` or matching types in the call `doc` object. If any are found, iterate over all the files in the `FileList`, read each as `ByteArray` object and slice it into slices matching the default or user-set SDK `fileChunkSize` attr. Each slice should be sent to LIMPd in the form of:
 ```typescript
 {
-	attr: String;
-	index: Number; // Index of the file in the FileList.
-	chunk: Number; // Index of the chunk of the current file.
-	total: Number; // Total number of chunks to be sent.
+	attr: string;
+	index: number; // Index of the file in the FileList.
+	chunk: number; // Index of the chunk of the current file.
+	total: number; // Total number of chunks to be sent.
 	file: { // Attr file is not user-defined. This should always be the name of the attr.
-		name: String; // File name.
-		size: Number; // File size.
-		type: String; // File mime-type.
-		lastModified: Number; // File disk lastModified value.
-		content: String; // The byteArray slice joined with ',' commas e.g. byteArraySlice.join(',')
+		name: string; // File name.
+		size: number; // File size.
+		type: string; // File mime-type.
+		lastModified: number; // File disk lastModified value.
+		content: string; // The byteArray slice joined with ',' commas e.g. byteArraySlice.join(',')
 	}
 }
 ```
