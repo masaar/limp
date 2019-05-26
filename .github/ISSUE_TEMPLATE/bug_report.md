@@ -23,7 +23,7 @@ A clear and concise description of what you expected to happen.
 **Logs**
 Share with us the `debug` log of LIMP app showing the bug.
 
-**Version Detailes (please complete the following information):**
+**Version Details (please complete the following information):**
  - OS: 
  - Python:
  - LIMP:
