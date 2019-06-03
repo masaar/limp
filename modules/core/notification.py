@@ -18,7 +18,7 @@ class Notification(BaseModule):
 			'permissions':[['*', {'user':'$__user'}, {}]]
 		},
 		'create':{
-			'permissions':[['create', {}, {'user':'$__user'}]]
+			'permissions':[['create', {}, {}]]
 		},
 		'update':{
 			'permissions':[['update', {'user':'$__user'}, {'user':None, 'create_time':None, 'title':None, 'content':None}]],

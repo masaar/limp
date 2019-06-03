@@ -2,7 +2,7 @@
 LIMP currently only has an Angular SDK. We are working with other developers to provide React, React Native, Java and Swift SDKs. However, if you are in need of creating your SDK for any reason, here are the things you need to know:
 1. You need to start with a websocket client, connecting to `ws[s]://IP_OR_HOST[:PORT]/ws`.
 2. LIMPd would respond with the following:
-```
+```json
 { "status": 200, "msg": "Connection established." }
 ```
 3. Your calls to LIMP should have the following structure (Typescript-annotated interface):
@@ -30,7 +30,7 @@ LIMP currently only has an Angular SDK. We are working with other developers to 
 }
 ```
 4. The call should be tokenised using `JWT` standard with the following header, using the session token, or `ANON_TOKEN` if you have not yet been authenticated:
-```
+```typescript
 { alg: 'HS256', typ: 'JWT' }
 ```
 5. To authenticate the user for the current session you need to make the following call:

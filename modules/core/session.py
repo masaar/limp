@@ -24,7 +24,7 @@ class Session(BaseModule):
 			'permissions':[['read', {'user':'$__user'}, {}]]
 		},
 		'create':{
-			'permissions':[['create', {}, {'user':'$__user'}]]
+			'permissions':[['create', {}, {}]]
 		},
 		'update':{
 			'permissions':[['update', {'user':'$__user'}, {'user':None}]],

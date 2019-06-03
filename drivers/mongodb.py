@@ -129,8 +129,6 @@ class MongoDb(metaclass=ClassSingleton):
 						query[query_arg]['val'] = ObjectId(query[query_arg]['val'])
 				if oper == 'or': or_query.append({extn+arg+child_arg:query[query_arg]['val']})
 				else: aggregate_query.append({'$match':{extn+arg+child_arg:query[query_arg]['val']}})
-			elif arg == 'realm':
-				aggregate_query.append({'$match':{'$or':[{'realm':query[query_arg]['val']}, {'realm':'__global'}]}})
 			elif type(arg_attrs[arg]) == dict:
 				child_aggregate_query = []
 				for child_attr in [child_attr for child_attr in arg_attrs[arg].keys()]:
@@ -153,7 +151,7 @@ class MongoDb(metaclass=ClassSingleton):
 				if oper == 'or': or_query += access_query
 				else: aggregate_query += access_query
 			else:
-				if 'oper' not in query[query_arg].keys() or query[query_arg]['oper'] not in ['$gt', '$lt', '$bet', '$not', '$regex', '$all', '$in']:
+				if 'oper' not in query[query_arg].keys() or query[query_arg]['oper'] not in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
 					query[query_arg]['oper'] = '$eq'
 				if oper == 'or':
 					if query[query_arg]['oper'] == '$bet':
@@ -178,6 +176,8 @@ class MongoDb(metaclass=ClassSingleton):
 		group_query['_id'] = '$_id'
 		aggregate_query.append({'$group':group_query})
 		if or_query: aggregate_query.append({'$match':{'$or':or_query}})
+
+		logger.debug('Final query: %s', aggregate_query)
 
 		collection = conn[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
@@ -311,14 +311,25 @@ class MongoDb(metaclass=ClassSingleton):
 		# [DOC] Perform update query on matching docs
 		collection = conn[collection]
 		results = None
+		update_doc = {'$set':doc}
+		# [DOC] Check for increament oper
+		del_attrs = []
+		for attr in doc.keys():
+			if type(doc[attr]) == dict and '$inc' in doc[attr].keys():
+				if '$inc' not in update_doc.keys():
+					update_doc['$inc'] = {}
+				update_doc['$inc'][attr] = doc[attr]['$inc']
+				del_attrs.append(attr)
+		for del_attr in del_attrs:
+			del doc[del_attr]
 		# [DOC] If using Azure Mongo service update docs one by one
 		if Config.data_azure_mongo:
 			update_count = 0
 			for _id in docs:
-				results = collection.update_one({'_id':_id}, {'$set':doc})
+				results = collection.update_one({'_id':_id}, update_doc)
 				update_count += results.modified_count
 		else:
-			results = collection.update_many({'_id':{'$in':docs}}, {'$set':doc})
+			results = collection.update_many({'_id':{'$in':docs}}, update_doc)
 			update_count = results.modified_count
 		return {
 			'count':update_count,

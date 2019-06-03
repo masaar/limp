@@ -4,10 +4,10 @@ from event import Event
 class Setting(BaseModule):
 	collection = 'settings'
 	attrs = {
+		'user':'id',
 		'var':'str',
 		'val':'any',
-		'type':('global', 'user'),
-		'user':'id'
+		'type':('global', 'user')
 	}
 	optional_attrs = ['user']
 	extns = {
@@ -42,12 +42,12 @@ class Setting(BaseModule):
 	}
 
 	def pre_create(self, env, session, query, doc):
-		if type(doc['val']) == list and doc['val'].__len__() == 1 and 'content' in doc['val'][0].keys():
+		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
 		return (env, session, query, doc)
 	
 	def pre_update(self, env, session, query, doc):
-		if type(doc['val']) == list and doc['val'].__len__() == 1 and 'content' in doc['val'][0].keys():
+		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
 		return (env, session, query, doc)
 

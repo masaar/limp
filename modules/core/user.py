@@ -78,10 +78,12 @@ class User(BaseModule):
 				'msg':'A user with the same username, email or phone already exists.',
 				'args':{'code':'CORE_USER_DUPLICATE_USER'}
 			}
-		# doc['groups'] = [ObjectId('f00000000000000000000013')]
-		if 'groups' not in doc.keys():
-			doc['groups'] = []
-		doc['groups'].append(ObjectId('f00000000000000000000013'))
+		if Config.realm:
+			realm_results = self.modules['realm'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'realm':{'val':env['realm']}})
+			realm = realm_results.args.docs[0]
+			doc['groups'] = [realm.default]
+		else:
+			doc['groups'] = [ObjectId('f00000000000000000000013')]
 		doc['privileges'] = {}
 		if 'locale' not in doc.keys():
 			doc['locale'] = Config.locale

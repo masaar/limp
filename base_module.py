@@ -98,7 +98,7 @@ class BaseModule(metaclass=ClassSingleton):
 		for arg in del_args:
 			del doc[arg]
 		# [DOC] Append host_add, user_agent, create_time, diff if it's present in attrs.
-		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session:
+		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session and Event.__ARGS__ not in skip_events:
 			doc['user'] = session.user._id
 		if 'create_time' in self.attrs.keys():
 			doc['create_time'] = datetime.datetime.fromtimestamp(time.time())
@@ -385,7 +385,7 @@ class BaseMethod:
 		elif args_list == 'doc':
 			args_list = self.doc_args
 
-		logger.debug('testing args, list: %s, args: %s', arg_list_label, args)
+		logger.debug('testing args, list: %s, args: %s', arg_list_label, str(args)[:256])
 
 		for arg in args_list:
 
@@ -430,7 +430,7 @@ class BaseMethod:
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
-		if Config.realm:
+		if Event.__ARGS__ not in skip_events and Config.realm:
 			query['realm'] = {'val':env['realm']}
 			doc['realm'] = env['realm']
 			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
@@ -450,6 +450,13 @@ class BaseMethod:
 				doc.update(permissions_check['doc'])
 	
 		if Event.__ARGS__ not in skip_events:
+			for arg in query.keys():
+				if arg[0] != '$' and type(query[arg]) != dict:
+					return DictObj({
+						'status':400,
+						'msg':'Query attr \'{}\' is not a known special attr, nor it follows the query object structure.'.format(arg),
+						'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+					})
 			test_query = self.test_args('query', query)
 			if test_query != True: return test_query
 		
