@@ -29,7 +29,7 @@ class Diff(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		# [DOC] Detect non-_id update query:
 		if '_id' not in query.keys():
 			results = self.modules[doc['module']].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
@@ -48,4 +48,4 @@ class Diff(BaseModule):
 				self.methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id']['val'][i]}}, doc=doc)
 			query['_id'] = {'val':query['_id']['val'][query['_id']['val'].__len__() - 1]}
 		doc['doc'] = ObjectId(query['_id']['val'])
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)

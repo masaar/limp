@@ -30,7 +30,7 @@ class Notification(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		if 'notify_time'not in doc.keys():
 			doc['notify_time'] = datetime.datetime.fromtimestamp(time.time())
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)

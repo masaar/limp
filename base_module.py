@@ -42,16 +42,16 @@ class BaseModule(metaclass=ClassSingleton):
 			if self.attrs[attr] == 'locale':
 				self.attrs[attr] = locales
 
-	def pre_read(self, env, session, query, doc):
-		return (env, session, query, doc)
-	def on_read(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
+	def pre_read(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_read(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if Event.__PRE__ not in skip_events:
-			# env, session, query, doc = self.pre_read(env=env, session=session, query=query, doc=doc)
-			pre_read = self.pre_read(env=env, session=session, query=query, doc=doc)
+			# skip_events, env, session, query, doc = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
-			env, session, query, doc = pre_read
+			skip_events, env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
 		elif '$extn' in query.keys() and type(query['$extn']) == dict:
@@ -62,7 +62,7 @@ class BaseModule(metaclass=ClassSingleton):
 		else:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
-			results, env, session, query, doc = self.on_read(results=results, env=env, session=session, query=query, doc=doc)
+			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			# [DOC] if $attrs query arg is present return only required keys.
 			if '$attrs' in query.keys():
 				query['$attrs'].insert(0, '_id')
@@ -80,15 +80,15 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_create(self, env, session, query, doc):
-		return (env, session, query, doc)
-	def on_create(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
+	def pre_create(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_create(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if Event.__PRE__ not in skip_events:
-			pre_create = self.pre_create(env=env, session=session, query=query, doc=doc)
+			pre_create = self.pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
-			env, session, query, doc = pre_create
+			skip_events, env, session, query, doc = pre_create
 		# [TODO]: validate data
 		# [DOC] Deleted all extra doc args
 		del_args = []
@@ -171,7 +171,7 @@ class BaseModule(metaclass=ClassSingleton):
 				}
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
-			results, env, session, query, doc = self.on_create(results=results, env=env, session=session, query=query, doc=doc)
+			results, skip_events, env, session, query, doc = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
@@ -188,15 +188,15 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_update(self, env, session, query, doc):
-		return (env, session, query, doc)
-	def on_update(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
+	def pre_update(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_update(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
 	def update(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		if Event.__PRE__ not in skip_events:
-			pre_update = self.pre_update(env=env, session=session, query=query, doc=doc)
+			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
-			env, session, query, doc = pre_update
+			skip_events, env, session, query, doc = pre_update
 		# [TODO] validate data
 		for attr in self.attrs.keys():
 			if attr not in doc.keys(): continue
@@ -264,7 +264,7 @@ class BaseModule(metaclass=ClassSingleton):
 			}
 		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
-			results, env, session, query, doc = self.on_update(results=results, env=env, session=session, query=query, doc=doc)
+			results, skip_events, env, session, query, doc = self.on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
 			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
@@ -298,17 +298,17 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def pre_delete(self, env, session, query, doc):
-		return (env, session, query, doc)
-	def on_delete(self, results, env, session, query, doc):
-		return (results, env, session, query, doc)
+	def pre_delete(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_delete(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
 	def delete(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [TODO] refactor for template use
-		if Event.__PRE__ not in skip_events: env, session, query, doc = self.pre_delete(env=env, session=session, query=query, doc=doc)
+		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] delete soft action is to just flag the doc as deleted, without force removing it from db.
 		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events)) #pylint: disable=no-value-for-parameter
-		if Event.__ON__ not in skip_events: results, env, session, query, doc = self.on_delete(results=results, env=env, session=session, query=query, doc=doc)
+		if Event.__ON__ not in skip_events: results, skip_events, env, session, query, doc = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		return {
 			'status':200,
 			'msg':'Deleted {} docs.'.format(results['count']),
@@ -491,7 +491,7 @@ class BaseMethod:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		else:
 			try:
-				# #logger.debug('2. calling: %s.%s, with sid:%s, query:%s, doc:%s. skip_events:%s.', self.module, self.method, env, session, query, doc, skip_events)
+				# #logger.debug('2. calling: %s.%s, with sid:%s, query:%s, doc:%s. skip_events:%s.', self.module, self.method, skip_events, env, session, query, doc, skip_events)
 				results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			except Exception as e:
 				logger.error('An error occured. Details: %s.', traceback.format_exc())

@@ -30,7 +30,7 @@ class Realm(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		user_results = self.modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, session=session, doc={
 			'username':doc['admin']['email'],
 			'email':doc['admin']['email'],
@@ -73,4 +73,4 @@ class Realm(BaseModule):
 
 		doc['admin'] = user._id
 		doc['default'] = group._id
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)

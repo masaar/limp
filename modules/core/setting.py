@@ -41,15 +41,15 @@ class Setting(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
 	
-	def pre_update(self, env, session, query, doc):
+	def pre_update(self, skip_events, env, session, query, doc):
 		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
 
 	def get_setting(self, skip_events=[], env={}, session=None, query={}, doc={}, files={}):
 		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)

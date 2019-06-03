@@ -356,7 +356,7 @@ class Blog(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		blog_cat_results = self.modules['blog_cat'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':doc['cat']}})
 		if not blog_cat_results.args.count:
 			return {
@@ -367,7 +367,7 @@ class Blog(BaseModule):
 		if 'subtitle' not in doc.keys(): doc['subtitle'] = {locale:'' for locale in Config.locales}
 		if 'permalink' not in doc.keys(): doc['permalink'] = re.sub(r'\s+', '-', re.sub(r'[^\s\-\w]', '', doc['title'][Config.locale]))
 		if 'tags' not in doc.keys(): doc['tags'] = []
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
 ```
 If you notice we are have a `pre_create` method defined. This is `pre` event handler for operation `create` method. The `pre` event method here does few things:
 1. It checks first if the provided `cat` attr is a valid `blog_cat` doc.
@@ -377,8 +377,8 @@ If you notice we are have a `pre_create` method defined. This is `pre` event han
 
 As you can see, `pre` event handler was able to manipulate the actual call `doc`. This is correct. `pre_*` methods are having full access to the call args. This allows developers to cherrypick how they want to deal with their `CRUD` operations, before they get called. A `pre` event is having the following signature and it should return the same params passed:
 ```python
-def pre_(self, env, session, query, doc):
-	return (env, session, query, doc)
+def pre_(self, skip_events, env, session, query, doc):
+	return (skip_events, env, session, query, doc)
 ```
 Any failure in defining or returning the correct params would cause a `500 SERVER ERROR`.
 
@@ -386,8 +386,8 @@ The other part of the story, `on` event. The `on` event, has exactly the same pu
 
 Another difference of `on` event is that it has `results` of the `CRUD` operation passed as first param, ultimately to give developers access to the operation result and act on it. The signature and return structure are:
 ```python
-def on_(self, results, env, session, query, doc):
-	return (results, env, session, query, doc)
+def on_(self, results, skip_events, env, session, query, doc):
+	return (results, skip_events, env, session, query, doc)
 ```
 
 ### Delete Mode
@@ -415,6 +415,6 @@ The events we have and we can use to skip are:
 1. `__PERM__`: The most iconic event. It's the permission check event from the call. Basically, skipping this event allow users to reach methods they weren't allowed to before. A good example of this is having a proxy module that translates the call to a private module.
 2. `__PRE__`: The event to skip `pre` event of a `CRUD` operation method. This is useful if you know the method you are calling has a `pre` event that might result in your call be manipulate in an unwanted way.
 3. `__ON__`: Similar to `__PRE__` but for `on` event of a `CRUD` operation methods.
-4. `__ARGS__`: Skip args check event. This is the event where LIMP would confirm your `query` and `doc` args passed are exactly as required by both the method definition in `methods` and as well as `attrs` and `optional_attrs`. This is helpful when you want to problematically skip `query_args` or `doc_args` check to achieve a sequence, usually not available to other public cases.
+4. `__ARGS__`: Skip args check event. This is the event where LIMP would confirm your `query` and `doc` args passed are exactly as required by both the method definition in `methods` and as well as `attrs` and `optional_attrs`. This is helpful when you want to problematically skip `query_args` or `doc_args` check to achieve a sequence, usually not available to other public cases. Passing it would also result in [`user` Special Attrs](#special-attrs) not being auto populated by the current session user's `_id`, meaning not passing it manually would result in `400 Missing Attr` error. In [`realm` mode](/docs/api-realm.md)-enabled app, passing `__ARGS__` would also result in `query` and `doc` not being updated with `realm` attr.
 
 Beside, `skip_events`, `env` and `session` there are the regular `query` and `doc` objects which were explored in [quick start guide](/docs/quick-start.md)

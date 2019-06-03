@@ -62,15 +62,15 @@ class User(BaseModule):
 		}
 	}
 
-	def on_read(self, results, env, session, query, doc):
+	def on_read(self, results, skip_events, env, session, query, doc):
 		for i in range(0, results['docs'].__len__()):
 			user = results['docs'][i]
 			del user['username_hash']
 			del user['email_hash']
 			del user['phone_hash']
-		return (results, env, session, query, doc)
+		return (results, skip_events, env, session, query, doc)
 	
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'__OR:username':{'val':doc['username']}, '__OR:email':{'val':doc['email']}, '__OR:phone':{'val':doc['phone']}, '$limit':1})
 		if results['args']['count']:
 			return {
@@ -91,10 +91,10 @@ class User(BaseModule):
 			doc['status'] = 'active'
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
-		# print('(env, session, query, doc)', (env, session, query, doc))
-		return (env, session, query, doc)
+		# print('(skip_events, env, session, query, doc)', (skip_events, env, session, query, doc))
+		return (skip_events, env, session, query, doc)
 	
-	def pre_update(self, env, session, query, doc):
+	def pre_update(self, skip_events, env, session, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
@@ -114,7 +114,7 @@ class User(BaseModule):
 				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
 			)
 			doc['attrs'] = results['args']['docs'][0]['attrs']
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
 	
 	# [TODO] Add pre_update method to check for duplications at time of updating
 
@@ -232,12 +232,12 @@ class Group(BaseModule):
 		}
 	}
 
-	def pre_create(self, env, session, query, doc):
+	def pre_create(self, skip_events, env, session, query, doc):
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
 
-	def pre_update(self, env, session, query, doc):
+	def pre_update(self, skip_events, env, session, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
@@ -257,4 +257,4 @@ class Group(BaseModule):
 				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
 			)
 			doc['attrs'] = results['args']['docs'][0]['attrs']
-		return (env, session, query, doc)
+		return (skip_events, env, session, query, doc)
