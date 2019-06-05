@@ -54,20 +54,39 @@ class BaseModule(metaclass=ClassSingleton):
 			skip_events, env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
-		elif '$extn' in query.keys() and type(query['$extn']) == dict:
+		# [DEPRECATED] query dict
+		elif type(query) == dict and '$extn' in query.keys() and type(query['$extn']) == dict:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn'].keys() and query['$extn'][extn] == True
 			}, modules=self.modules, query=query)
 			del query['$extn']
-		else:
+		elif type(query) == list:
+			for step in query:
+				if type(step) == dict:
+					if '$extn' in step.keys() and type(step['$extn']) == dict:
+						results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
+							extn:self.extns[extn] for extn in self.extns.keys() if extn in step['$extn'].keys() and step['$extn'][extn] == True
+						}, modules=self.modules, query=query)
+						del step['$extn']
+		try:
+			results
+		except:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			# [DOC] if $attrs query arg is present return only required keys.
-			if '$attrs' in query.keys():
+			# [DEPRECATED] query dict
+			if type(query) == dict and '$attrs' in query.keys():
 				query['$attrs'].insert(0, '_id')
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
+			elif type(query) == list:
+				for step in query:
+					if type(step) == dict:
+						if '$attrs' in step.keys():
+							step['$attrs'].insert(0, '_id')
+							for i in range(0, results['docs'].__len__()):
+								results['docs'][i] = {attr:results['docs'][i][attr] for attr in step['$attrs'] if attr in results['docs'][i]._attrs()}
 
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
@@ -425,13 +444,17 @@ class BaseMethod:
 		
 		return True
 
-	def __call__(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
-			query['realm'] = {'val':env['realm']}
+			# [DEPRECATED] query dict
+			if type(query) == dict:
+				query['realm'] = {'val':env['realm']}
+			elif type(query) == list:
+				query.append([{'realm':env['realm']}])
 			doc['realm'] = env['realm']
 			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
@@ -446,56 +469,72 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
 				})
 			else:
-				query.update(permissions_check['query'])
+				# [DEPRECATED] query dict
+				if type(query) == dict:
+					query.update(permissions_check['query'])
+				elif type(query) == list:
+					query.append([permissions_check['query']])
 				doc.update(permissions_check['doc'])
 	
 		if Event.__ARGS__ not in skip_events:
-			for arg in query.keys():
-				if arg[0] != '$' and type(query[arg]) != dict:
-					return DictObj({
-						'status':400,
-						'msg':'Query attr \'{}\' is not a known special attr, nor it follows the query object structure.'.format(arg),
-						'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
-					})
+			# [DEPRECATED] query dict
+			if type(query) == dict:
+				for arg in query.keys():
+					if arg[0] != '$' and type(query[arg]) != dict:
+						return DictObj({
+							'status':400,
+							'msg':'Query attr \'{}\' is not a known special attr, nor it follows the query object structure.'.format(arg),
+							'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+						})
+
 			test_query = self.test_args('query', query)
 			if test_query != True: return test_query
 		
 			test_doc = self.test_args('doc', doc)
 			if test_doc != True: return test_doc
 				
-		# [DOC] Convert any BaseModel object in query or docs to ObjectId
-		for arg in query.keys():
-			if type(query[arg]) == dict and 'val' in query[arg].keys() and type(query[arg]['val']) == BaseModel:
-				query[arg]['val'] = query[arg]['val']._id
+		# [DEPRECATED] query dict
+		if type(query) == dict:
+			# [DOC] Convert any BaseModel object in query or docs to ObjectId
+			for arg in query.keys():
+				if type(query[arg]) == dict and 'val' in query[arg].keys() and type(query[arg]['val']) == BaseModel:
+					query[arg]['val'] = query[arg]['val']._id
+
 		for arg in doc.keys():
 			if type(doc[arg]) == BaseModel:
 				doc[arg] = doc[arg]._id
 
+		# [DEPRECATED] query dict
+		if type(query) == dict:
+			# [DOC] check if $soft oper is set to add it to events
+			if '$soft' in query.keys() and query['$soft'] == True:
+				skip_events.append(Event.__SOFT__)
+				del query['$soft']
 
-		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
-		# [DOC] check if $soft oper is set to add it to events
-		if '$soft' in query.keys() and query['$soft'] == True:
-			skip_events.append(Event.__SOFT__)
-			del query['$soft']
-		#logger.debug('$soft is in skip_events: %s.', Event.__SOFT__ in skip_events)
-		# [DOC] check if $extn oper is set to add it to events
-		if '$extn' in query.keys() and query['$extn'] == False:
-			skip_events.append(Event.__EXTN__)
-			del query['$extn']
-		#logger.debug('$extn is in skip_events: %s.', Event.__EXTN__ in skip_events)
-		# [DOC] check if $diff oper is set to add it to events
-		# if '$diff' not in query.keys() or query['$diff'] != True:
-		# 	skip_events.append(Event.__DIFF__)
+			# [DOC] check if $extn oper is set to add it to events
+			if '$extn' in query.keys() and query['$extn'] == False:
+				skip_events.append(Event.__EXTN__)
+				del query['$extn']
+		elif type(query) == list:
+				for step in query:
+					if type(step) == dict:
+						# [DOC] check if $soft oper is set to add it to events
+						if '$soft' in step.keys() and step['$soft'] == True:
+							skip_events.append(Event.__SOFT__)
+							del step['$soft']
+
+						# [DOC] check if $extn oper is set to add it to events
+						if '$extn' in step.keys() and step['$extn'] == False:
+							skip_events.append(Event.__EXTN__)
+							del step['$extn']
 
 		if Config.debug:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		else:
 			try:
-				# #logger.debug('2. calling: %s.%s, with sid:%s, query:%s, doc:%s. skip_events:%s.', self.module, self.method, skip_events, env, session, query, doc, skip_events)
 				results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			except Exception as e:
 				logger.error('An error occured. Details: %s.', traceback.format_exc())
-				# raise e
 				return DictObj({
 					'status':500,
 					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),

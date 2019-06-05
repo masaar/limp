@@ -41,8 +41,8 @@ class MongoDb(metaclass=ClassSingleton):
 			conn = MongoClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
 		return conn
 	
-	def read(self, env, session, collection, attrs, extns, modules, query):
-		conn = env['conn']
+	# [DEPRECATED] query dict
+	def _compile_query_deprecated(self, collection, attrs, extns, modules, query):
 		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		or_query = []
 		access_query = {}
@@ -53,6 +53,7 @@ class MongoDb(metaclass=ClassSingleton):
 		limit = False
 		sort = False
 		group = False
+
 		if '$skip' in query.keys():
 			skip = query['$skip']
 			del query['$skip']
@@ -179,6 +180,111 @@ class MongoDb(metaclass=ClassSingleton):
 
 		logger.debug('Final query: %s', aggregate_query)
 
+		return (skip, limit, sort, group, aggregate_query)
+	
+	def _compile_query(self, collection, attrs, extns, modules, query):
+		aggregate_query = []
+		logger.debug('attempting to parse query: %s', query)
+
+		skip = False
+		limit = False
+		sort = False
+		group = False
+
+		for step in query:
+			# [DOC] Check if step type is list or dict
+			if type(step) == list:
+				self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
+			elif type(step) == dict:
+				if '$skip' in step.keys():
+					skip = step['$skip']
+					del step['$skip']
+				if '$limit' in step.keys():
+					limit = step['$limit']
+					del step['$limit']
+				if '$sort' in step.keys():
+					sort = step['$sort']
+					del step['$sort']
+				else:
+					sort = {'_id':-1}
+				if '$search' in step.keys():
+					aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
+					project_query = {attr:'$'+attr for attr in attrs.keys()}
+					project_query['_id'] = '$_id'
+					project_query['__score'] = {'$meta': 'textScore'}
+					aggregate_query.append({'$project':project_query})
+					aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
+					del step['$search']
+				if '$geo_near' in step.keys():
+					aggregate_query = [{'$geoNear':{
+						'near':{'type':'Point','coordinates':step['$geo_near']['val']},
+						'distanceField':step['$geo_near']['attr'] + '.__distance',
+						'maxDistance':step['$geo_near']['dist'],
+						'spherical':True
+					}}] + aggregate_query
+					del step['$geo_near']
+				if '$group' in step.keys():
+					group = step['$group']
+					del step['$group']
+
+		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}, *aggregate_query]
+		return (skip, limit, sort, group, aggregate_query)
+		
+	def _compile_query_step(self, aggregate_query, collection, attrs, extns, modules, step, top_level=True):
+		if top_level:
+			step_query = [{'$match':{'$or':[]}}]
+			step_query_match = step_query[0]['$match']['$or']
+		else:
+			step_query = [{'$or':[]}]
+			step_query_match = step_query[0]['$or']
+
+		for child_step in step:
+			if type(child_step) == dict:
+				child_step_query = {'$and':[]}
+				for attr in child_step.keys():
+					# [DOC] Add extn query when required
+					if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
+						extn_collection = modules[extns[attr.split('.')[0]][0]].collection
+						if modules[extns[attr.split('.')[0]][0]].attrs[attr.split('.')[1]] == 'id':
+							child_step[attr] = ObjectId(child_step[attr])
+						step_query.insert(0, {'$unwind':'${}'.format(attr.split('.')[0])})
+						step_query.insert(0, {'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
+						group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
+						group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
+						group_query['_id'] = '$_id'
+						step_query.append({'$group':group_query})
+					# [DOC] Convert strings and lists of strings to ObjectId when required
+					elif attr in attrs.keys() and attrs[attr] == 'id':
+						child_step[attr] = ObjectId(child_step[attr])
+					elif attr in attrs.keys() and attrs[attr] == ['id']:
+						if type(child_step[attr]):
+							child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
+						elif type(child_step[attr]) == str:
+							child_step[attr] = ObjectId(child_step[attr])
+					child_step_query['$and'].append({attr: child_step[attr]})
+				if child_step_query['$and'].__len__():
+					step_query_match.append(child_step_query)
+			elif type(child_step) == list:
+				step_query_match.append(self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, top_level=False))
+
+		if not step_query_match.__len__():
+			return []
+
+		if top_level:
+			aggregate_query += step_query
+		else:
+			return step_query
+	
+	def read(self, env, session, collection, attrs, extns, modules, query):
+		conn = env['conn']
+		# [DEPRECATED] query dict
+		if type(query) == dict:
+			skip, limit, sort, group, aggregate_query = self._compile_query_deprecated(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		elif type(query) == list:
+			skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		
+		logger.debug('aggregate_query: %s', aggregate_query)
+
 		collection = conn[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
 		try:
@@ -251,7 +357,10 @@ class MongoDb(metaclass=ClassSingleton):
 					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
-					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, session=session, query={'_id':{'val':doc[extn]}, '$limit':1})
+					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, session=session, query=[
+						[{'_id':doc[extn]}],
+						{'$limit':1}
+					])
 					# [TODO] Consider a fallback for extn no-match cases
 					if extn_results['args']['count']:
 						doc[extn] = extn_results['args']['docs'][0]
@@ -272,7 +381,10 @@ class MongoDb(metaclass=ClassSingleton):
 					for i in range(0, doc[extn].__len__()):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
-						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query={'_id':{'val':doc[extn][i]}, '$limit':1})
+						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=[
+							[{'_id':doc[extn][i]}],
+							{'$limit':1}
+						])
 						if extn_results['args']['count']:
 							doc[extn][i] = extn_results['args']['docs'][0]
 							# [DOC] delete all unneeded keys from the resulted doc
