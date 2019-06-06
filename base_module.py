@@ -1,7 +1,7 @@
 from config import Config
 from event import Event
 from data import Data
-from utils import ClassSingleton, DictObj, validate_attr, call_event
+from utils import ClassSingleton, DictObj, validate_attr, call_event, extract_query_attr, _QUERY_ATTR_NOT_FOUND
 from base_model import BaseModel
 
 from bson import ObjectId
@@ -46,7 +46,7 @@ class BaseModule(metaclass=ClassSingleton):
 		return (skip_events, env, session, query, doc)
 	def on_read(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def read(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def read(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
 			# skip_events, env, session, query, doc = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
@@ -61,13 +61,11 @@ class BaseModule(metaclass=ClassSingleton):
 			}, modules=self.modules, query=query)
 			del query['$extn']
 		elif type(query) == list:
-			for step in query:
-				if type(step) == dict:
-					if '$extn' in step.keys() and type(step['$extn']) == dict:
-						results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
-							extn:self.extns[extn] for extn in self.extns.keys() if extn in step['$extn'].keys() and step['$extn'][extn] == True
-						}, modules=self.modules, query=query)
-						del step['$extn']
+			query_extn = extract_query_attr(query, '$extn', delete=True, type_match=list)
+			if query_extn != _QUERY_ATTR_NOT_FOUND:
+				results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
+					extn:self.extns[extn] for extn in self.extns.keys() if extn in query_extn
+				}, modules=self.modules, query=query)
 		try:
 			results
 		except:
@@ -81,12 +79,11 @@ class BaseModule(metaclass=ClassSingleton):
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
 			elif type(query) == list:
-				for step in query:
-					if type(step) == dict:
-						if '$attrs' in step.keys():
-							step['$attrs'].insert(0, '_id')
-							for i in range(0, results['docs'].__len__()):
-								results['docs'][i] = {attr:results['docs'][i][attr] for attr in step['$attrs'] if attr in results['docs'][i]._attrs()}
+				query_attrs = extract_query_attr(query, '$attrs')
+				if query_attrs != _QUERY_ATTR_NOT_FOUND:
+					query_attrs.insert(0, '_id')
+					for i in range(0, results['docs'].__len__()):
+						results['docs'][i] = {attr:results['docs'][i][attr] for attr in query_attrs if attr in results['docs'][i]._attrs()}
 
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
@@ -103,7 +100,7 @@ class BaseModule(metaclass=ClassSingleton):
 		return (skip_events, env, session, query, doc)
 	def on_create(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def create(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def create(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
 			pre_create = self.pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
@@ -193,7 +190,7 @@ class BaseModule(metaclass=ClassSingleton):
 			results, skip_events, env, session, query, doc = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
-			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':results['docs'][0]}, '$limit':1})
+			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['docs'][0]}]])
 			results = results['args']
 
 		# [DOC] On succeful call, call notif events.
@@ -211,7 +208,7 @@ class BaseModule(metaclass=ClassSingleton):
 		return (skip_events, env, session, query, doc)
 	def on_update(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def update(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def update(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
 			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
@@ -321,7 +318,7 @@ class BaseModule(metaclass=ClassSingleton):
 		return (skip_events, env, session, query, doc)
 	def on_delete(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def delete(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def delete(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [TODO] refactor for template use
 		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
@@ -334,7 +331,7 @@ class BaseModule(metaclass=ClassSingleton):
 			'args':results
 		}
 	
-	def retrieve_file(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def retrieve_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		attr, filename = query['var']['val'].split(';')
 		del query['var']
 		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query=query)
@@ -516,17 +513,13 @@ class BaseMethod:
 				skip_events.append(Event.__EXTN__)
 				del query['$extn']
 		elif type(query) == list:
-				for step in query:
-					if type(step) == dict:
-						# [DOC] check if $soft oper is set to add it to events
-						if '$soft' in step.keys() and step['$soft'] == True:
-							skip_events.append(Event.__SOFT__)
-							del step['$soft']
+			query_soft = extract_query_attr(query, '$soft', delete=True)
+			if query_soft != _QUERY_ATTR_NOT_FOUND:
+				skip_events.append(Event.__SOFT__)
 
-						# [DOC] check if $extn oper is set to add it to events
-						if '$extn' in step.keys() and step['$extn'] == False:
-							skip_events.append(Event.__EXTN__)
-							del step['$extn']
+			query_extn = extract_query_attr(query, '$extn', delete=True, match=False)
+			if query_extn != _QUERY_ATTR_NOT_FOUND:
+				skip_events.append(Event.__EXTN__)
 
 		if Config.debug:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)

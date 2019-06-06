@@ -104,7 +104,7 @@ class Config:
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query={'_id':{'val':'f00000000000000000000010'}})
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[[{'_id':'f00000000000000000000010'}]])
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_doc = {
@@ -136,7 +136,7 @@ class Config:
 			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=admin_doc)
 			logger.debug('ADMIN user creation results: %s', admin_results)
 
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query={'_id':{'val':'f00000000000000000000011'}})
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[[{'_id':'f00000000000000000000011'}]])
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
 			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=self.compile_anon_user())
@@ -144,7 +144,7 @@ class Config:
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query={'_id':{'val':'f00000000000000000000012'}})
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[[{'_id':'f00000000000000000000012'}]])
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
 			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=self.compile_anon_session())
@@ -152,7 +152,7 @@ class Config:
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query={'_id':{'val':'f00000000000000000000013'}})
+		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[[{'_id':'f00000000000000000000013'}]])
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
 			group_doc = {
@@ -175,7 +175,7 @@ class Config:
 		logger.debug('Testing app-specific groups collection.')
 		# [DOC] test app-specific groups
 		for group in self.groups:
-			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query={'_id':{'val':group['_id']}})
+			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[[{'_id':group['_id']}]])
 			if not group_results.args.count:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
 				if self.realm:
@@ -190,7 +190,7 @@ class Config:
 
 		logger.debug('Testing docs.')
 		for doc in self.docs:
-			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, query={'_id':{'val':doc['doc']['_id']}})
+			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, query=[[{'_id':doc['doc']['_id']}]])
 			if not doc_results.args.count:
 				if self.realm:
 					doc['doc']['realm'] = '__global'

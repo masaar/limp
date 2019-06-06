@@ -188,7 +188,7 @@ class MongoDb(metaclass=ClassSingleton):
 
 		skip = False
 		limit = False
-		sort = False
+		sort = {'_id':-1}
 		group = False
 
 		for step in query:
@@ -261,6 +261,11 @@ class MongoDb(metaclass=ClassSingleton):
 							child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
 						elif type(child_step[attr]) == str:
 							child_step[attr] = ObjectId(child_step[attr])
+					elif attr == '_id':
+						if type(child_step[attr]) == str:
+							child_step[attr] = ObjectId(child_step[attr])
+						elif type(child_step[attr]) == list:
+							child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
 					child_step_query['$and'].append({attr: child_step[attr]})
 				if child_step_query['$and'].__len__():
 					step_query_match.append(child_step_query)
@@ -314,7 +319,8 @@ class MongoDb(metaclass=ClassSingleton):
 				group_query = collection.aggregate(group_query)
 				groups[group_condition['by']] = [{'min':group['_id']['min'], 'max':group['_id']['max'], 'count':group['count']} for group in group_query]
 
-		aggregate_query.append({'$sort':sort})
+		if sort:
+			aggregate_query.append({'$sort':sort})
 		if skip:
 			aggregate_query.append({'$skip':skip})
 		if limit:

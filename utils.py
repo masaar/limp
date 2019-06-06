@@ -6,6 +6,11 @@ from bson import ObjectId, binary
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
 
+_QUERY_ATTR_NOT_FOUND = '_QUERY_ATTR_NOT_FOUND'
+_QUERY_ATTR_NO_MATCH = '_QUERY_ATTR_NO_MATCH'
+_QUERY_ATTR_NO_TYPE_MATCH = '_QUERY_ATTR_NO_TYPE_MATCH'
+_QUERY_ATTR_NO_SET = '_QUERY_ATTR_NO_SET'
+
 class ClassSingleton(type):
 	def __new__(cls, cls_name, bases, attrs):
 		for name, attr in attrs.items():
@@ -119,6 +124,36 @@ def signal_handler(signum, frame):
 			msg = 'morning'
 		logger.info(' Have a great {}!'.format(msg))
 		exit()
+
+def extract_query_attr(query, attr, delete=False, match=_QUERY_ATTR_NO_MATCH, type_match=_QUERY_ATTR_NO_TYPE_MATCH, set=_QUERY_ATTR_NO_SET):
+	for step in query:
+		if type(step) == dict:
+			if attr in step.keys():
+				if set != _QUERY_ATTR_NO_SET:
+					if callable(set):
+						step[attr] = set(step[attr])
+					else:
+						step[attr] = set
+				query_attr = step[attr]
+				if delete:
+					if match != _QUERY_ATTR_NO_MATCH:
+						if query_attr == match:
+							del step[attr]
+							return query_attr
+					if type_match != _QUERY_ATTR_NO_TYPE_MATCH:
+						if type(query_attr) == type_match:
+							del step[attr]
+							return query_attr
+					elif match == _QUERY_ATTR_NO_MATCH and type_match == _QUERY_ATTR_NO_TYPE_MATCH:
+						del step[attr]
+						return query_attr
+				else:
+					return query_attr
+		elif type(step) == list:
+			query_attr = extract_query_attr(step, attr)
+			if query_attr != _QUERY_ATTR_NOT_FOUND:
+				return query_attr
+	return _QUERY_ATTR_NOT_FOUND
 
 def validate_attr(attr, attr_type):
 	from base_model import BaseModel
