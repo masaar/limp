@@ -1,5 +1,5 @@
 from config import Config
-from utils import ClassSingleton
+from utils import ClassSingleton, Query
 from base_model import BaseModel
 
 import logging, datetime
@@ -39,14 +39,12 @@ class Data(metaclass=ClassSingleton):
 	def sanitise_attrs(self, attrs):
 		if type(attrs) == dict:
 			iter = attrs.keys()
-		elif type(attrs) == list:
-			iter = range(0, attrs.__len__())
-		for attr in iter:
-			# #logger.debug('testing attr: %s, %s, agaisnt type BaseModel: %s.', attr, attrs[attr], isinstance(attrs[attr], BaseModel))
-			if type(attrs[attr]) == dict:
-				attrs[attr] = self.sanitise_attrs(attrs[attr])
-			elif type(attrs[attr]) == list:
-				attrs[attr] = self.sanitise_attrs(attrs[attr])
-			elif isinstance(attrs[attr], BaseModel):
-				attrs[attr] = attrs[attr]._id
+			for attr in iter:
+				# #logger.debug('testing attr: %s, %s, agaisnt type BaseModel: %s.', attr, attrs[attr], isinstance(attrs[attr], BaseModel))
+				if type(attrs[attr]) == dict:
+					attrs[attr] = self.sanitise_attrs(attrs[attr])
+				elif type(attrs[attr]) == list:
+					attrs[attr] = self.sanitise_attrs(attrs[attr])
+				elif isinstance(attrs[attr], BaseModel):
+					attrs[attr] = attrs[attr]._id
 		return attrs

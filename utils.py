@@ -56,6 +56,84 @@ class DictObj:
 	def _attrs(self):
 		return self.__attrs
 
+class Query(list):
+	def _create_index(self, query, path=[]):
+		for i in range(0, query.__len__()):
+			if type(query[i]) == dict:
+				for attr in query[i].keys():
+					if attr[0] == '$' and attr in self._index.keys():
+						raise Exception('Duplicate special attr \'{}\' detected.'.format(attr))
+					if attr not in self._index.keys():
+						self._index[attr] = []
+					self._index[attr].append({
+						'path':path + [i],
+						'val':query[i][attr]
+					})
+			elif type(query[i]) == list:
+				self._create_index(query[i], path=path + [i])
+	def __init__(self, query):
+		self._query = query
+		self._index = {}
+		self._create_index(query)
+		super().__init__(query)
+	def append(self, obj):
+		self._query.append(obj)
+		self._index = {}
+		self._create_index(self._query)
+		super().__init__(self._query)
+	def __contains__(self, attr):
+		return attr in self._index.keys()
+	def __getitem__(self, attr):
+		if attr[0] == '$':
+			return self._index[attr][0]['val']
+		else:
+			return QueryAttrList(self, attr, [attr['path'] for attr in self._index[attr]], [attr['val'] for attr in self._index[attr]])
+			# return [attr['val'] for attr in self._index[attr]]
+	def __setitem__(self, attr, val):
+		if attr[0] != '$':
+			raise Exception('Non-special attrs can only be updated by attr index.')
+		for instance in self._index[attr]:
+			instance_attr = self._query
+			for path_part in instance['path']:
+				instance_attr = instance_attr[path_part]
+			instance_attr[attr] = val
+			instance['val'] = val
+	def __delitem__(self, attr):
+		if attr[0] != '$':
+			raise Exception('Non-special attrs can only be deleted by attr index.')
+		for instance in self._index[attr]:
+			instance_attr = self._query
+			for path_part in instance['path']:
+				instance_attr = instance_attr[path_part]
+			del instance_attr[attr]
+		del self._index[attr]
+
+class QueryAttrList(list):
+	_query = None
+	_attr = None
+	_paths = []
+	_vals = []
+	def __init__(self, query, attr, paths, vals):
+		self._query = query
+		self._attr = attr
+		self._paths = paths
+		self._vals = vals
+		super().__init__(vals)
+	def __setitem__(self, item, val):
+		# self._query._index[self._attr][item]
+		instance_attr = self._query._query
+		for path_part in self._paths[item]:
+			instance_attr = instance_attr[path_part]
+		instance_attr[self._attr] = val
+		self._query._index[self._attr][item]['val'] = val
+	def __delitem__(self, item):
+		# for instance in self._index[attr]:
+		instance_attr = self._query._query
+		for path_part in self._paths[item]:
+			instance_attr = instance_attr[path_part]
+		del instance_attr[self._attr]
+		del self._query._index[self._attr][item]
+	
 def import_modules(env=None, packages=None):
 	import modules as package
 	from base_module import BaseModule
@@ -124,36 +202,6 @@ def signal_handler(signum, frame):
 			msg = 'morning'
 		logger.info(' Have a great {}!'.format(msg))
 		exit()
-
-def extract_query_attr(query, attr, delete=False, match=_QUERY_ATTR_NO_MATCH, type_match=_QUERY_ATTR_NO_TYPE_MATCH, set=_QUERY_ATTR_NO_SET):
-	for step in query:
-		if type(step) == dict:
-			if attr in step.keys():
-				if set != _QUERY_ATTR_NO_SET:
-					if callable(set):
-						step[attr] = set(step[attr])
-					else:
-						step[attr] = set
-				query_attr = step[attr]
-				if delete:
-					if match != _QUERY_ATTR_NO_MATCH:
-						if query_attr == match:
-							del step[attr]
-							return query_attr
-					if type_match != _QUERY_ATTR_NO_TYPE_MATCH:
-						if type(query_attr) == type_match:
-							del step[attr]
-							return query_attr
-					elif match == _QUERY_ATTR_NO_MATCH and type_match == _QUERY_ATTR_NO_TYPE_MATCH:
-						del step[attr]
-						return query_attr
-				else:
-					return query_attr
-		elif type(step) == list:
-			query_attr = extract_query_attr(step, attr)
-			if query_attr != _QUERY_ATTR_NOT_FOUND:
-				return query_attr
-	return _QUERY_ATTR_NOT_FOUND
 
 def validate_attr(attr, attr_type):
 	from base_model import BaseModel

@@ -1,7 +1,7 @@
 from config import Config
 from event import Event
 from data import Data
-from utils import ClassSingleton, DictObj, validate_attr, call_event, extract_query_attr, _QUERY_ATTR_NOT_FOUND
+from utils import ClassSingleton, DictObj, validate_attr, call_event, Query
 from base_model import BaseModel
 
 from bson import ObjectId
@@ -60,15 +60,11 @@ class BaseModule(metaclass=ClassSingleton):
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn'].keys() and query['$extn'][extn] == True
 			}, modules=self.modules, query=query)
 			del query['$extn']
-		elif type(query) == list:
-			query_extn = extract_query_attr(query, '$extn', delete=True, type_match=list)
-			if query_extn != _QUERY_ATTR_NOT_FOUND:
-				results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
-					extn:self.extns[extn] for extn in self.extns.keys() if extn in query_extn
-				}, modules=self.modules, query=query)
-		try:
-			results
-		except:
+		elif type(query) == Query and '$extn' in query and type(query['$extn']) == list:
+			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
+				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
+			}, modules=self.modules, query=query)
+		else:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
@@ -78,17 +74,14 @@ class BaseModule(metaclass=ClassSingleton):
 				query['$attrs'].insert(0, '_id')
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
-			elif type(query) == list:
-				query_attrs = extract_query_attr(query, '$attrs')
-				if query_attrs != _QUERY_ATTR_NOT_FOUND:
-					query_attrs.insert(0, '_id')
-					for i in range(0, results['docs'].__len__()):
-						results['docs'][i] = {attr:results['docs'][i][attr] for attr in query_attrs if attr in results['docs'][i]._attrs()}
+			elif type(query) == Query and '$attrs' in query:
+				query['$attrs'].insert(0, '_id')
+				for i in range(0, results['docs'].__len__()):
+					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
 
 		# [DOC] On succeful call, call notif events.
 		if Event.__NOTIF__ not in skip_events:
 			# [DOC] Call method events
-			#logger.debug('checking read event on module: %s', self.module_name)
 			call_event(event='read', query=query, context_module=self, user_module=self.modules['user'], notification_module=self.modules['notification'])
 		return {
 			'status':200,#if results['count'] else 204,
@@ -405,43 +398,56 @@ class BaseMethod:
 
 		for arg in args_list:
 
-			if arg[0] == '!':
-				if arg[1:] not in args.keys() \
-				or (
-					arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] == None or args[arg[1:]]['val'] == '') \
-					or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] == None or args[arg[1:]] == '')
-				):
+			if type(arg) == str:
+				if (arg_list_label == 'doc' and arg not in args.keys()) or \
+				(arg_list_label == 'query' and arg not in args):
 					return DictObj({
 						'status':400,
 						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg[1:], self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
 						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 					})
+			
+			elif type(arg) == tuple:
+				optinal_arg_test = False
+				for optional_arg in arg:
+					if (arg_list_label == 'doc' and optional_arg not in args.keys()) or \
+					(arg_list_label == 'query' and optional_arg not in args):
+						optinal_arg_test = True
+						break
+				if optinal_arg_test == False:
+					return DictObj({
+						'status':400,
+						'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(arg), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+					})
+
 		
-		optional_args = True
-		for arg in args_list:
-			#logger.debug('checking optional_query_arg:%s', arg)
-			if arg[0] == '^':
-				if arg[1:] in args.keys() \
-				and (arg_list_label != 'query' or \
-				(arg_list_label == 'query' and arg[1] != '$' and (args[arg[1:]]['val'] != None and args[arg[1:]]['val'] != '') \
-				or arg_list_label == 'query' and arg[1] == '$' and (args[arg[1:]] != None and args[arg[1:]] != ''))):
-					optional_args = True
-					break
-				else:
-					if optional_args == True:
-						optional_args = []
-					optional_args.append(arg[1:])
-			#logger.debug('optional_args: %s', optional_args)
-		if optional_args != True:
-			return DictObj({
-				'status':400,
-				'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
-				'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
-			})
+		# optional_args = True
+		# for arg in args_list:
+		# 	#logger.debug('checking optional_query_arg:%s', arg)
+		# 	if arg[0] == '^':
+		# 		if (args_list == 'doc' and arg[1:] in args.keys()) or \
+		# 		(args_list == 'query' and arg[1:] in args):
+		# 			optional_args = True
+		# 			break
+		# 		else:
+		# 			if optional_args == True:
+		# 				optional_args = []
+		# 			optional_args.append(arg[1:])
+		# 	#logger.debug('optional_args: %s', optional_args)
+		# if optional_args != True:
+		# 	return DictObj({
+		# 		'status':400,
+		# 		'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+		# 		'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+		# 	})
 		
 		return True
 
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		# [DOC] Convert list query to Query object
+		if type(query) == list:
+			query = Query(query)
 		if 'conn' not in env.keys():
 			raise Exception('env missing conn')
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
@@ -450,8 +456,8 @@ class BaseMethod:
 			# [DEPRECATED] query dict
 			if type(query) == dict:
 				query['realm'] = {'val':env['realm']}
-			elif type(query) == list:
-				query.append([{'realm':env['realm']}])
+			elif type(query) == Query:
+				query.append({'realm':env['realm']})
 			doc['realm'] = env['realm']
 			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
@@ -469,8 +475,8 @@ class BaseMethod:
 				# [DEPRECATED] query dict
 				if type(query) == dict:
 					query.update(permissions_check['query'])
-				elif type(query) == list:
-					query.append([permissions_check['query']])
+				elif type(query) == Query:
+					query.append(permissions_check['query'])
 				doc.update(permissions_check['doc'])
 	
 		if Event.__ARGS__ not in skip_events:
@@ -512,14 +518,16 @@ class BaseMethod:
 			if '$extn' in query.keys() and query['$extn'] == False:
 				skip_events.append(Event.__EXTN__)
 				del query['$extn']
-		elif type(query) == list:
-			query_soft = extract_query_attr(query, '$soft', delete=True)
-			if query_soft != _QUERY_ATTR_NOT_FOUND:
+		elif type(query) == Query:
+			# [DOC] check if $soft oper is set to add it to events
+			if '$soft' in query and query['$soft'] == True:
 				skip_events.append(Event.__SOFT__)
+				del query['$soft']
 
-			query_extn = extract_query_attr(query, '$extn', delete=True, match=False)
-			if query_extn != _QUERY_ATTR_NOT_FOUND:
+			# [DOC] check if $extn oper is set to add it to events
+			if '$extn' in query and query['$extn'] == False:
 				skip_events.append(Event.__EXTN__)
+				del query['$extn']
 
 		if Config.debug:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)

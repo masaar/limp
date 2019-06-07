@@ -1,6 +1,6 @@
 from config import Config
 from event import Event
-from utils import ClassSingleton, DictObj
+from utils import ClassSingleton, DictObj, Query
 from base_model import BaseModel
 
 from pymongo import MongoClient
@@ -186,46 +186,43 @@ class MongoDb(metaclass=ClassSingleton):
 		aggregate_query = []
 		logger.debug('attempting to parse query: %s', query)
 
-		skip = False
-		limit = False
-		sort = {'_id':-1}
-		group = False
+		skip, limit, sort, group = self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=query)
 
-		for step in query:
-			# [DOC] Check if step type is list or dict
-			if type(step) == list:
-				self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
-			elif type(step) == dict:
-				if '$skip' in step.keys():
-					skip = step['$skip']
-					del step['$skip']
-				if '$limit' in step.keys():
-					limit = step['$limit']
-					del step['$limit']
-				if '$sort' in step.keys():
-					sort = step['$sort']
-					del step['$sort']
-				else:
-					sort = {'_id':-1}
-				if '$search' in step.keys():
-					aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
-					project_query = {attr:'$'+attr for attr in attrs.keys()}
-					project_query['_id'] = '$_id'
-					project_query['__score'] = {'$meta': 'textScore'}
-					aggregate_query.append({'$project':project_query})
-					aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
-					del step['$search']
-				if '$geo_near' in step.keys():
-					aggregate_query = [{'$geoNear':{
-						'near':{'type':'Point','coordinates':step['$geo_near']['val']},
-						'distanceField':step['$geo_near']['attr'] + '.__distance',
-						'maxDistance':step['$geo_near']['dist'],
-						'spherical':True
-					}}] + aggregate_query
-					del step['$geo_near']
-				if '$group' in step.keys():
-					group = step['$group']
-					del step['$group']
+		# for step in query:
+		# 	# [DOC] Check if step type is list or dict
+		# 	if type(step) == list:
+		# 		self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
+		# 	elif type(step) == dict:
+		# 		if '$skip' in step.keys():
+		# 			skip = step['$skip']
+		# 			del step['$skip']
+		# 		if '$limit' in step.keys():
+		# 			limit = step['$limit']
+		# 			del step['$limit']
+		# 		if '$sort' in step.keys():
+		# 			sort = step['$sort']
+		# 			del step['$sort']
+		# 		else:
+		# 			sort = {'_id':-1}
+		# 		if '$search' in step.keys():
+		# 			aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
+		# 			project_query = {attr:'$'+attr for attr in attrs.keys()}
+		# 			project_query['_id'] = '$_id'
+		# 			project_query['__score'] = {'$meta': 'textScore'}
+		# 			aggregate_query.append({'$project':project_query})
+		# 			aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
+		# 			del step['$search']
+		# 		if '$geo_near' in step.keys():
+		# 			aggregate_query = [{'$geoNear':{
+		# 				'near':{'type':'Point','coordinates':step['$geo_near']['val']},
+		# 				'distanceField':step['$geo_near']['attr'] + '.__distance',
+		# 				'maxDistance':step['$geo_near']['dist'],
+		# 				'spherical':True
+		# 			}}] + aggregate_query
+		# 			del step['$geo_near']
+		# 		if '$group' in step.keys():
+		# 			group = step['$group']
+		# 			del step['$group']
 
 		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}, *aggregate_query]
 		return (skip, limit, sort, group, aggregate_query)
@@ -234,6 +231,11 @@ class MongoDb(metaclass=ClassSingleton):
 		if top_level:
 			step_query = [{'$match':{'$or':[]}}]
 			step_query_match = step_query[0]['$match']['$or']
+
+			skip = False
+			limit = False
+			sort = {'_id':-1}
+			group = False
 		else:
 			step_query = [{'$or':[]}]
 			step_query_match = step_query[0]['$or']
@@ -242,31 +244,62 @@ class MongoDb(metaclass=ClassSingleton):
 			if type(child_step) == dict:
 				child_step_query = {'$and':[]}
 				for attr in child_step.keys():
-					# [DOC] Add extn query when required
-					if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
-						extn_collection = modules[extns[attr.split('.')[0]][0]].collection
-						if modules[extns[attr.split('.')[0]][0]].attrs[attr.split('.')[1]] == 'id':
+					# [DOC] Check for special attr
+					if attr[0] == '$':
+						if attr == '$skip':
+							skip = step['$skip']['val']
+							del step['$skip']
+						elif attr == '$limit':
+							limit = step['$limit']['val']
+							del step['$limit']
+						elif attr == '$sort':
+							sort = step['$sort']
+							del step['$sort']
+						elif attr == '$search':
+							aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
+							project_query = {attr:'$'+attr for attr in attrs.keys()}
+							project_query['_id'] = '$_id'
+							project_query['__score'] = {'$meta': 'textScore'}
+							aggregate_query.append({'$project':project_query})
+							aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
+							del step['$search']
+						elif attr == '$geo_near':
+							aggregate_query = [{'$geoNear':{
+								'near':{'type':'Point','coordinates':step['$geo_near']['val']},
+								'distanceField':step['$geo_near']['attr'] + '.__distance',
+								'maxDistance':step['$geo_near']['dist'],
+								'spherical':True
+							}}] + aggregate_query
+							del step['$geo_near']
+						elif attr == '$group':
+							group = step['$group']
+							del step['$group']
+					else:
+						# [DOC] Add extn query when required
+						if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
+							extn_collection = modules[extns[attr.split('.')[0]][0]].collection
+							if modules[extns[attr.split('.')[0]][0]].attrs[attr.split('.')[1]] == 'id':
+								child_step[attr] = ObjectId(child_step[attr])
+							step_query.insert(0, {'$unwind':'${}'.format(attr.split('.')[0])})
+							step_query.insert(0, {'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
+							group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
+							group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
+							group_query['_id'] = '$_id'
+							step_query.append({'$group':group_query})
+						# [DOC] Convert strings and lists of strings to ObjectId when required
+						elif attr in attrs.keys() and attrs[attr] == 'id':
 							child_step[attr] = ObjectId(child_step[attr])
-						step_query.insert(0, {'$unwind':'${}'.format(attr.split('.')[0])})
-						step_query.insert(0, {'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
-						group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
-						group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
-						group_query['_id'] = '$_id'
-						step_query.append({'$group':group_query})
-					# [DOC] Convert strings and lists of strings to ObjectId when required
-					elif attr in attrs.keys() and attrs[attr] == 'id':
-						child_step[attr] = ObjectId(child_step[attr])
-					elif attr in attrs.keys() and attrs[attr] == ['id']:
-						if type(child_step[attr]):
-							child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
-						elif type(child_step[attr]) == str:
-							child_step[attr] = ObjectId(child_step[attr])
-					elif attr == '_id':
-						if type(child_step[attr]) == str:
-							child_step[attr] = ObjectId(child_step[attr])
-						elif type(child_step[attr]) == list:
-							child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
-					child_step_query['$and'].append({attr: child_step[attr]})
+						elif attr in attrs.keys() and attrs[attr] == ['id']:
+							if type(child_step[attr]):
+								child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
+							elif type(child_step[attr]) == str:
+								child_step[attr] = ObjectId(child_step[attr])
+						elif attr == '_id':
+							if type(child_step[attr]) == str:
+								child_step[attr] = ObjectId(child_step[attr])
+							elif type(child_step[attr]) == list:
+								child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
+						child_step_query['$and'].append({attr: child_step[attr]})
 				if child_step_query['$and'].__len__():
 					step_query_match.append(child_step_query)
 			elif type(child_step) == list:
@@ -277,6 +310,7 @@ class MongoDb(metaclass=ClassSingleton):
 
 		if top_level:
 			aggregate_query += step_query
+			return (skip, limit, sort, group)
 		else:
 			return step_query
 	
@@ -285,7 +319,7 @@ class MongoDb(metaclass=ClassSingleton):
 		# [DEPRECATED] query dict
 		if type(query) == dict:
 			skip, limit, sort, group, aggregate_query = self._compile_query_deprecated(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
-		elif type(query) == list:
+		elif type(query) == Query:
 			skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
@@ -364,8 +398,7 @@ class MongoDb(metaclass=ClassSingleton):
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
 					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, session=session, query=[
-						[{'_id':doc[extn]}],
-						{'$limit':1}
+						{'_id':doc[extn]}
 					])
 					# [TODO] Consider a fallback for extn no-match cases
 					if extn_results['args']['count']:
@@ -388,8 +421,7 @@ class MongoDb(metaclass=ClassSingleton):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
 						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=[
-							[{'_id':doc[extn][i]}],
-							{'$limit':1}
+							{'_id':doc[extn][i]}
 						])
 						if extn_results['args']['count']:
 							doc[extn][i] = extn_results['args']['docs'][0]

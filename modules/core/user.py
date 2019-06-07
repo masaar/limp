@@ -40,25 +40,25 @@ class User(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {'groups':None}], ['update', {'_id':'$__user'}, {'groups':None, 'privileges':None}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}], ['delete', {'_id':'$__user'}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'read_privileges':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'add_group':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':['!_id'],
-			'doc_args':['!group']
+			'query_args':['_id'],
+			'doc_args':['group']
 		},
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':['!_id'],
-			'doc_args':['!group']
+			'query_args':['_id'],
+			'doc_args':['group']
 		}
 	}
 
@@ -120,7 +120,7 @@ class User(BaseModule):
 
 	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
 		# [DOC] Confirm _id is valid
-		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id']['val']}})
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		if not results['args']['count']:
 			return {
 				'status':400,
@@ -129,7 +129,7 @@ class User(BaseModule):
 			}
 		user = results['args']['docs'][0]
 		for group in user.groups:
-			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':group}})
+			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':group}])
 			group = group_results['args']['docs'][0]
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
