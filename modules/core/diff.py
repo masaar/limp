@@ -25,7 +25,7 @@ class Diff(BaseModule):
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		}
 	}
 

@@ -21,12 +21,11 @@ class Notification(BaseModule):
 			'permissions':[['create', {}, {}]]
 		},
 		'update':{
-			'permissions':[['update', {'user':'$__user'}, {'user':None, 'create_time':None, 'title':None, 'content':None}]],
-			# 'query_args':['!_id']
+			'permissions':[['update', {'user':'$__user'}, {'user':None, 'create_time':None, 'title':None, 'content':None}]]
 		},
 		'delete':{
 			'permissions':[['delete', {'user':'$__user'}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		}
 	}
 

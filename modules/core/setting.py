@@ -16,27 +16,27 @@ class Setting(BaseModule):
 	methods = {
 		'read':{
 			'permissions':[['admin', {'$limit':1}, {}], ['read', {'user':'$__user', '$limit':1}, {}]],
-			'query_args':['^_id', '^var']
+			'query_args':[('_id', 'var')]
 		},
 		'get_setting':{
 			'permissions':[['admin', {'$limit':1}, {}], ['read', {'user':'$__user', '$limit':1}, {}]],
-			'query_args':['!var']
+			'query_args':['var']
 		},
 		'create':{
 			'permissions':[['admin', {'$limit':1}, {}], ['create', {}, {'type':'user', 'user':'$__user', '$limit':1}]]
 		},
 		'update':{
 			'permissions':[['admin', {'$limit':1}, {}], ['update', {'type':'user', 'user':'$__user', '$limit':1}, {'type':None, 'user':None}]],
-			'query_args':['!var'],
-			'doc_args':['!val']
+			'query_args':['var'],
+			'doc_args':['val']
 		},
 		'delete':{
 			'permissions':[['admin', {'$limit':1}, {}]],
-			'query_args':['!var']
+			'query_args':['var']
 		},
 		'retrieve_file':{
 			'permissions':[['*', {'type':'global'}, {}]],
-			'query_args':['!_id', '!var'],
+			'query_args':['_id', 'var'],
 			'get_method':True
 		}
 	}
