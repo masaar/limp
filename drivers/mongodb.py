@@ -188,42 +188,6 @@ class MongoDb(metaclass=ClassSingleton):
 
 		skip, limit, sort, group = self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=query)
 
-		# for step in query:
-		# 	# [DOC] Check if step type is list or dict
-		# 	if type(step) == list:
-		# 		self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
-		# 	elif type(step) == dict:
-		# 		if '$skip' in step.keys():
-		# 			skip = step['$skip']
-		# 			del step['$skip']
-		# 		if '$limit' in step.keys():
-		# 			limit = step['$limit']
-		# 			del step['$limit']
-		# 		if '$sort' in step.keys():
-		# 			sort = step['$sort']
-		# 			del step['$sort']
-		# 		else:
-		# 			sort = {'_id':-1}
-		# 		if '$search' in step.keys():
-		# 			aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
-		# 			project_query = {attr:'$'+attr for attr in attrs.keys()}
-		# 			project_query['_id'] = '$_id'
-		# 			project_query['__score'] = {'$meta': 'textScore'}
-		# 			aggregate_query.append({'$project':project_query})
-		# 			aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
-		# 			del step['$search']
-		# 		if '$geo_near' in step.keys():
-		# 			aggregate_query = [{'$geoNear':{
-		# 				'near':{'type':'Point','coordinates':step['$geo_near']['val']},
-		# 				'distanceField':step['$geo_near']['attr'] + '.__distance',
-		# 				'maxDistance':step['$geo_near']['dist'],
-		# 				'spherical':True
-		# 			}}] + aggregate_query
-		# 			del step['$geo_near']
-		# 		if '$group' in step.keys():
-		# 			group = step['$group']
-		# 			del step['$group']
-
 		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}, *aggregate_query]
 		return (skip, limit, sort, group, aggregate_query)
 		
@@ -247,10 +211,10 @@ class MongoDb(metaclass=ClassSingleton):
 					# [DOC] Check for special attr
 					if attr[0] == '$':
 						if attr == '$skip':
-							skip = step['$skip']['val']
+							skip = step['$skip']
 							del step['$skip']
 						elif attr == '$limit':
-							limit = step['$limit']['val']
+							limit = step['$limit']
 							del step['$limit']
 						elif attr == '$sort':
 							sort = step['$sort']
