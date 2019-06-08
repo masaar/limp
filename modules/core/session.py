@@ -60,8 +60,7 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_INVALID_CREDS'}
 			}
 		user = user_results['args']['docs'][0]
-		# results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['args']['docs'][0]}]])
-		#logger.debug('auth success')
+
 		token = secrets.token_urlsafe(32)
 		session = {
 			'user':user._id,
@@ -75,8 +74,6 @@ class Session(BaseModule):
 		results = self.methods['create'](skip_events=[Event.__PERM__], env=env, session=session, doc=session)
 		if results['status'] != 200:
 			return results
-		# results['args']['docs'][0]._attrs().update(session)
-		# logger.debug('session_results: %s', results)
 
 		session['_id'] = results.args.docs[0]._id
 		session['user'] = user
@@ -95,13 +92,13 @@ class Session(BaseModule):
 		}
 	
 	def reauth(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		if str(query['_id']):
+		if str(query['_id'][0]) == 'f00000000000000000000012':
 			return {
 				'status':400,
 				'msg':'Reauth is not required for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_REAUTH'}
 			}
-		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id']['val']}])
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		if not results['args']['count']:
 			return {
 				'status':403,
@@ -109,7 +106,7 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
 			}
 		
-		if jwt.encode({'token':results['args']['docs'][0].token}, results['args']['docs'][0].token).decode('utf-8').split('.')[1] != query['hash']['val']:
+		if jwt.encode({'token':results['args']['docs'][0].token}, results['args']['docs'][0].token).decode('utf-8').split('.')[1] != query['hash'][0]:
 			return {
 				'status':403,
 				'msg':'Reauth token hash invalid.',
@@ -135,13 +132,13 @@ class Session(BaseModule):
 		}
 
 	def signout(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		if query['_id']['val'] == 'f00000000000000000000012' or query['_id']['val'] == ObjectId('f00000000000000000000012'):
+		if str(query['_id'][0]) == 'f00000000000000000000012':
 			return {
 				'status':400,
 				'msg':'Singout is not allowed for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_SIGNOUT'}
 			}
-		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id']['val']}])
+		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		#logger.debug('session find results: %s.', results)
 		if not results['args']['count']:
 			return {
@@ -150,7 +147,7 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
 			}
 		results = self.methods['delete'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':session._id}])
-		print('session/signout:', results)
+
 		return {
 			'status':200,
 			'msg':'You are succefully signed-out.',
@@ -160,7 +157,6 @@ class Session(BaseModule):
 	def check_permissions(self, session, module, permissions):
 		module = module.module_name
 		user = session.user
-		print('user', user)
 
 		for permission in permissions:
 			logger.debug('checking permission: %s against: %s', permission, user.privileges)
@@ -189,35 +185,63 @@ class Session(BaseModule):
 					permission_pass = True
 
 			if permission_pass:
-				logger.debug('checking permission, query: %s', permission[1])
-				query = {attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == dict}
-				query.update({attr:{'val':permission[1][attr]} for attr in permission[1].keys() if type(permission[1][attr]) == str})
-				query.update({attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == int})
+				# logger.debug('checking permission, query: %s', permission[1])
+				query = permission[1]
+				# query = {attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == dict}
+				# query.update({attr:{'val':permission[1][attr]} for attr in permission[1].keys() if type(permission[1][attr]) == str})
+				# query.update({attr:permission[1][attr] for attr in permission[1].keys() if type(permission[1][attr]) == int})
 				#logger.debug('checking permission, query: %s', query)
-				# query = {attr:{'val':query[attr]} for attr in query.keys() if type(query[attr]) != dict}
-				doc = {attr:permission[2][attr] for attr in permission[2].keys()}
+				doc = permission[2]
 				attrs_list = [query, doc]
 				for attrs in attrs_list:
-					for attr in attrs.keys():
-						#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
-						if attrs[attr] == '$__user':
-							attrs[attr] = user
-						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__user':
-							attrs[attr]['val'] = user
-						elif attrs[attr] == '$__access':
-							attrs[attr] = {
-								'$__user':user,
-								'$__groups':user.groups
-							}
-						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__access':
-							attrs[attr]['val'] = {
-								'$__user':user,
-								'$__groups':user.groups
-							}
-						elif attrs[attr] == '$__time':
-							attrs[attr] = datetime.datetime.fromtimestamp(time.time())
-						elif type(attrs[attr]) == dict and 'val' in attrs[attr].keys() and attrs[attr]['val'] == '$__time':
-							attrs[attr]['val'] = datetime.datetime.fromtimestamp(time.time())
+					if type(attrs) == dict:
+						for attr in attrs.keys():
+							if type(attrs[attr]) == str:
+								#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
+								if attrs[attr] == '$__user':
+									attrs[attr] = user._id
+								elif attrs[attr] == '$__access':
+									attrs[attr] = {
+										'$__user':user._id,
+										'$__groups':user.groups
+									}
+								elif attrs[attr] == '$__time':
+									attrs[attr] = datetime.datetime.fromtimestamp(time.time())
+							elif type(attrs[attr]) == dict and list(attrs[attr].keys())[0] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
+								if attrs[attr][list(attrs[attr].keys())[0]] == '$__user':
+									attrs[attr][list(attrs[attr].keys())[0]] = user._id
+								elif attrs[attr][list(attrs[attr].keys())[0]] == '$__access':
+									attrs[attr][list(attrs[attr].keys())[0]] = {
+										'$__user':user._id,
+										'$__groups':user.groups
+									}
+								elif attrs[attr][list(attrs[attr].keys())[0]] == '$__time':
+									attrs[attr][list(attrs[attr].keys())[0]] = datetime.datetime.fromtimestamp(time.time())
+					elif type(attrs) == list:
+						for attr in attrs:
+							for child_attr in attr.keys():
+								if type(attr[child_attr]) == str:
+									#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
+									if attr[child_attr] == '$__user':
+										attr[child_attr] = user._id
+									elif attr[child_attr] == '$__access':
+										attr[child_attr] = {
+											'$__user':user._id,
+											'$__groups':user.groups
+										}
+									elif attr[child_attr] == '$__time':
+										attr[child_attr] = datetime.datetime.fromtimestamp(time.time())
+								elif type(attr[child_attr]) == dict and list(attr[child_attr].keys())[0] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
+									#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
+									if attr[child_attr][list(attr[child_attr].keys())[0]] == '$__user':
+										attr[child_attr][list(attr[child_attr].keys())[0]] = user._id
+									elif attr[child_attr][list(attr[child_attr].keys())[0]] == '$__access':
+										attr[child_attr][list(attr[child_attr].keys())[0]] = {
+											'$__user':user._id,
+											'$__groups':user.groups
+										}
+									elif attr[child_attr][list(attr[child_attr].keys())[0]] == '$__time':
+										attr[child_attr][list(attr[child_attr].keys())[0]] = datetime.datetime.fromtimestamp(time.time())
 						#logger.debug('processed permission arg: %s, %s', attr, attrs[attr])
 					#logger.debug('processed permission args: %s', attrs)
 				return {

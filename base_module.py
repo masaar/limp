@@ -420,36 +420,14 @@ class BaseMethod:
 						'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(arg), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
 						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 					})
-
-		
-		# optional_args = True
-		# for arg in args_list:
-		# 	#logger.debug('checking optional_query_arg:%s', arg)
-		# 	if arg[0] == '^':
-		# 		if (args_list == 'doc' and arg[1:] in args.keys()) or \
-		# 		(args_list == 'query' and arg[1:] in args):
-		# 			optional_args = True
-		# 			break
-		# 		else:
-		# 			if optional_args == True:
-		# 				optional_args = []
-		# 			optional_args.append(arg[1:])
-		# 	#logger.debug('optional_args: %s', optional_args)
-		# if optional_args != True:
-		# 	return DictObj({
-		# 		'status':400,
-		# 		'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(optional_args), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
-		# 		'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
-		# 	})
 		
 		return True
 
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [DOC] Convert list query to Query object
 		if type(query) == list:
-			query = Query(query)
-		if 'conn' not in env.keys():
-			raise Exception('env missing conn')
+			query = Query(query, session)
+
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
@@ -477,6 +455,20 @@ class BaseMethod:
 					query.update(permissions_check['query'])
 				elif type(query) == Query:
 					query.append(permissions_check['query'])
+					# if type(permissions_check['query']) == dict:
+					# 	permissions_check['query'] = [permissions_check['query']]
+					# for query_arg in permissions_check['query']:
+					# 	logger.debug('Parsing query_arg: %s', query_arg)
+					# 	for child_query_arg in query_arg.keys():
+					# 		logger.debug('Parsing child_query_arg: %s', child_query_arg)
+					# 		if child_query_arg[0] == '$' and child_query_arg in query:
+					# 			query[child_query_arg] = query_arg[child_query_arg]
+					# 		elif child_query_arg[0] != '$' and child_query_arg in query:
+					# 			for i in range(0, query[child_query_arg].__len__()):
+					# 				query[child_query_arg][i] = query_arg[child_query_arg]
+					# 		else:
+					# 			query.append({child_query_arg: query_arg[child_query_arg]})
+
 				doc.update(permissions_check['doc'])
 	
 		if Event.__ARGS__ not in skip_events:

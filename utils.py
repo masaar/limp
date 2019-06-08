@@ -65,13 +65,15 @@ class Query(list):
 						raise Exception('Duplicate special attr \'{}\' detected.'.format(attr))
 					if attr not in self._index.keys():
 						self._index[attr] = []
+					if isinstance(query[i][attr], DictObj):
+						query[i][attr] = query[i][attr]._id
 					self._index[attr].append({
 						'path':path + [i],
 						'val':query[i][attr]
 					})
 			elif type(query[i]) == list:
 				self._create_index(query[i], path=path + [i])
-	def __init__(self, query):
+	def __init__(self, query, session):
 		self._query = query
 		self._index = {}
 		self._create_index(query)
