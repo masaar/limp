@@ -6,11 +6,6 @@ from bson import ObjectId, binary
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
 
-_QUERY_ATTR_NOT_FOUND = '_QUERY_ATTR_NOT_FOUND'
-_QUERY_ATTR_NO_MATCH = '_QUERY_ATTR_NO_MATCH'
-_QUERY_ATTR_NO_TYPE_MATCH = '_QUERY_ATTR_NO_TYPE_MATCH'
-_QUERY_ATTR_NO_SET = '_QUERY_ATTR_NO_SET'
-
 class ClassSingleton(type):
 	def __new__(cls, cls_name, bases, attrs):
 		for name, attr in attrs.items():
@@ -60,21 +55,29 @@ class Query(list):
 	def _create_index(self, query, path=[]):
 		for i in range(0, query.__len__()):
 			if type(query[i]) == dict:
+				del_attrs = []
 				for attr in query[i].keys():
-					if attr[0] == '$' and attr in self._index.keys():
-						raise Exception('Duplicate special attr \'{}\' detected.'.format(attr))
-					if attr not in self._index.keys():
-						self._index[attr] = []
-					if isinstance(query[i][attr], DictObj):
-						query[i][attr] = query[i][attr]._id
-					self._index[attr].append({
-						'path':path + [i],
-						'val':query[i][attr]
-					})
+					if attr[0] == '$':
+						self._special[attr] = query[i][attr]
+						del_attrs.append(attr)
+					elif attr.startswith('__or'):
+						self._create_index(query[i][attr], path=path + [i, attr])
+					else:
+						if attr not in self._index.keys():
+							self._index[attr] = []
+						if isinstance(query[i][attr], DictObj):
+							query[i][attr] = query[i][attr]._id
+						self._index[attr].append({
+							'path':path + [i],
+							'val':query[i][attr]
+						})
+				for attr in del_attrs:
+					del query[i][attr]
 			elif type(query[i]) == list:
 				self._create_index(query[i], path=path + [i])
 	def __init__(self, query, session):
 		self._query = query
+		self._special = {}
 		self._index = {}
 		self._create_index(query)
 		super().__init__(query)
@@ -84,31 +87,23 @@ class Query(list):
 		self._create_index(self._query)
 		super().__init__(self._query)
 	def __contains__(self, attr):
-		return attr in self._index.keys()
+		if attr[0] == '$':
+			return attr in self._special.keys()
+		else:
+			return attr in self._index.keys()
 	def __getitem__(self, attr):
 		if attr[0] == '$':
-			return self._index[attr][0]['val']
+			return self._special[attr]
 		else:
 			return QueryAttrList(self, attr, [attr['path'] for attr in self._index[attr]], [attr['val'] for attr in self._index[attr]])
-			# return [attr['val'] for attr in self._index[attr]]
 	def __setitem__(self, attr, val):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be updated by attr index.')
-		for instance in self._index[attr]:
-			instance_attr = self._query
-			for path_part in instance['path']:
-				instance_attr = instance_attr[path_part]
-			instance_attr[attr] = val
-			instance['val'] = val
+		self._special[attr] = val
 	def __delitem__(self, attr):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be deleted by attr index.')
-		for instance in self._index[attr]:
-			instance_attr = self._query
-			for path_part in instance['path']:
-				instance_attr = instance_attr[path_part]
-			del instance_attr[attr]
-		del self._index[attr]
+		del self._special[attr]
 
 class QueryAttrList(list):
 	_query = None

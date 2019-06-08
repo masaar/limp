@@ -194,15 +194,33 @@ class MongoDb(metaclass=ClassSingleton):
 		logger.debug('attempting to parse query: %s', query)
 
 		for step in query:
-			child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
-			if child_skip:
-				skip = child_skip
-			if child_limit:
-				limit = child_limit
-			if child_sort:
-				sort = child_sort
-			if child_group:
-				group = child_group
+			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
+
+		if '$skip' in query:
+			skip = query['$skip']
+		if '$limit' in query:
+			limit = query['$limit']
+		if '$sort' in query:
+			sort = query['$sort']
+		if '$limit' in query:
+			limit = query['$limit']
+		if '$group' in query:
+			group = query['$group']
+		
+		if '$search' in query:
+			aggregate_prefix.insert(0, {'$match':{'$text':{'$search':query['$search']}}})
+			project_query = {attr:'$'+attr for attr in attrs.keys()}
+			project_query['_id'] = '$_id'
+			project_query['__score'] = {'$meta': 'textScore'}
+			aggregate_suffix.append({'$project':project_query})
+			aggregate_suffix.append({'$match':{'__score':{'$gt':0.5}}})
+		if '$geo_near' in query:
+			aggregate_prefix.insert(0, {'$geoNear':{
+				'near':{'type':'Point','coordinates':query['$geo_near']['val']},
+				'distanceField':query['$geo_near']['attr'] + '.__distance',
+				'maxDistance':query['$geo_near']['dist'],
+				'spherical':True
+			}})
 		
 		if aggregate_match.__len__() == 1:
 			aggregate_query = [{'$match':aggregate_match[0]}]
@@ -211,45 +229,12 @@ class MongoDb(metaclass=ClassSingleton):
 		return (skip, limit, sort, group, aggregate_query)
 		
 	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step):
-		skip = limit = sort = group = None
 		if type(step) == dict:
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
-				# [DOC] Check for special attr
-				if attr[0] == '$':
-					if attr == '$skip':
-						skip = step['$skip']
-					elif attr == '$limit':
-						limit = step['$limit']
-					elif attr == '$sort':
-						sort = step['$sort']
-					elif attr == '$search':
-						aggregate_prefix.insert(0, {'$match':{'$text':{'$search':step['$search']}}})
-						project_query = {attr:'$'+attr for attr in attrs.keys()}
-						project_query['_id'] = '$_id'
-						project_query['__score'] = {'$meta': 'textScore'}
-						aggregate_suffix.append({'$project':project_query})
-						aggregate_suffix.append({'$match':{'__score':{'$gt':0.5}}})
-					elif attr == '$geo_near':
-						aggregate_prefix.insert(0, {'$geoNear':{
-							'near':{'type':'Point','coordinates':step['$geo_near']['val']},
-							'distanceField':step['$geo_near']['attr'] + '.__distance',
-							'maxDistance':step['$geo_near']['dist'],
-							'spherical':True
-						}})
-					elif attr == '$group':
-						group = step['$group']
-				elif attr.startswith('__or'):
+				if attr.startswith('__or'):
 					child_child_aggregate_query = {'$or':[]}
-					child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr])
-					if child_skip:
-						skip = child_skip
-					if child_limit:
-						limit = child_limit
-					if child_sort:
-						sort = child_sort
-					if child_group:
-						group = child_group
+					self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr])
 					if child_child_aggregate_query['$or'].__len__() == 1:
 						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'][0])
 					elif child_child_aggregate_query['$or'].__len__() > 1:
@@ -293,21 +278,11 @@ class MongoDb(metaclass=ClassSingleton):
 		elif type(step) == list:
 			child_aggregate_query = {'$or':[]}
 			for child_step in step:
-				child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step)
-				if child_skip:
-					skip = child_skip
-				if child_limit:
-					limit = child_limit
-				if child_sort:
-					sort = child_sort
-				if child_group:
-					group = child_group
+				self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step)
 			if child_aggregate_query['$or'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$or'][0])
 			elif child_aggregate_query['$or'].__len__() > 1:
 				aggregate_match.append(child_aggregate_query)
-	
-		return (skip, limit, sort, group)
 	
 	def read(self, env, session, collection, attrs, extns, modules, query):
 		conn = env['conn']
@@ -318,6 +293,7 @@ class MongoDb(metaclass=ClassSingleton):
 			skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
+		logger.debug('skip, limit, sort, group: %s, %s, %s, %s:', skip, limit, sort, group)
 
 		collection = conn[collection]
 		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
