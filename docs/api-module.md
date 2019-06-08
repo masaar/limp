@@ -38,15 +38,15 @@ class BoilerplateModule(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'user':None}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'delete':{
 			'permissions':[['delete', {}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'retrieve_file': {
 			'permissions': [['*', {}, {}]],
-			'query_args': ['!_id', '!var'],
+			'query_args': ['_id', 'var'],
 			'get_method': True
 		}
 	}
@@ -173,7 +173,7 @@ This structure allows developers to control what docs in the collection every us
 permissions= {
 	'update':{
 		'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'user':None}]],
-		'query_args':['!_id']
+		'query_args':['_id']
 	}
 }
 ```
@@ -183,12 +183,12 @@ Basically, you can set `query` and `doc` parts of the permission set to any valu
 
 ### `query_args`
 Another aspect of controlling the access to any method is `query_args`. Using `query_args` you can define which are the required attrs you want to get passed as part of the call. There are two ways to define a required attr:
-1. Required Attr: You define a required attr by adding the attr name expected prefixed with `!`, like `!attr_name`.
-2. Optional Attrs Set: If your method serves more than one purpose and require attrs based on different purposes, then this is your friend. Prefix set of attrs with `^` and you are good to go. LIMP would check the list for at least one of the attrs prefixed with `^` and confirms at one is present in the call.
+1. Required Attr: You define a required attr by adding the attr name to `query_args` list.
+2. Optional Attrs Set: If your method serves more than one purpose and require attrs based on different purposes, then this is your friend. Add all the attrs where you require at least one of as a `tuple` to `query_args`, like `('attr2', 'attr3', 'attr4')`. LIMP would check the set for at least one of the attrs being present in the call.
 
 For instance, setting `query_args` to the following sample:
 ```python
-query_args = ['!req_attr', '!another_req_attr', '^optional_attr', '^another_optional_attr', '^last_optional_attr']
+query_args = ['req_attr', 'another_req_attr', ('optional_attr', 'another_optional_attr', 'last_optional_attr')]
 ```
 The previous would result in the call only be accepted if its `query` args are:
 1. Having `req_attr` present.
@@ -212,7 +212,7 @@ This method attr is optional and it's not required to having it present if you d
 ## Module Methods
 Now that we defined all the required module attrs. We need to start making use of this module. To achieve that we need to write our own Python methods in the module class. The module method is a regular Python class method with the following signature:
 ```python
-def method_name(self, skip_events=[], env={}, session=None, query={}, doc={}):
+def method_name(self, skip_events=[], env={}, session=None, query=[], doc={}):
 	pass
 ```
 You should always use this signature and not any other, even with a slight change. The reason is LIMP doesn't call the methods directly, rather it calls the methods via an abstracted workflow within an object ([`BaseMethod`](https://github.com/masaar/limp/base_module.py#L370)) that handles required checks before making the actual call.
@@ -237,11 +237,11 @@ class Math(BaseModule):
 	methods = {
 		'add':{
 			'permissions':[['*', {}, {}]],
-			'doc_args':['!no1', '!no2']
+			'doc_args':['no1', 'no2']
 		}
 	}
 
-	def add(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def add(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		results = {
 			'status':200,
 			'msg':'Successfully added two numbers.',
@@ -281,15 +281,15 @@ class Staff(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'user':None}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'delete':{
 			'permissions':[['delete', {}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'retrieve_file': {
 			'permissions': [['*', {}, {}]],
-			'query_args': ['!_id', '!var'],
+			'query_args': ['_id', 'var'],
 			'get_method': True
 		}
 	}
@@ -348,11 +348,11 @@ class Blog(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'user':None}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}, {}]],
-			'query_args':['!_id']
+			'query_args':['_id']
 		}
 	}
 
@@ -400,8 +400,8 @@ This is helpful when you have an advanced app with possibility that users might 
 ## Interaction with Other Modules
 Within LIMP ecosystem, reaching any other method, whether on the same module or another can be achieved using the following:
 ```python
-self.methods['method_name'](skip_events=[], env=env, session=session, query={}, doc{}) # Same module method
-self.modules['module_name'].methods['method_name'](skip_events=[], env=env, session=session, query={}, doc{}) # Another module method
+self.methods['method_name'](skip_events=[], env=env, session=session, query=[], doc{}) # Same module method
+self.modules['module_name'].methods['method_name'](skip_events=[], env=env, session=session, query=[], doc{}) # Another module method
 ```
 Ultimately, this unified structure allows two modules to access each other without ending in a dead loop where each module is calling the other.
 

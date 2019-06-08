@@ -51,7 +51,7 @@ class Setting(BaseModule):
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, session, query, doc)
 
-	def get_setting(self, skip_events=[], env={}, session=None, query={}, doc={}, files={}):
+	def get_setting(self, skip_events=[], env={}, session=None, query=[], doc={}, files={}):
 		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
 		if not results.args.count:
 			return False

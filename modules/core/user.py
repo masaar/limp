@@ -118,7 +118,7 @@ class User(BaseModule):
 	
 	# [TODO] Add pre_update method to check for duplications at time of updating
 
-	def read_privileges(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def read_privileges(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [DOC] Confirm _id is valid
 		results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		if not results['args']['count']:
@@ -138,7 +138,7 @@ class User(BaseModule):
 						user.privileges[privilege].append(group.privileges[privilege][i])
 		return results
 	
-	def add_group(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def add_group(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [DOC] Check group privileges
 		# if ('*' in session.user.privileges.keys() and session.user.privileges['*'] == '*') \
 		# or ('__group_*' in session.user.privileges.keys() and session.user.privileges['__group_'])
@@ -173,7 +173,7 @@ class User(BaseModule):
 		results = self.methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={'groups':user.groups})
 		return results
 	
-	def delete_group(self, skip_events=[], env={}, session=None, query={}, doc={}):
+	def delete_group(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid

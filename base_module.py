@@ -325,8 +325,8 @@ class BaseModule(metaclass=ClassSingleton):
 		}
 	
 	def retrieve_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		attr, filename = query['var']['val'].split(';')
-		del query['var']
+		attr, filename = query['var'][0].split(';')
+		del query['var'][0]
 		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query=query)
 		if not results['args']['count']:
 			return {
@@ -455,19 +455,6 @@ class BaseMethod:
 					query.update(permissions_check['query'])
 				elif type(query) == Query:
 					query.append(permissions_check['query'])
-					# if type(permissions_check['query']) == dict:
-					# 	permissions_check['query'] = [permissions_check['query']]
-					# for query_arg in permissions_check['query']:
-					# 	logger.debug('Parsing query_arg: %s', query_arg)
-					# 	for child_query_arg in query_arg.keys():
-					# 		logger.debug('Parsing child_query_arg: %s', child_query_arg)
-					# 		if child_query_arg[0] == '$' and child_query_arg in query:
-					# 			query[child_query_arg] = query_arg[child_query_arg]
-					# 		elif child_query_arg[0] != '$' and child_query_arg in query:
-					# 			for i in range(0, query[child_query_arg].__len__()):
-					# 				query[child_query_arg][i] = query_arg[child_query_arg]
-					# 		else:
-					# 			query.append({child_query_arg: query_arg[child_query_arg]})
 
 				doc.update(permissions_check['doc'])
 	

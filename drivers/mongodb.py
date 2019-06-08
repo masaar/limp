@@ -270,6 +270,11 @@ class MongoDb(metaclass=ClassSingleton):
 							step[attr] = ObjectId(step[attr])
 						elif type(step[attr]) == list:
 							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+					
+					# [DOC] Check for $bet query oper
+					if type(step[attr]) == dict and '$bet' in step[attr].keys():
+						step[attr] = {'$gte':step[attr][0], '$lte':step[attr][1]}
+						
 					child_aggregate_query['$and'].append({attr:step[attr]})
 			if child_aggregate_query['$and'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$and'][0])
@@ -436,10 +441,29 @@ class MongoDb(metaclass=ClassSingleton):
 		# [DOC] Check for increament oper
 		del_attrs = []
 		for attr in doc.keys():
-			if type(doc[attr]) == dict and '$inc' in doc[attr].keys():
+			# [DOC] Check for $inc update oper
+			if type(doc[attr]) == dict and '$add' in doc[attr].keys():
 				if '$inc' not in update_doc.keys():
 					update_doc['$inc'] = {}
-				update_doc['$inc'][attr] = doc[attr]['$inc']
+				update_doc['$inc'][attr] = doc[attr]['$add']
+				del_attrs.append(attr)
+			# [DOC] Check for $push update oper
+			if type(doc[attr]) == dict and '$push' in doc[attr].keys():
+				if '$push' not in update_doc.keys():
+					update_doc['$push'] = {}
+				update_doc['$push'][attr] = doc[attr]['$push']
+				del_attrs.append(attr)
+			# [DOC] Check for $pushUnique update oper
+			if type(doc[attr]) == dict and '$pushUnique' in doc[attr].keys():
+				if '$addToSet' not in update_doc.keys():
+					update_doc['$addToSet'] = {}
+				update_doc['$addToSet'][attr] = doc[attr]['$pushUnique']
+				del_attrs.append(attr)
+			# [DOC] Check for $pull update oper
+			if type(doc[attr]) == dict and '$pull' in doc[attr].keys():
+				if '$pullAll' not in update_doc.keys():
+					update_doc['$pullAll'] = {}
+				update_doc['$pullAll'][attr] = doc[attr]['$pull']
 				del_attrs.append(attr)
 		for del_attr in del_attrs:
 			del doc[del_attr]

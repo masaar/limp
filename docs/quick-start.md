@@ -88,7 +88,7 @@ __ADMIN
 You should see a new message in the output indicating that you were 'authed' as well as the session data. Following you can make some calls to your app using the `SDK Call` panel. For instance you can query all the users by passing the following values:
 ```
 endpoint: user/read
-query: {}
+query: []
 doc: {}
 ```
 This should give you additional messages in the output with two users: `ADMIN` and `ANON` users. To query a specific user, pass its `_id` value as a query param `_id`.
@@ -123,8 +123,8 @@ This scheme is a public scheme available for any module to use. You can learn mo
 To update either of the staff docs simply use the LIMP ecosystem `update` method--Use the following details in `SDK Call` panel:
 ```
 endpoint: staff/update
-query: _id[;staff doc _id]
-doc: attr_name[;new value]
+query: [{_id: 'staff doc _id'}]
+doc: {attr_name: 'new_value'}
 ```
 If the previous snippet is not clear enough, the idea is you can `update` any doc using any module `update` method, by simply passing `_id` of the doc you are looking to update and the attrs value you would like to change. Notice that you don't have to send the full doc again, just the attrs you want to change its value.
 
@@ -132,7 +132,7 @@ If the previous snippet is not clear enough, the idea is you can `update` any do
 To delete either of the docs your call should be:
 ```
 endpoint: staff/delete
-query: _id[;staff doc _id]
+query: [{_id: 'staff doc _id'}]
 ```
 
 ## Blog
@@ -148,7 +148,7 @@ Keep the `_id` of this category handy.
 Then, let's create a blog doc, using the call:
 ```
 endpoint: blog/create
-doc: title[;locale title], content[;locale content], cat[;blog cat _id]
+doc: {title:'locale title', content:'locale content', cat:'blog cat _id'}
 ```
 If the `_id` is wrong by any chance, your would get an error response telling you `Invalid BlogCat`. If everything is good you would get `Created 1 docs.` response.
 

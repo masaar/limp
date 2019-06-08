@@ -18,65 +18,174 @@ Next is we explore the `query` object which is deemed the most essential object 
 
 
 ## Query Object
-The call `query` object is the most essential object. Although, you need to specify an `endpoint` to make any call, `query` is the object that allows you to get access to any specific data you need. The `query` object structure looks like this.:
+The call `query` object is the most essential object. Although, you need to specify an `endpoint` to make any call, `query` is the object that allows you to get access to any specific data you need. The `query` object is a complex form of nested lists and objects with the following signature:
 ```typescript
-{
-	[attr: String]?: {
-		val: String | Array<String>;
-		oper?: '$eq' | '$gt' | '$lt' | '$bet' | '$not' | '$in' | '$all'; // default: $eq
-		val2?: String;
-	},
-	$search?: String;
-	$sort?: { [attr: String]: 1 | -1 };
-	$skip?: Number;
-	$limit?: Number;
-	$extn?: Boolean | Array<String>;
-	$attrs?: Array<String>;
+interface {
+	[attr: number]: queryStep | {
+		$search?: string;
+		$sort?: { [attr: string]: 1 | -1 };
+		$skip?: number;
+		$limit?: number;
+		$extn?: false | Array<string>;
+		$attrs?: Array<string>;
+		$group: Array<{ by: string; count: number; }>;
+		[attr: string]: { $not: any } | { $eq: any } | { $gt: number } | { $gte: number } | { $lt: number } | { $lte: number } | { $bet: [number, number] } | { $all: Array<any> } | { $in: Array<any> } | { $attrs: Array<string>; } | { $skip: false | Array<string>; } | queryStep | any;
+	}
 }
 ```
-Any value passed in the query object, that's not a [magic attrs](#query-magic-attrs), should be passed in the form of `ATTR: { val: VALUE }`. This allows for uniformity of any type of query attribute being passed. By default, passing an attribute means searching for matches to it. However, by passing `oper` you can choose from `$gt`, `$lt`, `$bet`, `$not`, `$in` and `$all`. Setting `oper` to `$eq` is not necessary at all to force equality as in the event of no `oper` specified it defaults to `$eq`. Choosing `$bet` forces the use of `val2` which is the ceil of the search values between `val` and `val2`.
+`query` object uses lists to reflect logical `or` condition, and objects to reflect `and` condition. Following are samples of different queries:
 
-For instance, as we explored in the [quick start](/docs/quick-start.md#read), we called the `staff/read` API endpoint with `_id` set to one of the two staff created which allowed us to get the needed doc only. However, we also can set `oper` to `$not` and send the call which would result in LIMP app matching the other staff, since there isn't any other. Theoretically, any attr of the module attrs you are interacting with in your call can be sent in your `query` object and it should assess in matching the docs you are in need of. However, since the structure of [LIMP modules](/docs/api-module.py) allow the developers to manipulate or force specific attrs on `object` and `doc` attrs, you as backend developer can make use of such features for any advantage of the app overall design, and you as front-end developer should be aware of such use-cases.
+### Simple `and` condition
+```typescript
+[
+	{
+		attr1: 'conditionVal',
+		attr2: 'conditionVal'
+	}
+]
+```
+If this gets translated into Python condition it would be:
+```python
+attr1 == 'conditionVal' and attr2 == 'conditionVal'
+```
+
+### Simple `or` condition
+```typescript
+[
+	[
+		{attr1: 'conditionVal'},
+		{attr2: 'conditionVal'}
+	]
+]
+```
+If this gets translated into Python condition it would be:
+```python
+attr1 == 'conditionVal' or attr2 == 'conditionVal'
+```
+
+### Complex `and` & `or` condition
+```typescript
+[
+	{
+		attr1: 'conditionVal',
+		__or:[
+			{attr2: 'conditionVal'},
+			{attr3: 'conditionVal'}
+		]
+	}
+]
+```
+If this gets translated into Python condition it would be:
+```python
+attr1 == 'conditionVal' and (attr2 == 'conditionVal' or attr3 == 'conditionVal')
+```
+As you see in this example specifically, we used `__or` as key. This is a simple workaround for the status (where a nested `or` query as list (or array) in a `and` query as object) requiring it to have a key. LIMP does check such cases with any key that is a list and starts with `__or`. This means you can have multiple `or` condition nested in a `and` query simply by adding any additional identifier to `__or` key. For instance you can do this:
+```typescript
+[
+	{
+		attr1: 'conditionVal',
+		__or1:[
+			{attr2: 'conditionVal'},
+			{attr3: 'conditionVal'}
+		],
+		__or2:[
+			{attr4: 'conditionVal'},
+			{attr5: 'conditionVal'}
+		]
+	}
+]
+```
+If this gets translated into Python condition it would be:
+```python
+attr1 == 'conditionVal' and (attr2 == 'conditionVal' or attr3 == 'conditionVal') and (attr4 == 'conditionVal' or attr5 == 'conditionVal')
+```
+
+### Query Opers
+By passing an attr in `query` object, you are telling LIMP to match docs that are having the attrs set to the value passed in the `query`. However, additional opers are available for wider accessibility and control:
+
+#### `$gt`
+Matches docs with attr values greater than set value. Value is `int` type.
+
+#### `$lt`
+Matches docs with attr values less than set value. Value is `int` type.
+
+#### `$gte`
+Matches docs with attr values greater than or equal set value. Value is `int` type.
+
+#### `$lte`
+Matches docs with attr values less than or equal set value. Value is `int` type.
+
+#### `$bet`
+Matches docs with attr values less than or equal set value. Value is array of `int` type. e.g. `[num1, num2]`.
+
+#### `$not`
+Matches docs with attr values not equal set value. Value is `any` type.
+
+#### `$regex`
+Matches docs with attr values matching set regular expression. Value is `str` type.
+
+#### `$all`
+Matches docs with list attr values matching all set list values. Value is list of `any` type.
+
+#### `$all`
+Matches docs with attr values matching at least one of the set list values. Value is `any` type.
+
+As we explored in the [quick start](/docs/quick-start.md#read), we called the `staff/read` API endpoint with `_id` set to one of the two staff created which allowed us to get the needed doc only. Theoretically, any attr of the module attrs you are interacting with in your call can be sent in your `query` object and it should assess in matching the docs you are in need of. However, since the structure of [LIMP modules](/docs/api-module.py) allow the developers to manipulate or force specific attrs on `object` and `doc` attrs, you as backend developer can make use of such features for any advantage of the app overall design, and you as front-end developer should be aware of such use-cases.
 
 However, beside sending the module attrs in `query` object, you can also send query magic attrs, which are:
 
 ### Query Magic Attrs
 Additional available query attributes are the magic methods which have common form and unique use cases. Which are:
 
-#### $search
+#### `$search`
 ```typescript
-{ $search: String; }
+interface { $search: string; }
 ```
 You can use this attr to pass on any string value to search for matching results in the data collection. `$search` assumes there are already the necessary requirements for it to perform in the database being used, such as text indexes.
 
-#### $sort
+#### `$sort`
 ```typescript
-{ $sort: { [attr: String]: 1 | -1  }; }
+interface { $sort: { [attr: string]: 1 | -1  }; }
 ```
 This self-descriptive magic attr allows you to pass any number of attributes names with their value being `1` or `-1` to determine the requested order of matched data.
 
-#### $skip
+#### `$skip`
 ```typescript
-{ $skip: Number; }
+interface { $skip: number; }
 ```
 This self-descriptive magic attr allows you to pass a number to determine the number of docs to skip of matched data.
 
-#### $limit
+#### `$limit`
 ```typescript
-{ $limit: Number; }
+interface { $limit: number; }
 ```
 This self-descriptive magic attr allows you to pass a number to determine the number of docs to limit the number of matched data to.
 
-#### $extn
+#### `$extn`
 ```typescript
-{ $extn: false | Array<String>; }
+interface { $extn: false | Array<string>; }
 ```
 Setting this magic attr to false, would result in the data documents being matched to not get [extended](#extns). This can be used in scenarios to limit the data transferred if the piece of info you are looking for is essentially not in the extended data, but rather in the original data.
 
 You can also pass an array of strings representing names of attrs you want only to be extended. For instance, if you are dealing with a module that has 4 attrs getting extended while you only require one of them to be extended you can set `$extn` to `['attr-to-be-extended']` and the other attrs would return only the `_id` of the extn docs, while `attr-to-be-extended` would be extended.
 
-#### $attrs
+#### `$attrs`
 Another data control magic attr is `$attrs` which allows you to send array of strings of the names of the attrs you only want LIMP to send as part of the matching response.
 
 ## Doc Object
 The call `doc` object is straightforward representation of the data you are sending to LIMP app. As we explored in the [quick start](/docs/quick-start.md#create), we created a `Staff` doc by sending the attrs required by the module. Notice the `doc` object deals only with non-binary data types. This means the `doc` object can have nested objects (which are converted to Python dict at LIMP side), lists and arrays, booleans, numbers, and of course strings. This was decided in order to facilitate uniformity in handling the data in calls `doc` object. However, we were able to successfully send a photo (which is binary data) as part of the staff `create` call. What happened then? LIMP SDKs have special methods to handle binary data and send it in a special call to a non-existant `file/upload` endpoint in chunks. The chunk size can be set directly on the SDK object as explained in the [tutorial](/docs/tutorial.md#front-end-init). Technically, your SDK should handle this on your behalf, however for your SDK to be able to do so you should follow the instructions associated with sending files as part of `doc` object, which should be available in the docs of your SDK of choice.
+
+### Doc Opers
+Similar to [Query Opers](#query-opers), `doc` object has also useful set of opers that can be used for update calls:
+
+#### `$add`
+...
+
+#### `$push`
+...
+
+#### `$pushUnique`
+...
+
+#### `$pull`
+...
