@@ -183,100 +183,131 @@ class MongoDb(metaclass=ClassSingleton):
 		return (skip, limit, sort, group, aggregate_query)
 	
 	def _compile_query(self, collection, attrs, extns, modules, query):
-		aggregate_query = []
+		aggregate_prefix = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
+		aggregate_suffix = []
+		aggregate_query = [{'$match':{'$and':[]}}]
+		aggregate_match = aggregate_query[0]['$match']['$and']
+		skip = None
+		limit = None
+		sort = {'_id':-1}
+		group = None
 		logger.debug('attempting to parse query: %s', query)
 
-		skip, limit, sort, group = self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=query)
+		for step in query:
+			child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
+			if child_skip:
+				skip = child_skip
+			if child_limit:
+				limit = child_limit
+			if child_sort:
+				sort = child_sort
+			if child_group:
+				group = child_group
+		
+		if aggregate_match.__len__() == 1:
+			aggregate_query = [{'$match':aggregate_match[0]}]
 
-		aggregate_query = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}, *aggregate_query]
+		aggregate_query = aggregate_prefix + aggregate_query + aggregate_suffix
 		return (skip, limit, sort, group, aggregate_query)
 		
-	def _compile_query_step(self, aggregate_query, collection, attrs, extns, modules, step, top_level=True):
-		if top_level:
-			step_query = [{'$match':{'$or':[]}}]
-			step_query_match = step_query[0]['$match']['$or']
-
-			skip = False
-			limit = False
-			sort = {'_id':-1}
-			group = False
-		else:
-			step_query = [{'$or':[]}]
-			step_query_match = step_query[0]['$or']
-
-		for child_step in step:
-			if type(child_step) == dict:
-				child_step_query = {'$and':[]}
-				for attr in child_step.keys():
-					# [DOC] Check for special attr
-					if attr[0] == '$':
-						if attr == '$skip':
-							skip = step['$skip']
-							del step['$skip']
-						elif attr == '$limit':
-							limit = step['$limit']
-							del step['$limit']
-						elif attr == '$sort':
-							sort = step['$sort']
-							del step['$sort']
-						elif attr == '$search':
-							aggregate_query = [{'$match':{'$text':{'$search':step['$search']}}}] + aggregate_query
-							project_query = {attr:'$'+attr for attr in attrs.keys()}
-							project_query['_id'] = '$_id'
-							project_query['__score'] = {'$meta': 'textScore'}
-							aggregate_query.append({'$project':project_query})
-							aggregate_query.append({'$match':{'__score':{'$gt':0.5}}})
-							del step['$search']
-						elif attr == '$geo_near':
-							aggregate_query = [{'$geoNear':{
-								'near':{'type':'Point','coordinates':step['$geo_near']['val']},
-								'distanceField':step['$geo_near']['attr'] + '.__distance',
-								'maxDistance':step['$geo_near']['dist'],
-								'spherical':True
-							}}] + aggregate_query
-							del step['$geo_near']
-						elif attr == '$group':
-							group = step['$group']
-							del step['$group']
-					else:
-						# [DOC] Add extn query when required
-						if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
+	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step):
+		skip = limit = sort = group = None
+		if type(step) == dict:
+			child_aggregate_query = {'$and':[]}
+			for attr in step.keys():
+				# [DOC] Check for special attr
+				if attr[0] == '$':
+					if attr == '$skip':
+						skip = step['$skip']
+					elif attr == '$limit':
+						limit = step['$limit']
+					elif attr == '$sort':
+						sort = step['$sort']
+					elif attr == '$search':
+						aggregate_prefix.insert(0, {'$match':{'$text':{'$search':step['$search']}}})
+						project_query = {attr:'$'+attr for attr in attrs.keys()}
+						project_query['_id'] = '$_id'
+						project_query['__score'] = {'$meta': 'textScore'}
+						aggregate_suffix.append({'$project':project_query})
+						aggregate_suffix.append({'$match':{'__score':{'$gt':0.5}}})
+					elif attr == '$geo_near':
+						aggregate_prefix.insert(0, {'$geoNear':{
+							'near':{'type':'Point','coordinates':step['$geo_near']['val']},
+							'distanceField':step['$geo_near']['attr'] + '.__distance',
+							'maxDistance':step['$geo_near']['dist'],
+							'spherical':True
+						}})
+					elif attr == '$group':
+						group = step['$group']
+				elif attr.startswith('__or'):
+					child_child_aggregate_query = {'$or':[]}
+					child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr])
+					if child_skip:
+						skip = child_skip
+					if child_limit:
+						limit = child_limit
+					if child_sort:
+						sort = child_sort
+					if child_group:
+						group = child_group
+					if child_child_aggregate_query['$or'].__len__() == 1:
+						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'][0])
+					elif child_child_aggregate_query['$or'].__len__() > 1:
+						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'])
+				else:
+					# [DOC] Add extn query when required
+					if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
+						lookup_query = False
+						for stage in aggregate_prefix:
+							if '$lookup' in stage.keys() and stage['$lookup']['as'] == attr.split('.')[0]:
+								lookup_query = True
+								break
+						if not lookup_query:
 							extn_collection = modules[extns[attr.split('.')[0]][0]].collection
 							if modules[extns[attr.split('.')[0]][0]].attrs[attr.split('.')[1]] == 'id':
-								child_step[attr] = ObjectId(child_step[attr])
-							step_query.insert(0, {'$unwind':'${}'.format(attr.split('.')[0])})
-							step_query.insert(0, {'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
+								step[attr] = ObjectId(step[attr])
+							aggregate_prefix.append({'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
+							aggregate_prefix.append({'$unwind':'${}'.format(attr.split('.')[0])})
 							group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
 							group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
 							group_query['_id'] = '$_id'
-							step_query.append({'$group':group_query})
-						# [DOC] Convert strings and lists of strings to ObjectId when required
-						elif attr in attrs.keys() and attrs[attr] == 'id':
-							child_step[attr] = ObjectId(child_step[attr])
-						elif attr in attrs.keys() and attrs[attr] == ['id']:
-							if type(child_step[attr]):
-								child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
-							elif type(child_step[attr]) == str:
-								child_step[attr] = ObjectId(child_step[attr])
-						elif attr == '_id':
-							if type(child_step[attr]) == str:
-								child_step[attr] = ObjectId(child_step[attr])
-							elif type(child_step[attr]) == list:
-								child_step[attr] = [ObjectId(child_attr) for child_attr in child_step[attr]]
-						child_step_query['$and'].append({attr: child_step[attr]})
-				if child_step_query['$and'].__len__():
-					step_query_match.append(child_step_query)
-			elif type(child_step) == list:
-				step_query_match.append(self._compile_query_step(aggregate_query=aggregate_query, collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, top_level=False))
-
-		if not step_query_match.__len__():
-			return []
-
-		if top_level:
-			aggregate_query += step_query
-			return (skip, limit, sort, group)
-		else:
-			return step_query
+							aggregate_suffix.append({'$group':group_query})
+					# [DOC] Convert strings and lists of strings to ObjectId when required
+					elif attr in attrs.keys() and attrs[attr] == 'id':
+						step[attr] = ObjectId(step[attr])
+					elif attr in attrs.keys() and attrs[attr] == ['id']:
+						if type(step[attr]):
+							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+						elif type(step[attr]) == str:
+							step[attr] = ObjectId(step[attr])
+					elif attr == '_id':
+						if type(step[attr]) == str:
+							step[attr] = ObjectId(step[attr])
+						elif type(step[attr]) == list:
+							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+					child_aggregate_query['$and'].append({attr:step[attr]})
+			if child_aggregate_query['$and'].__len__() == 1:
+				aggregate_match.append(child_aggregate_query['$and'][0])
+			elif child_aggregate_query['$and'].__len__() > 1:
+				aggregate_match.append(child_aggregate_query)
+		elif type(step) == list:
+			child_aggregate_query = {'$or':[]}
+			for child_step in step:
+				child_skip, child_limit, child_sort, child_group = self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step)
+				if child_skip:
+					skip = child_skip
+				if child_limit:
+					limit = child_limit
+				if child_sort:
+					sort = child_sort
+				if child_group:
+					group = child_group
+			if child_aggregate_query['$or'].__len__() == 1:
+				aggregate_match.append(child_aggregate_query['$or'][0])
+			elif child_aggregate_query['$or'].__len__() > 1:
+				aggregate_match.append(child_aggregate_query)
+	
+		return (skip, limit, sort, group)
 	
 	def read(self, env, session, collection, attrs, extns, modules, query):
 		conn = env['conn']
