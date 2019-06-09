@@ -17,7 +17,6 @@ class Data(metaclass=ClassSingleton):
 		return self.driver.create_conn()
 
 	def read(self, env, session, collection, attrs, extns, modules, query):
-		query = self.sanitise_attrs(query)
 		return self.driver.read(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 	
 	def create(self, env, session, collection, attrs, extns, modules, doc):
@@ -25,12 +24,10 @@ class Data(metaclass=ClassSingleton):
 		return self.driver.create(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
 	
 	def update(self, env, session, collection, attrs, extns, modules, query, doc):
-		query = self.sanitise_attrs(query)
 		doc = self.sanitise_attrs(doc)
 		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 	
 	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
-		query = self.sanitise_attrs(query)
 		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
 
 	def drop(self, env, session, collection):
