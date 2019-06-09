@@ -6,17 +6,6 @@ from bson import ObjectId, binary
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
 
-class ClassSingleton(type):
-	def __new__(cls, cls_name, bases, attrs):
-		for name, attr in attrs.items():
-			if callable(attr):
-				attrs[name] = classmethod(attr)
-		attrs['module_name'] = re.sub(r'([A-Z])', r'_\1', cls_name[0].lower() + cls_name[1:]).lower()
-		return type.__new__(cls, cls_name, bases, attrs)
-	
-	def __init__(cls, cls_name, bases, attrs):
-		cls.singleton()
-
 class JSONEncoder(json.JSONEncoder):
 	def default(self, o): # pylint: disable=E0202
 		from base_model import BaseModel

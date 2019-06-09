@@ -1,6 +1,6 @@
 from config import Config
 from event import Event
-from utils import ClassSingleton, DictObj, Query
+from utils import DictObj, Query
 from base_model import BaseModel
 
 from pymongo import MongoClient
@@ -9,12 +9,9 @@ from bson import ObjectId
 import os, logging, re
 logger = logging.getLogger('limp')
 
-class MongoDb(metaclass=ClassSingleton):
-
-	def singleton(self):
-		# [DOC] Deprecated.
-		pass
+class MongoDb():
 	
+	@classmethod
 	def create_conn(self):
 		connection_config = {
 			'ssl':Config.data_ssl
@@ -41,6 +38,7 @@ class MongoDb(metaclass=ClassSingleton):
 			conn = MongoClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
 		return conn
 	
+	@classmethod
 	def _compile_query(self, collection, attrs, extns, modules, query):
 		aggregate_prefix = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		aggregate_suffix = []
@@ -86,7 +84,8 @@ class MongoDb(metaclass=ClassSingleton):
 
 		aggregate_query = aggregate_prefix + aggregate_query + aggregate_suffix
 		return (skip, limit, sort, group, aggregate_query)
-		
+	
+	@classmethod
 	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step):
 		if type(step) == dict:
 			child_aggregate_query = {'$and':[]}
@@ -148,6 +147,7 @@ class MongoDb(metaclass=ClassSingleton):
 			elif child_aggregate_query['$or'].__len__() > 1:
 				aggregate_match.append(child_aggregate_query)
 	
+	@classmethod
 	def read(self, env, session, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		
@@ -276,6 +276,7 @@ class MongoDb(metaclass=ClassSingleton):
 			'groups': {} if not group else groups
 		}
 
+	@classmethod
 	def create(self, env, session, collection, attrs, extns, modules, doc):
 		conn = env['conn']
 		collection = conn[collection]
@@ -285,6 +286,7 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[BaseModel({'_id':_id})]
 		}
 	
+	@classmethod
 	def update(self, env, session, collection, attrs, extns, modules, query, doc):
 		conn = env['conn']
 		# [DOC] Perform a read query to get all matching documents
@@ -337,6 +339,7 @@ class MongoDb(metaclass=ClassSingleton):
 			'docs':[{'_id':doc} for doc in docs]
 		}
 	
+	@classmethod
 	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
 		conn = env['conn']
 		if not force_delete:
@@ -360,6 +363,7 @@ class MongoDb(metaclass=ClassSingleton):
 				'docs':docs
 			}
 	
+	@classmethod
 	def drop(self, env, session, collection):
 		conn = env['conn']
 		collection = conn[collection]

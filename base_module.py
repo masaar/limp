@@ -59,18 +59,18 @@ class BaseModule():
 		return (results, skip_events, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
-			# skip_events, env, session, query, doc = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			
 			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
 			skip_events, env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
+			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		elif '$extn' in query and type(query['$extn']) == list:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
+			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
 			}, modules=self.modules, query=query)
 		else:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
+			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			# [DOC] if $attrs query arg is present return only required keys.
@@ -174,7 +174,7 @@ class BaseModule():
 					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
 					'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
 				}
-		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc) #pylint: disable=no-value-for-parameter
+		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [DOC] create soft action is to only retrurn the new created doc _id.
@@ -265,7 +265,7 @@ class BaseModule():
 				'msg':'Nothing to update.',
 				'args':{}
 			}
-		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc) #pylint: disable=no-value-for-parameter
+		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
@@ -305,7 +305,7 @@ class BaseModule():
 		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] delete soft action is to just flag the doc as deleted, without force removing it from db.
-		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events)) #pylint: disable=no-value-for-parameter
+		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
 		if Event.__ON__ not in skip_events: results, skip_events, env, session, query, doc = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		return {
 			'status':200,
@@ -419,14 +419,17 @@ class BaseMethod:
 			query = [{}, []]
 
 			for attr in dict_query.keys():
-				query_attr = query[attr]
+				query_attr = dict_query[attr]
 				if attr[0] != '$':
 					if 'oper' in query_attr.keys():
 						if query_attr['oper'] == '$bet':
 							query_attr = {'$bet':[query_attr['val'], query_attr['val2']]}
 						else:
 							query_attr = {query_attr['oper']:query_attr['val']}
-				if attr.startswith('__OR:'):
+					else:
+						query_attr = query_attr['val']
+					query[0][attr] = query_attr
+				elif attr.startswith('__OR:'):
 					query[1].append({attr.replace('__OR:', ''):query_attr})
 				else:
 					query[0][attr] = query_attr

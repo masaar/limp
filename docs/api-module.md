@@ -433,8 +433,8 @@ This is helpful when you have an advanced app with possibility that users might 
 ## Interaction with Other Modules
 Within LIMP ecosystem, reaching any other method, whether on the same module or another can be achieved using the following:
 ```python
-self.methods['method_name'](skip_events=[], env=env, session=session, query=[], doc{}) # Same module method
-self.modules['module_name'].methods['method_name'](skip_events=[], env=env, session=session, query=[], doc{}) # Another module method
+self.{method_name}(skip_events=[], env=env, session=session, query=[], doc{}) # Same module method
+self.modules['module_name'].{method_name}(skip_events=[], env=env, session=session, query=[], doc{}) # Another module method
 ```
 Ultimately, this unified structure allows two modules to access each other without ending in a dead loop where each module is calling the other.
 

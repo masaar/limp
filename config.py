@@ -73,7 +73,12 @@ class Config:
 				f.write(self.data_ca)
 		
 		from data import Data
-		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
+
+		if self.data_driver == 'mongodb':
+			from drivers.mongodb import MongoDb
+			Data.driver = MongoDb
+
+		conn = Data.create_conn()
 		env = {'conn':conn}
 		if self.realm:
 			env['realm'] = '__global'
@@ -108,7 +113,7 @@ class Config:
 					logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
 					modules[module].collection = 'test_{}'.format(modules[module].collection)
 					if self.test_flush:
-						Data.drop(env=env, session=None, collection=modules[module].collection) #pylint: disable=no-value-for-parameter
+						Data.drop(env=env, session=None, collection=modules[module].collection)
 				else:
 					logger.debug('Skipping service module %s', module)
 

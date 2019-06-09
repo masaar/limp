@@ -32,20 +32,20 @@ class Diff(BaseModule):
 	def pre_create(self, skip_events, env, session, query, doc):
 		# [DOC] Detect non-_id update query:
 		if '_id' not in query.keys():
-			results = self.modules[doc['module']].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=query)
+			results = self.modules[doc['module']].read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
 			if results.args.count > 1:
-				query['_id'] = {'val':[doc._id for doc in results.args.docs]}
+				query.append({'_id':{'$in':[doc._id for doc in results.args.docs]}})
 			elif results.args.count == 1:
-				query['_id'] = results.args.docs[0]._id
+				query.append({'_id':results.args.docs[0]._id})
 			else:
 				return {
 					'status':400,
 					'msg':'No update docs matched.',
 					'args':{'code':'CORE_DIFF_NO_MATCH'}
 				}
-		if '_id' in query.keys() and type(query['_id'][0]) == list:
+		if '_id' in query and type(query['_id'][0]) == list:
 			for i in range(0, query['_id'][0].__len__() - 1):
-				self.methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id'][0][i]}}, doc=doc)
-			query['_id'] = {'val':query['_id'][0][query['_id'][0].__len__() - 1]}
+				self.create(skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id'][0][i]}}, doc=doc)
+			query['_id'][0] = query['_id'][0][query['_id'][0].__len__() - 1]
 		doc['doc'] = ObjectId(query['_id'][0])
 		return (skip_events, env, session, query, doc)

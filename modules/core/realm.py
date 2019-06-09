@@ -9,7 +9,6 @@ class Realm(BaseModule):
 	attrs = {
 		'user':'id',
 		'name':'str',
-		'admin':'id',
 		'default':'id',
 		'create_time':'time'
 	}
@@ -31,7 +30,7 @@ class Realm(BaseModule):
 	}
 
 	def pre_create(self, skip_events, env, session, query, doc):
-		user_results = self.modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, session=session, doc={
+		user_results = self.modules['user'].create(skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, session=session, doc={
 			'username':doc['admin']['email'],
 			'email':doc['admin']['email'],
 			'name':doc['admin']['name'],
@@ -54,7 +53,7 @@ class Realm(BaseModule):
 			return user_results
 		user = user_results.args.docs[0]
 
-		group_results = self.modules['group'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, doc={
+		group_results = self.modules['group'].create(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, session=session, doc={
 			'_id':ObjectId('f00000000000000000000013'),
 			'user':user._id,
 			'name':{
@@ -71,6 +70,7 @@ class Realm(BaseModule):
 			return group_results
 		group = group_results.args.docs[0]
 
-		doc['admin'] = user._id
+		skip_events.append(Event.__ARGS__)
+		doc['user'] = user._id
 		doc['default'] = group._id
 		return (skip_events, env, session, query, doc)
