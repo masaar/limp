@@ -179,13 +179,25 @@ The call `doc` object is straightforward representation of the data you are send
 Similar to [Query Opers](#query-opers), `doc` object has also useful set of opers that can be used for update calls:
 
 #### `$add`
-...
+```typescript
+interface { $add: number; }
+```
+This operator takes a `int` as value and adds it to the attr. You can use negative `int` value for subtraction.
 
 #### `$push`
-...
+```typescript
+interface { $push: any; }
+```
+This operator pushes a value into the list attr.
 
 #### `$pushUnique`
-...
+```typescript
+interface { $pushUnique: any; }
+```
+This operator pushes a value into the list attr of it doesn't exist.
 
 #### `$pull`
-...
+```typescript
+interface { $pull: any; }
+```
+This operator pulls all matching values from list attr.
