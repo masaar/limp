@@ -251,6 +251,37 @@ class Math(BaseModule):
 ```
 The module is a service module because it doesn't have a `collection` attr, also `attrs` are missing completely meaning this is a service module of second condition *Shared Methods* and not *Proxy Module*. The rest is self-descriptive. The only thing you need to pay attention to is the form of `results` returned by the method `add`.
 
+### Interaction with `query` and `doc`
+In methods, you have access to both `query` and `doc` objects, to interact with them and manipulate the values per requirement. As we explored in the reference of [Query object](/docs/api-call.md#query-object), `query` object is a list-wrapper. This means you can access `query` attrs like a list, whether they were available in top-level or in deep-deep-level. For instance, the following query:
+```python
+[
+	{
+		'attr1':'conditionVal1',
+		'__or1':[
+			{'attr2':'conditionVal2'},
+			{'attr3':'conditionVal3'}
+		],
+		'__or2':[
+			{'attr2':'conditionVal4'},
+			{'attr3':'conditionVal5'}
+		]
+	},
+	{
+		'$skip':5,
+		'$limit':20
+	}
+]
+```
+When interacting with it, you can extract any of the attrs using Python list indices, like `query['attr2']`, which would result in:
+```python
+['conditionVal2', 'conditionVal4']
+```
+What you are getting here is not a regular Python list, it's `QueryAttrList` object which is another Python list wrapper. Every time you extract a `query` attr, you get an instance of this object as a list with all the possible values from the `query` object available as items in this object list. That's why you are getting two different values from different levels from the `query` object. This process allows developers to find any attr without having to loop over `query` object every time. Values of the `query` attrs can be updated or deleted when needed. You can update any condition value by passing it's index in `QueryAttrList` object. The same applies for deletion of any attr.
+
+The previous applies only to regular attrs--[Special attrs](/docs/api-call.md#query-special-attrs) can only have one value at any given time in `query`, thus when you extract a special attr you get the actual value and not `QueryAttrList` object.
+
+Unlike `query` object, `doc` object is a regular Python dict which can be interacted with accordingly.
+
 ## Base Methods
 This is great so far. But, how can we handle more complicated methods? Essentially, how can we execute the `CRUD` operations for a module? Continuing on the DRY standard we adapted in many versions of LIMP in development, we were able to introduce what we call `Base Methods`. Base Methods are set of methods, 5 in count, that provide the essential `CRUD` functionalities to any module. They can be found in [`BaseModule` class](https://github.com/masaar/limp/base_module.py). The idea is to allow any developer to carry on the `CRUD` operations without the need to rewrite the same piece of instructions again again.
 

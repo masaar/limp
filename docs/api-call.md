@@ -9,8 +9,8 @@ Regardless of the SDK you are using, any LIMP SDK is supposed to make your life 
 2. `endpoint`: A string representing the `module/method` path.
 3. `sid`: The current session `_id`. This is required to verify the request.
 4. `token`: The current session `token`. This is required to tokenise the request.
-5. `query`: The [query object](#query-object) of the call.
-6. `doc`: The [doc object](#doc-object) of the call.
+5. `query`: The [Query object](#query-object) of the call.
+6. `doc`: The [Doc object](#doc-object) of the call.
 
 However, in the SDK world, you simply call the `call()` method on your SDK object and you usually send simple only the `endpoint` and when you are having more advanced use-cases you specify `query` and `doc` objects. Other attrs of the call should be set and managed by the SDK. One good start to get good glimpse of the call object and the SDK usage is to make the calls in [LIMP Sandbox on Github](https://masaar.github.io/limp-sandbox/dist/limp-sandbox/) and monitor the console for the calls that you can reuse as-is in your app in most cases, regardless of the framework, programming language and SDK.
 
@@ -68,7 +68,7 @@ attr1 == 'conditionVal' or attr2 == 'conditionVal'
 [
 	{
 		attr1: 'conditionVal',
-		__or:[
+		__or: [
 			{attr2: 'conditionVal'},
 			{attr3: 'conditionVal'}
 		]
@@ -84,11 +84,11 @@ As you see in this example specifically, we used `__or` as key. This is a simple
 [
 	{
 		attr1: 'conditionVal',
-		__or1:[
+		__or1: [
 			{attr2: 'conditionVal'},
 			{attr3: 'conditionVal'}
 		],
-		__or2:[
+		__or2: [
 			{attr4: 'conditionVal'},
 			{attr5: 'conditionVal'}
 		]
@@ -132,9 +132,9 @@ Matches docs with attr values matching at least one of the set list values. Valu
 
 As we explored in the [quick start](/docs/quick-start.md#read), we called the `staff/read` API endpoint with `_id` set to one of the two staff created which allowed us to get the needed doc only. Theoretically, any attr of the module attrs you are interacting with in your call can be sent in your `query` object and it should assess in matching the docs you are in need of. However, since the structure of [LIMP modules](/docs/api-module.py) allow the developers to manipulate or force specific attrs on `object` and `doc` attrs, you as backend developer can make use of such features for any advantage of the app overall design, and you as front-end developer should be aware of such use-cases.
 
-However, beside sending the module attrs in `query` object, you can also send query magic attrs, which are:
+However, beside sending the module attrs in `query` object, you can also send query special attrs, which are:
 
-### Query Magic Attrs
+### Query Special Attrs
 Additional available query attributes are the magic methods which have common form and unique use cases. Which are:
 
 #### `$search`

@@ -54,13 +54,7 @@ class BaseModule(metaclass=ClassSingleton):
 			skip_events, env, session, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query) #pylint: disable=no-value-for-parameter
-		# [DEPRECATED] query dict
-		elif type(query) == dict and '$extn' in query.keys() and type(query['$extn']) == dict:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
-				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn'].keys() and query['$extn'][extn] == True
-			}, modules=self.modules, query=query)
-			del query['$extn']
-		elif type(query) == Query and '$extn' in query and type(query['$extn']) == list:
+		elif '$extn' in query and type(query['$extn']) == list:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={ #pylint: disable=no-value-for-parameter
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
 			}, modules=self.modules, query=query)
@@ -69,12 +63,7 @@ class BaseModule(metaclass=ClassSingleton):
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			# [DOC] if $attrs query arg is present return only required keys.
-			# [DEPRECATED] query dict
-			if type(query) == dict and '$attrs' in query.keys():
-				query['$attrs'].insert(0, '_id')
-				for i in range(0, results['docs'].__len__()):
-					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
-			elif type(query) == Query and '$attrs' in query:
+			if '$attrs' in query:
 				query['$attrs'].insert(0, '_id')
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
@@ -427,18 +416,31 @@ class BaseMethod:
 		return True
 
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		# [DEPRECATED] Convert dict query to compatible list query
+		if type(query) == dict:
+			dict_query = query
+			query = [{}, []]
+
+			for attr in dict_query.keys():
+				query_attr = query[attr]
+				if attr[0] != '$':
+					if 'oper' in query_attr.keys():
+						if query_attr['oper'] == '$bet':
+							query_attr = {'$bet':[query_attr['val'], query_attr['val2']]}
+						else:
+							query_attr = {query_attr['oper']:query_attr['val']}
+				if attr.startswith('__OR:'):
+					query[1].append({attr.replace('__OR:', ''):query_attr})
+				else:
+					query[0][attr] = query_attr
+
 		# [DOC] Convert list query to Query object
-		if type(query) == list:
-			query = Query(query, session)
+		query = Query(query, session)
 
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
-			# [DEPRECATED] query dict
-			if type(query) == dict:
-				query['realm'] = {'val':env['realm']}
-			elif type(query) == Query:
-				query.append({'realm':env['realm']})
+			query.append({'realm':env['realm']})
 			doc['realm'] = env['realm']
 			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
@@ -453,63 +455,29 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
 				})
 			else:
-				# [DEPRECATED] query dict
-				if type(query) == dict:
-					query.update(permissions_check['query'])
-				elif type(query) == Query:
-					query.append(permissions_check['query'])
-
+				query.append(permissions_check['query'])
 				doc.update(permissions_check['doc'])
 	
 		if Event.__ARGS__ not in skip_events:
-			# [DEPRECATED] query dict
-			if type(query) == dict:
-				for arg in query.keys():
-					if arg[0] != '$' and type(query[arg]) != dict:
-						return DictObj({
-							'status':400,
-							'msg':'Query attr \'{}\' is not a known special attr, nor it follows the query object structure.'.format(arg),
-							'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
-						})
-
 			test_query = self.test_args('query', query)
 			if test_query != True: return test_query
 		
 			test_doc = self.test_args('doc', doc)
 			if test_doc != True: return test_doc
-				
-		# [DEPRECATED] query dict
-		if type(query) == dict:
-			# [DOC] Convert any BaseModel object in query or docs to ObjectId
-			for arg in query.keys():
-				if type(query[arg]) == dict and 'val' in query[arg].keys() and type(query[arg]['val']) == BaseModel:
-					query[arg]['val'] = query[arg]['val']._id
 
 		for arg in doc.keys():
 			if type(doc[arg]) == BaseModel:
 				doc[arg] = doc[arg]._id
+				
+		# [DOC] check if $soft oper is set to add it to events
+		if '$soft' in query and query['$soft'] == True:
+			skip_events.append(Event.__SOFT__)
+			del query['$soft']
 
-		# [DEPRECATED] query dict
-		if type(query) == dict:
-			# [DOC] check if $soft oper is set to add it to events
-			if '$soft' in query.keys() and query['$soft'] == True:
-				skip_events.append(Event.__SOFT__)
-				del query['$soft']
-
-			# [DOC] check if $extn oper is set to add it to events
-			if '$extn' in query.keys() and query['$extn'] == False:
-				skip_events.append(Event.__EXTN__)
-				del query['$extn']
-		elif type(query) == Query:
-			# [DOC] check if $soft oper is set to add it to events
-			if '$soft' in query and query['$soft'] == True:
-				skip_events.append(Event.__SOFT__)
-				del query['$soft']
-
-			# [DOC] check if $extn oper is set to add it to events
-			if '$extn' in query and query['$extn'] == False:
-				skip_events.append(Event.__EXTN__)
-				del query['$extn']
+		# [DOC] check if $extn oper is set to add it to events
+		if '$extn' in query and query['$extn'] == False:
+			skip_events.append(Event.__EXTN__)
+			del query['$extn']
 
 		if Config.debug:
 			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
