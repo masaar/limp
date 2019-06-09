@@ -22,7 +22,7 @@ def run_app(env, packages, port):
 	Config.config_data(modules=modules)
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
-	logger.debug('Config has attrs: %s', Config.__dict__)
+	logger.debug('Config has attrs: %s', {k:v for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
 
 	async def root_handler(request):
 		headers = [

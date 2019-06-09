@@ -1,3 +1,5 @@
+[Back to Index](/README.md)
+
 # Quick Start
 > Make sure you have MongoDB daemon working before proceeding. The daemon should accept connections on the hostname `localhost` on the default port `27017`. There should be no admin user created in order to allow LIMPd to create the database on your behalf. If any of these conditions don't apply in your case, go to the full [tutorial](/docs/tutorial.md) which lets you create a package with the ability to connect to any `data_server`.
 

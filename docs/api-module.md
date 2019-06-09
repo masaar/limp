@@ -1,3 +1,5 @@
+[Back to Index](/README.md)
+
 # LIMP Module
 In LIMP ecosystem, modules are the brains of your app. It's where all your business logic goes. Unlike, MVC architecture, LIMP takes care of everything on your behalf and you only have to define modules that serve as:
 1. Data Types (or Models): Every module is a standalone data type. It has its attrs and data extending config.

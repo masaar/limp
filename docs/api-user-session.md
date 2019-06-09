@@ -1,3 +1,5 @@
+[Back to Index](/README.md)
+
 # Users and Session in LIMP
 
 LIMP core modules are mainly about users and sessions. The three pillars of our user and sessions ecosystem in LIMP are:

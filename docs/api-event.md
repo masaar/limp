@@ -1,3 +1,0 @@
-# LIMP Events Workflow
-
-WIP

@@ -43,6 +43,7 @@ if args.install_deps:
 	exit()
 
 from config import Config
+Config._limp_version = float('.'.join(__version__.split('.')[0:2]))
 Config.test = args.test
 Config.test_flush = args.test_flush
 Config.test_force = args.test_force

@@ -1,7 +1,7 @@
 from config import Config
 from event import Event
 from data import Data
-from utils import ClassSingleton, DictObj, validate_attr, call_event, Query
+from utils import DictObj, validate_attr, Query
 from base_model import BaseModel
 
 from bson import ObjectId
@@ -11,18 +11,20 @@ locales = {locale:'str' for locale in Config.locales}
 
 logger = logging.getLogger('limp')
 
-class BaseModule(metaclass=ClassSingleton):
-	use_template = False
+class BaseModule():
 	collection = False
+	attrs = {}
+	diff = False
+	optional_attrs = []
 	extns = {}
-	modules = {}
 	privileges = ['read', 'create', 'update', 'delete', 'admin']
+	methods = {}
 
-	def singleton(self):
-		if not getattr(self, 'attrs', False): self.attrs = {}
-		if not getattr(self, 'diff', False): self.diff = False
-		if not getattr(self, 'optional_attrs', False): self.optional_attrs = []
-		if not getattr(self, 'methods', False): self.methods = {}
+	module_name = None
+	modules = {}
+
+	def __init__(self):
+		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
 		for method in self.methods.keys():
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
@@ -41,6 +43,15 @@ class BaseModule(metaclass=ClassSingleton):
 		for attr in self.attrs.keys():
 			if self.attrs[attr] == 'locale':
 				self.attrs[attr] = locales
+		logger.debug('Initialised module %s', self.module_name)
+	
+	def __getattribute__(self, attr):
+		if attr in object.__getattribute__(self, 'methods').keys():
+			return object.__getattribute__(self, 'methods')[attr]
+		elif attr.startswith('_method_'):
+			return object.__getattribute__(self, attr.replace('_method_', ''))
+		else:
+			return object.__getattribute__(self, attr)
 
 	def pre_read(self, skip_events, env, session, query, doc):
 		return (skip_events, env, session, query, doc)
@@ -68,10 +79,6 @@ class BaseModule(metaclass=ClassSingleton):
 				for i in range(0, results['docs'].__len__()):
 					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
 
-		# [DOC] On succeful call, call notif events.
-		if Event.__NOTIF__ not in skip_events:
-			# [DOC] Call method events
-			call_event(event='read', query=query, context_module=self, user_module=self.modules['user'], notification_module=self.modules['notification'])
 		return {
 			'status':200,#if results['count'] else 204,
 			'msg':'Found {} docs.'.format(results['count']),
@@ -111,8 +118,8 @@ class BaseModule(metaclass=ClassSingleton):
 			if attr not in doc.keys() and attr not in self.optional_attrs:
 				return {
 					'status':400,
-					'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper()), #pylint: disable=no-member
-					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper())} #pylint: disable=no-member
+					'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper()),
+					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper())}
 				}
 			elif attr not in doc.keys() and attr in self.optional_attrs:
 				doc[attr] = None
@@ -175,11 +182,6 @@ class BaseModule(metaclass=ClassSingleton):
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['docs'][0]}]])
 			results = results['args']
 
-		# [DOC] On succeful call, call notif events.
-		if Event.__NOTIF__ not in skip_events:
-			# [DOC] Call method events
-			# logger.debug('checking create event on module: %s, with query: %s', self.module_name, query)
-			call_event(event='create', query={'_id':{'val':results['docs']}}, context_module=self, user_module=self.modules['user'], notification_module=self.modules['notification'])
 		return {
 			'status':200,
 			'msg':'Created {} docs.'.format(results['count']),
@@ -274,25 +276,20 @@ class BaseModule(metaclass=ClassSingleton):
 					# [DOC] If at least on attr is not in the execluded list, create diff doc.
 					if attr not in self.diff:
 						diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
-							'module':self.module_name, #pylint: disable=no-member
+							'module':self.module_name,
 							'vars':doc
 						})
 						logger.debug('diff results: %s', diff_results)
 						break
 			else:
 				diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
-					'module':self.module_name, #pylint: disable=no-member
+					'module':self.module_name,
 					'vars':doc
 				})
 				logger.debug('diff results: %s', diff_results)
 		else:
 			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
-		#logger.debug('docs update results: %s.', results)
-		# [DOC] On succeful call, call notif events.
-		if Event.__NOTIF__ not in skip_events:
-			# [DOC] Call method events
-			#logger.debug('checking update event on module: %s', self.module_name)
-			call_event(event='update', query=query, context_module=self, user_module=self.modules['user'], notification_module=self.modules['notification'])
+
 		return {
 			'status':200,
 			'msg':'Updated {} docs.'.format(results['count']),
@@ -402,8 +399,8 @@ class BaseMethod:
 			elif type(arg) == tuple:
 				optinal_arg_test = False
 				for optional_arg in arg:
-					if (arg_list_label == 'doc' and optional_arg not in args.keys()) or \
-					(arg_list_label == 'query' and optional_arg not in args):
+					if (arg_list_label == 'doc' and optional_arg in args.keys()) or \
+					(arg_list_label == 'query' and optional_arg in args):
 						optinal_arg_test = True
 						break
 				if optinal_arg_test == False:
@@ -480,7 +477,7 @@ class BaseMethod:
 			del query['$extn']
 
 		if Config.debug:
-			results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			results = getattr(self.module, '_method_{}'.format(self.method))(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		else:
 			try:
 				results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)

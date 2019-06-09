@@ -10,6 +10,9 @@ logger = logging.getLogger('limp')
 class Config:
 	debug = False
 
+	_limp_version = None
+	version = None
+
 	test = False
 	test_flush = False
 	test_force = False
@@ -31,7 +34,6 @@ class Config:
 	locales = ['ar_AE', 'en_AE']
 	locale = 'ar_AE'
 
-	events = {}
 	l10n = {}
 
 	admin_username = '__ADMIN'
@@ -54,6 +56,14 @@ class Config:
 
 	@classmethod
 	def config_data(self, modules):
+
+		if not self.version:
+			logger.warning('No version sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding version to eliminate specs mismatch.')
+		else:
+			if self._limp_version != self.version:
+				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
+				exit()
+
 		# [DOC] Check SSL settings
 		if self.data_ca:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -104,7 +114,7 @@ class Config:
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[{'_id':'f00000000000000000000010'}])
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000010'}])
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_doc = {
@@ -133,26 +143,26 @@ class Config:
 			}
 			if Config.realm:
 				admin_doc['realm'] = '__global'
-			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=admin_doc)
+			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=admin_doc)
 			logger.debug('ADMIN user creation results: %s', admin_results)
 
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[{'_id':'f00000000000000000000011'}])
+		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000011'}])
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
-			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=self.compile_anon_user())
+			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[{'_id':'f00000000000000000000012'}])
+		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000012'}])
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=self.compile_anon_session())
+			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[{'_id':'f00000000000000000000013'}])
+		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000013'}])
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
 			group_doc = {
@@ -169,18 +179,18 @@ class Config:
 			}
 			if self.realm:
 				group_doc['realm'] = '__global'
-			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=group_doc)
+			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group_doc)
 			logger.debug('DEFAULT group creation results: %s', group_results)
 		
 		logger.debug('Testing app-specific groups collection.')
 		# [DOC] test app-specific groups
 		for group in self.groups:
-			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__, Event.__NOTIF__], env=env, query=[{'_id':group['_id']}])
+			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':group['_id']}])
 			if not group_results.args.count:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
 				if self.realm:
 					group['realm'] = '__global'
-				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__, Event.__NOTIF__], env=env, doc=group)
+				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
 		
 		logger.debug('Testing data indexes')

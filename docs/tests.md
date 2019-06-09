@@ -1,5 +1,6 @@
-# LIMP Tests Workflow
+[Back to Index](/README.md)
 
+# LIMP Tests Workflow
 One of the aspects for better product of development is adaptation of Test-Driven Development process. However, as it's well known to all developers, writing sophisticated tests can be a huge time and efforts waste factor, although when the final structure is still not realised. And, what makes adapting TDD even harder is applying it on a full fledged framework. That's why we are having tests built-in with LIMP.
 
 LIMP provides simple workflow to write tests. Unlike regular TDD approach where you have unit and integration tests, LIMP swapped that with single multi-step test workflow. The idea is, LIMP apps are mature enough to have most of its basic functionalities being taken care of by LIMP ecosystem, where the user is only writing advanced and high-level modules and methods. This makes testing on unit level almost impossible. However, the workflow we introduced in LIMP originally for our use allowed us to attempt both, unit and integration test altogether.

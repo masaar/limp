@@ -117,14 +117,12 @@ class QueryAttrList(list):
 		self._vals = vals
 		super().__init__(vals)
 	def __setitem__(self, item, val):
-		# self._query._index[self._attr][item]
 		instance_attr = self._query._query
 		for path_part in self._paths[item]:
 			instance_attr = instance_attr[path_part]
 		instance_attr[self._attr] = val
 		self._query._index[self._attr][item]['val'] = val
 	def __delitem__(self, item):
-		# for instance in self._index[attr]:
 		instance_attr = self._query._query
 		for path_part in self._paths[item]:
 			instance_attr = instance_attr[path_part]
@@ -150,10 +148,8 @@ def import_modules(env=None, packages=None):
 						setattr(Config, kk, vv)
 			elif type(v) == dict:
 				getattr(Config, k).update(v)
-				# exec('Config.{} = "{}"'.format(k, v))
 			else:
 				setattr(Config, k, v)
-				# exec('Config.{} = {}'.format(k, v))
 		child_prefix = child_package.__name__ + '.'
 		for importer, modname, ispkg in pkgutil.iter_modules(child_package.__path__, child_prefix):
 			module = __import__(modname, fromlist='*')
@@ -161,7 +157,7 @@ def import_modules(env=None, packages=None):
 			for clsname in dir(module):
 				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
 					cls = getattr(module, clsname)
-					modules[re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()] = cls
+					modules[re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()] = cls()
 	for module in modules.values():
 		module.modules = modules
 	return modules
@@ -247,31 +243,3 @@ def validate_attr(attr, attr_type):
 	elif type(attr_type) == str and attr_type == 'locales':
 		return attr in Config.locales
 	return True
-
-def call_event(event, query, context_module, user_module, notification_module):
-	module_name = context_module.module_name
-	#logger.debug('Checking %s event on module: %s', event, module_name)
-	if '{}.{}'.format(module_name, event) in Config.events.keys():
-		logger.debug('Found %s event on module: %s. Calling with query: %s', event, module_name, query)
-		doc_results = context_module.methods['read'](skip_events=[Event.__PERM__], query=query)
-		for doc in doc_results['args']['docs']:
-			for module_event in Config.events['{}.{}'.format(module_name, event)]:
-				if module_event['handler'] == 'notification':
-					event_query = copy.deepcopy(module_event['query'])
-					for arg in event_query.keys():
-						if type(event_query[arg]['val']) == str and event_query[arg]['val'].startswith('$__doc.'):
-							event_query[arg]['val'] = doc[event_query[arg]['val'].replace('$__doc.', '')]
-					event_results = user_module.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], query=event_query)
-					#logger.debug('found %s users to notify.', event_results['args']['count'])
-					# [DOC] Create notification for matching users
-					for user in event_results['args']['docs']:
-						#logger.debug('adding notification to user: %s, %s', user._id, user.name['en_AE'])
-						notification_module.methods['create'](skip_events=[Event.__PERM__, Event.__NOTIF__], doc={
-							'user':user._id,
-							'title':module_event['context']['title'],
-							'content':doc_results['args']['docs'][0],
-							'status':'new'
-						})
-				elif module_event['handler'] == 'email':
-					# [TODO] Re-implement omitted code
-					1/0

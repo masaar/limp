@@ -1,3 +1,5 @@
+[Back to Index](/README.md)
+
 # Privileges in LIMP
 
 Privileges in LIMP are the definitions of the users' access level.

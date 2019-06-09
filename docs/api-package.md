@@ -1,3 +1,5 @@
+[Back to Index](/README.md)
+
 # LIMP Package
 Technically, a LIMP package is a Python package. However, what is super to regular Python package, is LIMP package has the following elements:
 1. Config: Every package in LIMP has to define a `config` method that returns LIMP `Config` matching dict. More on this in the section [Package Config](#package-config).
@@ -10,10 +12,13 @@ Since elements #2 and #3 are out of the scope of the doc, the following is only 
 Every LIMP package can be given various range of configurations to facilitate faster app setup in any given environment.
 
 Some of the config attrs are available but not supposed to be set using a package config, which are:
-### `debug`:
+### `debug`
 The flag of whether debug options are active or not. It's not supposed to be set by a package, rather by the CLI. Default `False`.
 
-### `test`:
+### `version`
+LIMP version as float which the app was developed to be used for. If set, this would trigger a version check at the the launch time. The version should be the `version.major` number dropping the minor number. default `None`.
+
+### `test`
 The flag whether `test` workflow is active or not. If it's active it should be string representing the test name. It's not supposed to be set by a package, rather by the CLI. Default `False`.
 
 ### `test_flush`
