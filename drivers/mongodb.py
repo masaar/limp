@@ -119,7 +119,7 @@ class MongoDb():
 					elif attr in attrs.keys() and attrs[attr] == 'id':
 						step[attr] = ObjectId(step[attr])
 					elif attr in attrs.keys() and attrs[attr] == ['id']:
-						if type(step[attr]):
+						if type(step[attr]) == list:
 							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
 						elif type(step[attr]) == str:
 							step[attr] = ObjectId(step[attr])
