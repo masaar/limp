@@ -23,6 +23,8 @@ class JSONEncoder(json.JSONEncoder):
 class DictObj:
 	def __init__(self, attrs):
 		self.__attrs = attrs
+	def __deepcopy__(self, memo):
+		return self.__attrs
 	def __repr__(self):
 		return '<DictObj:{}>'.format(self.__attrs)
 	def __getattr__(self, attr):
@@ -64,12 +66,17 @@ class Query(list):
 					del query[i][attr]
 			elif type(query[i]) == list:
 				self._create_index(query[i], path=path + [i])
-	def __init__(self, query, session):
+	def __init__(self, query):
 		self._query = query
 		self._special = {}
 		self._index = {}
 		self._create_index(query)
 		super().__init__(query)
+	def __deepcopy__(self, memo):
+		try:
+			return self._query.__deepcopy__(memo)
+		except:
+			return self._query
 	def append(self, obj):
 		self._query.append(obj)
 		self._index = {}
@@ -95,10 +102,6 @@ class Query(list):
 		del self._special[attr]
 
 class QueryAttrList(list):
-	_query = None
-	_attr = None
-	_paths = []
-	_vals = []
 	def __init__(self, query, attr, paths, vals):
 		self._query = query
 		self._attr = attr

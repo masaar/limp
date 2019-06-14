@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import argparse, os, logging
+import argparse, os, logging, datetime
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -9,12 +9,13 @@ with open(os.path.join(__location__, 'version.txt')) as f:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', help='Show LIMP version and exit', action='version', version='LIMPd v{}'.format(__version__))
-parser.add_argument('--install-deps', help='Install dependencies for LIMP and packages.', action='store_true')
+parser.add_argument('--install-deps', help='Install dependencies for LIMP and packages', action='store_true')
 parser.add_argument('--env', help='Choose specific env')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
+parser.add_argument('--log', help='Enable debug mode and log all debug messages to log file', action='store_true')
 parser.add_argument('--packages', help='List of packages separated by commas to be loaded')
 parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
-parser.add_argument('--test', help='Run specified test.')
+parser.add_argument('--test', help='Run specified test')
 parser.add_argument('--test-flush', help='Flush previous test data collections', action='store_true')
 parser.add_argument('--test-force', help='Force running all test steps even if one is failed', action='store_true')
 args = parser.parse_args()
@@ -24,6 +25,7 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s  [%(levelname)s]  %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
 logger.setLevel(logging.INFO)
 
 # [DOC] Parse runtime args
@@ -41,6 +43,16 @@ if args.install_deps:
 			logger.debug('File \'requirements.txt\' found! Attempting to install package dependencies.')
 			subprocess.call([sys.executable, '-m', 'pip', 'install', '-r', os.path.join(__location__, 'modules', package, 'requirements.txt')])
 	exit()
+
+# [DOC] Check for logging options
+if args.log:
+	logger.removeHandler(handler)
+	if not os.path.exists(os.path.join(__location__, 'logs')):
+		os.makedirs(os.path.join(__location__, 'logs'))
+	handler = logging.FileHandler(filename=os.path.join(__location__, 'logs', '{}.log'.format((datetime.date.today().strftime('%d-%b-%Y')))))
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+	logger.setLevel(logging.DEBUG)
 
 from config import Config
 Config._limp_version = float('.'.join(__version__.split('.')[0:2]))

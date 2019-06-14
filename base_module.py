@@ -4,24 +4,26 @@ from data import Data
 from utils import DictObj, validate_attr, Query
 from base_model import BaseModel
 
+from typing import List, Dict, Union, Tuple, Any
+
 from bson import ObjectId
-import traceback, logging, datetime, time, re, copy
+import traceback, logging, datetime, time, re, sys, copy
 
 locales = {locale:'str' for locale in Config.locales}
 
 logger = logging.getLogger('limp')
 
 class BaseModule():
-	collection = False
-	attrs = {}
-	diff = False
-	optional_attrs = []
-	extns = {}
-	privileges = ['read', 'create', 'update', 'delete', 'admin']
-	methods = {}
+	collection: Union[str, bool] = False
+	attrs: Dict[str, Union[str, List[str], Tuple[str]]] = {}
+	diff: bool = False
+	optional_attrs: List[str] = []
+	extns: Dict[str, List[Union[str, List[str]]]] = {}
+	privileges: List[str] = ['read', 'create', 'update', 'delete', 'admin']
+	methods: Dict[str, 'BaseMethod'] = {}
 
-	module_name = None
-	modules = {}
+	module_name: str = None
+	modules: Dict[str, 'BaseModule'] = {}
 
 	def __init__(self):
 		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
@@ -53,7 +55,7 @@ class BaseModule():
 		else:
 			return object.__getattribute__(self, attr)
 
-	def pre_read(self, skip_events, env, session, query, doc):
+	def pre_read(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
 	def on_read(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
@@ -392,7 +394,7 @@ class BaseMethod:
 				(arg_list_label == 'query' and arg not in args):
 					return DictObj({
 						'status':400,
-						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg[1:], self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
+						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg, self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
 						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
 					})
 			
@@ -435,14 +437,22 @@ class BaseMethod:
 					query[0][attr] = query_attr
 
 		# [DOC] Convert list query to Query object
-		query = Query(query, session)
+		query = Query(copy.deepcopy(query))
+		# [DOC] deepcopy() doc object ro prevent duplicate memory alloc
+		doc = copy.deepcopy(doc)
+
 
 		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
-			query.append({'realm':env['realm']})
-			doc['realm'] = env['realm']
-			logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
+			if self.module.module_name == 'realm':
+				query.append({'name':env['realm']})
+				doc['name'] = env['realm']
+				logger.debug('Appended realm name attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
+			else:
+				query.append({'realm':env['realm']})
+				doc['realm'] = env['realm']
+				logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
 
 		if Event.__PERM__ not in skip_events and session:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
@@ -479,16 +489,30 @@ class BaseMethod:
 			skip_events.append(Event.__EXTN__)
 			del query['$extn']
 
-		if Config.debug:
+		try:
 			results = getattr(self.module, '_method_{}'.format(self.method))(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
-		else:
-			try:
-				results = getattr(self.module, self.method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
-			except Exception as e:
-				logger.error('An error occured. Details: %s.', traceback.format_exc())
+			query = Query([])
+		except Exception as e:
+			logger.error('An error occured. Details: %s.', traceback.format_exc())
+			exc_type, exc_value, tb = sys.exc_info()
+			if tb is not None:
+				prev = tb
+				curr = tb.tb_next
+				while curr is not None:
+					prev = curr
+					curr = curr.tb_next
+				logger.error('Scope variables: %s', prev.tb_frame.f_locals)
+			query = Query([])
+			if Config.debug:
 				return DictObj({
 					'status':500,
 					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),
+					'args':DictObj({'code':'CORE_SERVER_ERROR', 'method':'{}.{}'.format(self.module.module_name, self.method), 'err':str(e)})
+				})
+			else:
+				return DictObj({
+					'status':500,
+					'msg':'Unexpected error has occured.',
 					'args':DictObj({'code':'CORE_SERVER_ERROR'})
 				})
 		

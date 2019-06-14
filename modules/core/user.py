@@ -28,9 +28,6 @@ class User(BaseModule):
 		'attrs':'attrs'
 	}
 	optional_attrs = ['website', 'locale', 'login_time', 'status', 'attrs']
-	extns = {
-		# 'groups': ['group', ['*']]
-	}
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]]
@@ -71,7 +68,7 @@ class User(BaseModule):
 		return (results, skip_events, env, session, query, doc)
 	
 	def pre_create(self, skip_events, env, session, query, doc):
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query={'__OR:username':{'val':doc['username']}, '__OR:email':{'val':doc['email']}, '__OR:phone':{'val':doc['phone']}, '$limit':1})
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'username':doc['username']}, {'email':doc['email']}, {'phone':doc['phone']}, {'$limit':1}])
 		if results.args.count:
 			return {
 				'status':400,
@@ -79,7 +76,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_DUPLICATE_USER'}
 			}
 		if Config.realm:
-			realm_results = self.modules['realm'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'realm':{'val':env['realm']}})
+			realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
 			realm = realm_results.args.docs[0]
 			doc['groups'] = [realm.default]
 		else:
@@ -129,7 +126,7 @@ class User(BaseModule):
 			}
 		user = results.args.docs[0]
 		for group in user.groups:
-			group_results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':group}])
+			group_results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':group}])
 			group = group_results.args.docs[0]
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
@@ -145,7 +142,7 @@ class User(BaseModule):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':doc['group']}, '$limit':1})
+		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc['group']}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -153,7 +150,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query={**query, '$limit':1})
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
 		if not results.args.count:
 			return {
 				'status':400,
@@ -177,7 +174,7 @@ class User(BaseModule):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':doc['group']}, '$limit':1})
+		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc['group']}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -185,7 +182,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query={**query, '$limit':1})
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
 		if not results.args.count:
 			return {
 				'status':400,

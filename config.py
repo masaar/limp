@@ -97,10 +97,11 @@ class Config:
 		logger.debug('Testing realm mode.')
 		if Config.realm:
 			for module in modules.keys():
-				modules[module].attrs['realm'] = 'str'
-				for method in modules[module].methods.keys():
-					modules[module].methods[method].query_args.append('realm')
-					modules[module].methods[method].doc_args.append('realm')
+				if module != 'realm':
+					modules[module].attrs['realm'] = 'str'
+					for method in modules[module].methods.keys():
+						modules[module].methods[method].query_args.append('realm')
+						modules[module].methods[method].doc_args.append('realm')
 		
 		# [DOC] Check test mode
 		if self.test:

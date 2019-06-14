@@ -22,7 +22,7 @@ def run_app(env, packages, port):
 	Config.config_data(modules=modules)
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
-	logger.debug('Config has attrs: %s', {k:v for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
+	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
 
 	async def root_handler(request):
 		headers = [
@@ -115,10 +115,10 @@ def run_app(env, packages, port):
 				'REMOTE_ADDR':request.remote,
 				'HTTP_USER_AGENT':''
 			}
-		logger.info('Websocket connection starting')
+		logger.debug('Websocket connection starting with client at \'%s\'', env['REMOTE_ADDR'])
 		ws = aiohttp.web.WebSocketResponse()
 		await ws.prepare(request)
-		logger.info('Websocket connection ready')
+		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
 
 		if Config.realm:
 			try:
@@ -138,7 +138,7 @@ def run_app(env, packages, port):
 		}))
 
 		async for msg in ws:
-			logger.info('Received new message: %s', msg.data[:256])
+			logger.debug('Received new message from client at \'%s\': %s', env['REMOTE_ADDR'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
 				try:
 					try:
@@ -222,15 +222,22 @@ def run_app(env, packages, port):
 						results.args['call_id'] = request['call_id']
 						await ws.send_str(JSONEncoder().encode(results))
 
-				except Exception:
-					logger.error('Error occured: %s', traceback.format_exc())
-					await ws.send_str(JSONEncoder().encode({
-						'status':500,
-						'msg':'Server Error',
-						'args':{'code':'SERVER_ERROR'}
-					}))
+				except Exception as e:
+					logger.error('An error occured. Details: %s.', traceback.format_exc())
+					if Config.debug:
+						await ws.send_str(JSONEncoder().encode({
+							'status':500,
+							'msg':'Unexpected error has occured [{}].'.format(str(e)),
+							'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
+						}))
+					else:
+						await ws.send_str(JSONEncoder().encode({
+							'status':500,
+							'msg':'Unexpected error has occured.',
+							'args':{'code':'CORE_SERVER_ERROR'}
+						}))
 
-		logger.info('Websocket connection closed')
+		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
 		return ws
 
 	try:

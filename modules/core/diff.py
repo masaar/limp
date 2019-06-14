@@ -45,7 +45,7 @@ class Diff(BaseModule):
 				}
 		if '_id' in query and type(query['_id'][0]) == list:
 			for i in range(0, query['_id'][0].__len__() - 1):
-				self.create(skip_events=[Event.__PERM__], env=env, session=session, query={'_id':{'val':query['_id'][0][i]}}, doc=doc)
+				self.create(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0][i]}], doc=doc)
 			query['_id'][0] = query['_id'][0][query['_id'][0].__len__() - 1]
 		doc['doc'] = ObjectId(query['_id'][0])
 		return (skip_events, env, session, query, doc)

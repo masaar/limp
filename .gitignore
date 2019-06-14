@@ -51,6 +51,7 @@ __pycache
 # Project Spcefic
 certs/*
 tests/*
+logs/*
 modules/*
 !modules/core
 *~
