@@ -50,20 +50,21 @@ class MongoDb():
 		group = None
 		logger.debug('attempting to parse query: %s', query)
 
-		for step in query:
-			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
-
 		if '$skip' in query:
 			skip = query['$skip']
+			del query['$skip']
 		if '$limit' in query:
 			limit = query['$limit']
+			del query['$limit']
 		if '$sort' in query:
 			sort = query['$sort']
+			del query['$sort']
 		if '$limit' in query:
 			limit = query['$limit']
+			del query['$limit']
 		if '$group' in query:
 			group = query['$group']
-		
+			del query['$group']
 		if '$search' in query:
 			aggregate_prefix.insert(0, {'$match':{'$text':{'$search':query['$search']}}})
 			project_query = {attr:'$'+attr for attr in attrs.keys()}
@@ -71,6 +72,7 @@ class MongoDb():
 			project_query['__score'] = {'$meta': 'textScore'}
 			aggregate_suffix.append({'$project':project_query})
 			aggregate_suffix.append({'$match':{'__score':{'$gt':0.5}}})
+			del query['$search']
 		if '$geo_near' in query:
 			aggregate_prefix.insert(0, {'$geoNear':{
 				'near':{'type':'Point','coordinates':query['$geo_near']['val']},
@@ -78,16 +80,23 @@ class MongoDb():
 				'maxDistance':query['$geo_near']['dist'],
 				'spherical':True
 			}})
+			del query['$geo_near']
+
+		for step in query:
+			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
 		
+		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
 		if aggregate_match.__len__() == 1:
 			aggregate_query = [{'$match':aggregate_match[0]}]
+		elif aggregate_match.__len__() == 0:
+			aggregate_query = []
 
 		aggregate_query = aggregate_prefix + aggregate_query + aggregate_suffix
 		return (skip, limit, sort, group, aggregate_query)
 	
 	@classmethod
 	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step):
-		if type(step) == dict:
+		if type(step) == dict and step.keys().__len__():
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
 				if attr.startswith('__or'):
@@ -138,7 +147,7 @@ class MongoDb():
 				aggregate_match.append(child_aggregate_query['$and'][0])
 			elif child_aggregate_query['$and'].__len__() > 1:
 				aggregate_match.append(child_aggregate_query)
-		elif type(step) == list:
+		elif type(step) == list and step.__len__():
 			child_aggregate_query = {'$or':[]}
 			for child_step in step:
 				self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step)

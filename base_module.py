@@ -117,12 +117,14 @@ class BaseModule():
 		#logger.debug('%s has following attrs: %s.', self.__module__, self.attrs.keys())
 		for attr in self.attrs.keys():
 			# [DOC] Allow optional_attrs to bypass requirement check
-			if attr not in doc.keys() and attr not in self.optional_attrs:
+			if Event.__ARGS__ not in skip_events and attr not in doc.keys() and attr not in self.optional_attrs:
 				return {
 					'status':400,
-					'msg':'Missing attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper()),
+					'msg':'Missing doc attr \'{}\' from \'create\' request on module \'{}_{}\'.'.format(attr, self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper()),
 					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper())}
 				}
+			elif Event.__ARGS__ in skip_events and attr not in doc.keys():
+				continue
 			elif attr not in doc.keys() and attr in self.optional_attrs:
 				doc[attr] = None
 			# [DOC] Convert id attr passed as str to ObjectId
