@@ -211,6 +211,11 @@ class Config:
 		for index in self.data_indexes:
 			logger.debug('Attempting to create data index: %s', index)
 			conn[index['collection']].create_index(index['index'])
+		logger.debug('Creating \'__deleted\' data indexes for all collections.')
+		for module in modules:
+			if modules[module].collection:
+				logger.debug('Attempting to create \'__deleted\' data index for collection: %s', modules[module].collection)
+				conn[modules[module].collection].create_index([('__deleted', 1)])
 
 		logger.debug('Testing docs.')
 		for doc in self.docs:

@@ -70,8 +70,11 @@ def run_app(packages, port):
 			env = {'conn':conn}
 			if Config.realm:
 				env['realm'] = realm
-			session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ARGS__], env=env, query=[[{'_id':ObjectId('f00000000000000000000012')}]])
-			results = modules[module].methods[method](skip_events=[Event.__PERM__], env=env, session=session_results.args.docs[0], query=[[{'_id':_id, 'var':var}]])
+			anon_user = Config.compile_anon_user()
+			anon_session = Config.compile_anon_session()
+			anon_session['user'] = DictObj(anon_user)
+			session = DictObj(anon_session)
+			results = modules[module].methods[method](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':_id, 'var':var}]])
 			if results['status'] == 404:
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
 				return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({
