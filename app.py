@@ -1,4 +1,4 @@
-def run_app(env, packages, port):
+def run_app(packages, port):
 	import aiohttp.web
 
 	from bson import ObjectId
@@ -15,7 +15,7 @@ def run_app(env, packages, port):
 
 	logger = logging.getLogger('limp')
 
-	modules = import_modules(env=env, packages=packages)
+	modules = import_modules(packages=packages)
 	# [DOC] If realm mode is not enabled drop realm module.
 	if not Config.realm:
 		del modules['realm']

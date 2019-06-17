@@ -18,6 +18,7 @@ parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
 parser.add_argument('--test', help='Run specified test')
 parser.add_argument('--test-flush', help='Flush previous test data collections', action='store_true')
 parser.add_argument('--test-force', help='Force running all test steps even if one is failed', action='store_true')
+parser.add_argument('--test-env', help='Run tests on selected env rather than sandbox env', action='store_true')
 args = parser.parse_args()
 
 logger = logging.getLogger('limp')
@@ -59,7 +60,8 @@ Config._limp_version = float('.'.join(__version__.split('.')[0:2]))
 Config.test = args.test
 Config.test_flush = args.test_flush
 Config.test_force = args.test_force
-env = args.env or os.getenv('ENV') or None
+Config.test_env = args.test_env
+Config.env = args.env or os.getenv('ENV') or None
 if args.debug or args.test:
 	Config.debug = True
 	logger.setLevel(logging.DEBUG)
@@ -69,4 +71,4 @@ if packages:
 
 from app import run_app
 
-run_app(env, packages, args.port)
+run_app(packages, args.port)

@@ -2,13 +2,14 @@ from bson import ObjectId
 from event import Event
 from test import Test
 
-import os, jwt, logging, datetime
+import os, jwt, logging, datetime, time
 
 logger = logging.getLogger('limp')
 
 
 class Config:
 	debug = False
+	env = None
 
 	_limp_version = None
 	version = None
@@ -16,6 +17,7 @@ class Config:
 	test = False
 	test_flush = False
 	test_force = False
+	test_env = False
 	tests = {}
 
 	data_driver = 'mongodb'
@@ -109,14 +111,20 @@ class Config:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 			if not os.path.exists(os.path.join(__location__, 'tests')):
 				os.makedirs(os.path.join(__location__, 'tests'))
-			for module in modules.keys():
-				if modules[module].collection:
-					logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
-					modules[module].collection = 'test_{}'.format(modules[module].collection)
-					if self.test_flush:
-						Data.drop(env=env, session=None, collection=modules[module].collection)
-				else:
-					logger.debug('Skipping service module %s', module)
+			if not self.test_env:
+				for module in modules.keys():
+					if modules[module].collection:
+						logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
+						modules[module].collection = 'test_{}'.format(modules[module].collection)
+						if self.test_flush:
+							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
+							Data.drop(env=env, session=None, collection=modules[module].collection)
+					else:
+						logger.debug('Skipping service module %s', module)
+			else:
+				logger.warning('Testing on \'%s\' env. LIMPd would be sleeping for 5secs to give you chance to abort test workflow if this was a mistake.', self.env)
+				time.sleep(5)
+				
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')

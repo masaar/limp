@@ -121,7 +121,7 @@ class QueryAttrList(list):
 		del instance_attr[self._attr]
 		del self._query._index[self._attr][item]
 	
-def import_modules(env=None, packages=None):
+def import_modules(packages=None):
 	import modules as package
 	from base_module import BaseModule
 	from config import Config # pylint: disable=W0612
@@ -135,8 +135,8 @@ def import_modules(env=None, packages=None):
 		child_package = __import__(pkgname, fromlist='*')
 		for k, v in child_package.config().items():
 			if k == 'envs':
-				if env and env in v.keys():
-					for kk, vv in v[env].items():
+				if Config.env and Config.env in v.keys():
+					for kk, vv in v[Config.env].items():
 						setattr(Config, kk, vv)
 			elif type(v) == dict:
 				getattr(Config, k).update(v)

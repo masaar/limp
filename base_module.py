@@ -196,7 +196,7 @@ class BaseModule():
 		return (skip_events, env, session, query, doc)
 	def on_update(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def update(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def update(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
@@ -304,7 +304,7 @@ class BaseModule():
 		return (skip_events, env, session, query, doc)
 	def on_delete(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
-	def delete(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def delete(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		# [TODO] refactor for template use
 		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
@@ -416,7 +416,7 @@ class BaseMethod:
 		
 		return True
 
-	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		# [DEPRECATED] Convert dict query to compatible list query
 		if type(query) == dict:
 			dict_query = query
@@ -459,7 +459,7 @@ class BaseMethod:
 		if Event.__PERM__ not in skip_events and session:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
 			permissions_check = self.module.modules['session'].check_permissions(session, self.module, self.permissions)
-			#logger.debug('permissions_check: %s.', permissions_check)
+			logger.debug('permissions_check: %s.', permissions_check)
 			if permissions_check == False:
 				return DictObj({
 					'status':403,
