@@ -5,6 +5,11 @@ from base_model import BaseModel
 import logging, datetime
 logger = logging.getLogger('limp')
 
+DELETE_SOFT_SKIP_SYS = 'DELETE_SOFT_SKIP_SYS'
+DELETE_SOFT_SYS = 'DELETE_SOFT_SYS'
+DELETE_FORCE_SKIP_SYS = 'DELETE_FORCE_SKIP_SYS'
+DELETE_FORCE_SYS = 'DELETE_FORCE_SYS'
+
 class Data():
 	driver = None
 	
@@ -27,8 +32,8 @@ class Data():
 		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 	
 	@classmethod
-	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
-		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, force_delete=force_delete)
+	def delete(self, env, session, collection, attrs, extns, modules, query, strategy):
+		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, strategy=strategy)
 
 	@classmethod
 	def drop(self, env, session, collection):
@@ -39,7 +44,6 @@ class Data():
 		if type(attrs) == dict:
 			iter = attrs.keys()
 			for attr in iter:
-				# #logger.debug('testing attr: %s, %s, agaisnt type BaseModel: %s.', attr, attrs[attr], isinstance(attrs[attr], BaseModel))
 				if type(attrs[attr]) == dict:
 					attrs[attr] = self.sanitise_attrs(attrs[attr])
 				elif type(attrs[attr]) == list:

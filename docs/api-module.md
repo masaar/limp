@@ -423,12 +423,14 @@ def on_(self, results, skip_events, env, session, query, doc):
 	return (results, skip_events, env, session, query, doc)
 ```
 
-### Delete Mode
+### Delete Strategy
 By default, LIMP doesn't delete any doc from any collection of any module. The `delete` operation simply flags a doc as `__deleted`, which the default [`Data Controller and Drivers`](/docs/data-drivers.md) read query then ignores. This behaviour was introduced to allow developers to develop apps that can delete data on two levels:
 1. Flagging docs as `__deleted` ultimately making it impossible for LIMP methods to access these docs, yet keep them present in their own collections.
 2. Forcing the `delete` operation of specific docs completely from the database of the app.
 
 This is helpful when you have an advanced app with possibility that users might request recovery of deleted docs. Although, this is not a backup system, nor should it ease your standards on having a separate backup system, but having the required doc in place and simple marked `__deleted` and being able to recover it by removing the `__deleted` attr from the doc in the database collection should be a huge convenience to the systems admins.
+
+To force the `delete` of the docs, your should have `__SOFT__` present in `skip_events`.
 
 ## Interaction with Other Modules
 Within LIMP ecosystem, reaching any other method, whether on the same module or another can be achieved using the following:
@@ -449,5 +451,6 @@ The events we have and we can use to skip are:
 2. `__PRE__`: The event to skip `pre` event of a `CRUD` operation method. This is useful if you know the method you are calling has a `pre` event that might result in your call be manipulate in an unwanted way.
 3. `__ON__`: Similar to `__PRE__` but for `on` event of a `CRUD` operation methods.
 4. `__ARGS__`: Skip args check event. This is the event where LIMP would confirm your `query` and `doc` args passed are exactly as required by both the method definition in `methods` and as well as `attrs` and `optional_attrs`. This is helpful when you want to problematically skip `query_args` or `doc_args` check to achieve a sequence, usually not available to other public cases. Passing it would also result in [`user` Special Attrs](#special-attrs) not being auto populated by the current session user's `_id`, meaning not passing it manually would result in `400 Missing Attr` error. In [`realm` mode](/docs/api-realm.md)-enabled app, passing `__ARGS__` would also result in `query` and `doc` not being updated with `realm` attr.
+5. `__SOFT__`: 
 
 Beside, `skip_events`, `env` and `session` there are the regular `query` and `doc` objects which were explored in [quick start guide](/docs/quick-start.md)

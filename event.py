@@ -6,3 +6,4 @@ class Event:
 	__EXTN__ = '__EXTN__'
 	__SOFT__ = '__SOFT__'
 	__DIFF__ = '__DIFF__'
+	__SYS_DOCS__ = '__SYS_DOCS__'

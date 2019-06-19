@@ -1,6 +1,6 @@
 from config import Config
 from event import Event
-from data import Data
+from data import Data, DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS
 from utils import DictObj, validate_attr, Query
 from base_model import BaseModel
 
@@ -308,8 +308,15 @@ class BaseModule():
 		# [TODO] refactor for template use
 		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		# [TODO]: confirm all extns are not linked.
-		# [DOC] delete soft action is to just flag the doc as deleted, without force removing it from db.
-		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, force_delete=(Event.__SOFT__ in skip_events))
+		# [DOC] Pick delete strategy based on skip_events
+		strategy = DELETE_SOFT_SKIP_SYS
+		if Event.__SOFT__ not in skip_events and Event.__SYS_DOCS__ in skip_events:
+			strategy = DELETE_SOFT_SYS
+		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ not in skip_events:
+			strategy = DELETE_FORCE_SKIP_SYS
+		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
+			strategy = DELETE_FORCE_SYS
+		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, strategy=strategy)
 		if Event.__ON__ not in skip_events: results, skip_events, env, session, query, doc = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		return {
 			'status':200,
@@ -419,13 +426,14 @@ class BaseMethod:
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		# [DEPRECATED] Convert dict query to compatible list query
 		if type(query) == dict:
+			logger.debug('Detected deprecated dict query. Attempting to convert it to Query object: %s', query)
 			dict_query = query
 			query = [{}, []]
 
 			for attr in dict_query.keys():
 				query_attr = dict_query[attr]
 				if attr[0] != '$':
-					if 'oper' in query_attr.keys():
+					if 'oper' in query_attr.keys() and query_attr['oper'] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
 						if query_attr['oper'] == '$bet':
 							query_attr = {'$bet':[query_attr['val'], query_attr['val2']]}
 						else:
@@ -467,8 +475,8 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
 				})
 			else:
-				query.append(permissions_check['query'])
-				doc.update(permissions_check['doc'])
+				query.append(copy.deepcopy(permissions_check['query']))
+				doc.update(copy.deepcopy(permissions_check['doc']))
 	
 		if Event.__ARGS__ not in skip_events:
 			test_query = self.test_args('query', query)

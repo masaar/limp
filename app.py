@@ -50,9 +50,15 @@ def run_app(packages, port):
 		if Config.realm:
 			try:
 				realm = request.match_info['realm'].lower()
+				if realm not in Config._realms.keys():
+					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
+						'status':400,
+						'msg':'Unknown realm.',
+						'args':{'code':'CORE_CONN_INVALID_REALM'}
+					}).encode('utf-8'))
 			except Exception:
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({
+				return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
 					'status':400,
 					'msg':'Realm mode is enabled. You have to access API via realm.',
 					'args':{'code':'CORE_CONN_REALM'}
@@ -126,6 +132,13 @@ def run_app(packages, port):
 		if Config.realm:
 			try:
 				env['realm'] = request.match_info['realm'].lower()
+				if env['realm'] not in Config._realms.keys():
+					await ws.send_str(JSONEncoder().encode({
+						'status':400,
+						'msg':'Unknown realm.',
+						'args':{'code':'CORE_CONN_INVALID_REALM'}
+					}))
+					return ws
 			except Exception:
 				await ws.send_str(JSONEncoder().encode({
 					'status':400,
@@ -243,11 +256,6 @@ def run_app(packages, port):
 		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
 		return ws
 
-	try:
-		port = int(port)
-	except:
-		port = os.getenv('PORT') or 8081
-		logger.warning('Port should be in integer format. Defaulting to %s.', port)
 	app = aiohttp.web.Application()
 	app.router.add_route('GET', '/', root_handler)
 	app.router.add_route('GET', '/{module}/{method}/{_id}/{var}', http_handler)

@@ -2,6 +2,7 @@ from config import Config
 from event import Event
 from utils import DictObj, Query
 from base_model import BaseModel
+from data import DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS
 
 from pymongo import MongoClient
 from bson import ObjectId
@@ -300,6 +301,7 @@ class MongoDb():
 		conn = env['conn']
 		# [DOC] Perform a read query to get all matching documents
 		read_results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
+		# [DOC] Check if 
 		docs = [doc._id for doc in read_results['docs']]
 		# [DOC] Perform update query on matching docs
 		collection = conn[collection]
@@ -349,15 +351,44 @@ class MongoDb():
 		}
 	
 	@classmethod
-	def delete(self, env, session, collection, attrs, extns, modules, query, force_delete):
+	def delete(self, env, session, collection, attrs, extns, modules, query, strategy):
 		conn = env['conn']
-		if not force_delete:
-			return self.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc={'__deleted':True})
-		else:
-			# [DOC] Perform a read query to get all matching documents
-			results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
-			docs = [doc._id for doc in results['docs']]
-			# [DOC] Perform update query on matching docs
+		# [DOC] Perform a read query to get all matching documents
+		results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
+		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
+			if strategy == DELETE_SOFT_SKIP_SYS:
+				docs = [doc._id for doc in results['docs'] if doc._id not in Config._sys_docs.keys()]
+				if docs.__len__() != results['docs'].__len__():
+					logger.warning('Skipped soft delete for system docs due to \'DELETE_SOFT_SKIP_SYS\' strategy.')
+			else:
+				logger.warning('Detected \'DELETE_SOFT_SYS\' strategy for delete call.')
+				docs = [doc._id for doc in results['docs']]
+			# [DOC] Perform update call on matching docs
+			collection = conn[collection]
+			update_doc = {'$set':{'__deleted':True}}
+			# [DOC] If using Azure Mongo service update docs one by one
+			if Config.data_azure_mongo:
+				update_count = 0
+				for _id in docs:
+					results = collection.update_one({'_id':_id}, update_doc)
+					update_count += results.modified_count
+			else:
+				results = collection.update_many({'_id':{'$in':docs}}, update_doc)
+				update_count = results.modified_count
+			return {
+				'count':update_count,
+				'docs':[{'_id':doc} for doc in docs]
+			}
+		elif strategy in [DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS]:
+			if strategy == DELETE_FORCE_SKIP_SYS:
+				docs = [doc._id for doc in results['docs'] if doc._id not in Config._sys_docs.keys()]
+				if docs.__len__() != results['docs'].__len__():
+					logger.warning('Skipped soft delete for system docs due to \'DELETE_FORCE_SKIP_SYS\' strategy.')
+			else:
+				logger.warning('Detected \'DELETE_FORCE_SYS\' strategy for delete call.')
+				docs = [doc._id for doc in results['docs']]
+			# [DOC] Perform delete query on matching docs
 			collection = conn[collection]
 			if Config.data_azure_mongo:
 				delete_count = 0
@@ -369,12 +400,14 @@ class MongoDb():
 				delete_count = results.deleted_count
 			return {
 				'count':delete_count,
-				'docs':docs
+				'docs':[{'_id':doc} for doc in docs]
 			}
+		else:
+			return False
 	
 	@classmethod
 	def drop(self, env, session, collection):
 		conn = env['conn']
 		collection = conn[collection]
-		drop_results = collection.drop()
+		collection.drop()
 		return True

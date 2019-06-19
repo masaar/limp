@@ -10,6 +10,8 @@ logger = logging.getLogger('limp')
 class Config:
 	debug = False
 	env = None
+	_sys_docs = {}
+	_realms = {}
 
 	_limp_version = None
 	version = None
@@ -98,12 +100,21 @@ class Config:
 		
 		logger.debug('Testing realm mode.')
 		if Config.realm:
+			# [DOC] Append realm attrs to all modules attrs and set at as required in query_args and doc_args
 			for module in modules.keys():
 				if module != 'realm':
+					logger.debug('Updated module \'%s\' for realm mode.', module)
 					modules[module].attrs['realm'] = 'str'
 					for method in modules[module].methods.keys():
 						modules[module].methods[method].query_args.append('realm')
 						modules[module].methods[method].doc_args.append('realm')
+			# [DOC] Query all realms to provide access to available realms and to add realm docs to _sys_docs
+			realm_results = modules['realm'].read(skip_events=[Event.__PERM__, Event.__ARGS__], env=env)
+			logger.debug('Found %s realms. Namely; %s', realm_results.args.count, ', '.join([doc.name for doc in realm_results.args.docs]))
+			for doc in realm_results.args.docs:
+				self._realms[doc.name] = doc
+				self._sys_docs[doc._id] = {'module':'realm'}
+
 		
 		# [DOC] Check test mode
 		if self.test:
@@ -159,12 +170,18 @@ class Config:
 				admin_doc['realm'] = '__global'
 			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=admin_doc)
 			logger.debug('ADMIN user creation results: %s', admin_results)
+		self._sys_docs[ObjectId('f00000000000000000000010')] = {
+			'module':'user'
+		}
 
 		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000011'}])
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
 			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
+		self._sys_docs[ObjectId('f00000000000000000000011')] = {
+			'module':'user'
+		}
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
@@ -173,6 +190,9 @@ class Config:
 			logger.debug('ANON session not found, creating it.')
 			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
+		self._sys_docs[ObjectId('f00000000000000000000012')] = {
+			'module':'session'
+		}
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
@@ -195,6 +215,9 @@ class Config:
 				group_doc['realm'] = '__global'
 			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group_doc)
 			logger.debug('DEFAULT group creation results: %s', group_results)
+		self._sys_docs[ObjectId('f00000000000000000000013')] = {
+			'module':'group'
+		}
 		
 		logger.debug('Testing app-specific groups collection.')
 		# [DOC] test app-specific groups
@@ -206,6 +229,9 @@ class Config:
 					group['realm'] = '__global'
 				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
+			self._sys_docs[ObjectId(group['_id'])] = {
+				'module':'group'
+			}
 		
 		logger.debug('Testing data indexes')
 		for index in self.data_indexes:
@@ -216,6 +242,12 @@ class Config:
 			if modules[module].collection:
 				logger.debug('Attempting to create \'__deleted\' data index for collection: %s', modules[module].collection)
 				conn[modules[module].collection].create_index([('__deleted', 1)])
+		if self.realm:
+			logger.debug('Creating \'realm\' data indexes for all collections.')
+			for module in modules:
+				if module != 'realm' and modules[module].collection:
+					logger.debug('Attempting to create \'realm\' data index for collection: %s', modules[module].collection)
+					conn[modules[module].collection].create_index([('realm', 'text')])
 
 		logger.debug('Testing docs.')
 		for doc in self.docs:
@@ -224,6 +256,9 @@ class Config:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
 				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], env=env, doc=doc['doc'])
+			self._sys_docs[ObjectId(doc['doc']['_id'])] = {
+				'module':doc['module']
+			}
 		
 		if self.test:
 			logger.debug('Running tests')

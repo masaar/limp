@@ -74,3 +74,11 @@ class Realm(BaseModule):
 		doc['user'] = user._id
 		doc['default'] = group._id
 		return (skip_events, env, session, query, doc)
+	
+	def on_create(self, results, skip_events, env, session, query, doc):
+		for doc in results['docs']:
+			realm_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc._id}])
+			realm = realm_results.args.docs[0]
+			Config._realms[realm.name] = realm
+			Config._sys_docs[realm._id] = {'module':'realm'}
+		return (results, skip_events, env, session, query, doc)

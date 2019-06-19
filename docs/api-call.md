@@ -137,7 +137,7 @@ As we explored in the [quick start](/docs/quick-start.md#read), we called the `s
 However, beside sending the module attrs in `query` object, you can also send query special attrs, which are:
 
 ### Query Special Attrs
-Additional available query attributes are the magic methods which have common form and unique use cases. Which are:
+Additional available query attributes are the special methods which have common form and unique use cases. Which are:
 
 #### `$search`
 ```typescript
@@ -149,30 +149,38 @@ You can use this attr to pass on any string value to search for matching results
 ```typescript
 interface { $sort: { [attr: string]: 1 | -1  }; }
 ```
-This self-descriptive magic attr allows you to pass any number of attributes names with their value being `1` or `-1` to determine the requested order of matched data.
+This self-descriptive special attr allows you to pass any number of attributes names with their value being `1` or `-1` to determine the requested order of matched data.
 
 #### `$skip`
 ```typescript
 interface { $skip: number; }
 ```
-This self-descriptive magic attr allows you to pass a number to determine the number of docs to skip of matched data.
+This self-descriptive special attr allows you to pass a number to determine the number of docs to skip of matched data.
 
 #### `$limit`
 ```typescript
 interface { $limit: number; }
 ```
-This self-descriptive magic attr allows you to pass a number to determine the number of docs to limit the number of matched data to.
+This self-descriptive special attr allows you to pass a number to determine the number of docs to limit the number of matched data to.
 
 #### `$extn`
 ```typescript
 interface { $extn: false | Array<string>; }
 ```
-Setting this magic attr to false, would result in the data documents being matched to not get [extended](#extns). This can be used in scenarios to limit the data transferred if the piece of info you are looking for is essentially not in the extended data, but rather in the original data.
+Setting this special attr to false, would result in the data documents being matched to not get [extended](#extns). This can be used in scenarios to limit the data transferred if the piece of info you are looking for is essentially not in the extended data, but rather in the original data.
 
 You can also pass an array of strings representing names of attrs you want only to be extended. For instance, if you are dealing with a module that has 4 attrs getting extended while you only require one of them to be extended you can set `$extn` to `['attr-to-be-extended']` and the other attrs would return only the `_id` of the extn docs, while `attr-to-be-extended` would be extended.
 
 #### `$attrs`
-Another data control magic attr is `$attrs` which allows you to send array of strings of the names of the attrs you only want LIMP to send as part of the matching response.
+Another data control special attr is `$attrs` which allows you to send array of strings of the names of the attrs you only want LIMP to send as part of the matching response.
+
+#### `$soft`
+```typescript
+interface { $soft: false; }
+```
+When creating a doc using a `create` call, LIMP would only return the `_id` of the created doc as part pf the response. In some cases, `create` call results in dynamic values in the newly created doc. In order to save front-end a call, you can set `$soft` to `false` in order to force the return of the created doc in full.
+
+Another, use for special attr `$soft` is with `delete` call. This would allow front-end developers to use [force delete strategy](/docs/api-module.md#delete-strategy).
 
 ## Doc Object
 The call `doc` object is straightforward representation of the data you are sending to LIMP app. As we explored in the [quick start](/docs/quick-start.md#create), we created a `Staff` doc by sending the attrs required by the module. Notice the `doc` object deals only with non-binary data types. This means the `doc` object can have nested objects (which are converted to Python dict at LIMP side), lists and arrays, booleans, numbers, and of course strings. This was decided in order to facilitate uniformity in handling the data in calls `doc` object. However, we were able to successfully send a photo (which is binary data) as part of the staff `create` call. What happened then? LIMP SDKs have special methods to handle binary data and send it in a special call to a non-existant `file/upload` endpoint in chunks. The chunk size can be set directly on the SDK object as explained in the [tutorial](/docs/tutorial.md#front-end-init). Technically, your SDK should handle this on your behalf, however for your SDK to be able to do so you should follow the instructions associated with sending files as part of `doc` object, which should be available in the docs of your SDK of choice.

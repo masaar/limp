@@ -62,6 +62,11 @@ Config.test_flush = args.test_flush
 Config.test_force = args.test_force
 Config.test_env = args.test_env
 Config.env = args.env or os.getenv('ENV') or None
+try:
+	port = int(args.port)
+except:
+	port = os.getenv('PORT') or 8081
+	logger.warning('Port should be in integer format. Defaulting to %s.', port)
 if args.debug or args.test:
 	Config.debug = True
 	logger.setLevel(logging.DEBUG)
@@ -71,4 +76,4 @@ if packages:
 
 from app import run_app
 
-run_app(packages, args.port)
+run_app(packages, port)
