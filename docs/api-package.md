@@ -137,6 +137,7 @@ List of app-specific docs to create for the app functionalities. Every list item
 	}
 ]
 ```
+Optionally, you can add `skip_args` with value set to `True` in the dict to force appending of `__ARGS__` to skipped event. This is helpful when you need to force creating a doc with processing its doc attrs. You would get more on the benefits of `skip_events` attr on [LIMP module reference](/docs/api-module.md).
 
 ### `realm`
 Flag to set the app to run in Realm mode. This is an advanced use-case of LIMP that has very specific scenario. Learn more about this mode in the [full reference of Realm mode](/docs/api-realm.md)

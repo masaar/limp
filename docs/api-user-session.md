@@ -26,13 +26,24 @@ The module has the attrs:
 9. `locale`: Self-descriptive default locale of the user. It should be one of the locales supported by the app. Type `locales`.
 10. `create_time`: The time the user doc was created. This value is set by LIMP. Type `time`.
 11. `login_time`: Last time the user logged-in. This value is updated by LIMP. Type `time`.
-12. `groups`: List of groups the user belong to. If [extensions workflow](/docs/api-module.md#extns) is enabled in the call this would be extended to groups. Type `['id']`.
+12. `groups`: List of groups the user belong to. If [extensions workflow](/docs/api-module.md#extns) is enabled in the call this would be extended to groups. This is automatically set to `[ObjectId('f00000000000000000000013')]` at the time of creation. Type `['id']`.
 13. `privileges`: Custom privileges of the user. This attr should not be used unless your app logic is unable to make use of groups, which is very unlikely. Type `privileges`.
 14. `username_hash`: The auth hash using the `username` attr. More on the auth hashes later. Type `str`.
 15. `email_hash`: The auth hash using the `email` attr. Type `str`.
 16. `phone_hash`: The auth hash using the `phone` attr. Type `str`.
 17. `status`: Self-descriptive status of the user. Type `('active', 'banned', 'deleted', 'disabled_password')`.
-18. `attrs`: Additional user attrs. This can be extra information about the user, or some system values you want to have every user to have. Type `attrs`.
+18. `attrs`: Additional user attrs. This can be extra information about the user, or some system values you want to have every user to have. Type `attrs`. You can user special `__extn` attrs to implement a [`extns` workflow](/docs/api-module.md#extns). An example is to set the department of the staff represented as a user:
+```python
+# [DOC] Partial user doc:
+{
+	'attrs':{
+		'staff_department':{
+			'__extn':['department', ObjectId('5b2f38f4e292446d6cf154c4'), ['*']]
+		}
+	}
+}
+```
+The attr name doesn't have any effect. The structure however is all required. It's a dict with one item `__extn` with the value set to `['module_name', ObjectId('of_extn_doc'), ['attrs', 'to', 'extn', 'or', '*', 'for', 'all']]`.
 
 Among all the previous attrs you need to pay attention to:
 ### Authentications Attrs

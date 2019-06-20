@@ -255,7 +255,10 @@ class Config:
 			if not doc_results.args.count:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
-				modules[doc['module']].methods['create'](skip_events=[Event.__PERM__], env=env, doc=doc['doc'])
+				skip_events = [Event.__PERM__]
+				if 'skip_args' in doc.keys() and doc['skip_args'] == True:
+					skip_events.append(Event.__ARGS__)
+				modules[doc['module']].methods['create'](skip_events=skip_events, env=env, doc=doc['doc'])
 			self._sys_docs[ObjectId(doc['doc']['_id'])] = {
 				'module':doc['module']
 			}

@@ -65,6 +65,19 @@ class User(BaseModule):
 			del user['username_hash']
 			del user['email_hash']
 			del user['phone_hash']
+			# [DOC] Attempt to extend attrs values if __EXTN__ event is not skipped
+			if Event.__EXTN__ not in skip_events:
+				for attr in user.attrs.keys():
+					if type(user.attrs[attr]) == dict and '__extn' in user.attrs[attr].keys():
+						extn = user.attrs[attr]['__extn']
+						extn_query = [{'_id':extn[1]}]
+						if extn[2] != ['*']:
+							extn_query.append({'$attrs':extn[2]})
+						extn_results = self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=extn_query)
+						if not extn_results.args.count:
+							user.attrs[attr] = None
+						else:
+							user.attrs[attr] = extn_results.args.docs[0]
 		return (results, skip_events, env, session, query, doc)
 	
 	def pre_create(self, skip_events, env, session, query, doc):
@@ -75,12 +88,13 @@ class User(BaseModule):
 				'msg':'A user with the same username, email or phone already exists.',
 				'args':{'code':'CORE_USER_DUPLICATE_USER'}
 			}
-		if Config.realm:
-			realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
-			realm = realm_results.args.docs[0]
-			doc['groups'] = [realm.default]
-		else:
-			doc['groups'] = [ObjectId('f00000000000000000000013')]
+		if Event.__ARGS__ not in skip_events:
+			if Config.realm:
+				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
+				realm = realm_results.args.docs[0]
+				doc['groups'] = [realm.default]
+			else:
+				doc['groups'] = [ObjectId('f00000000000000000000013')]
 		doc['privileges'] = {}
 		if 'locale' not in doc.keys():
 			doc['locale'] = Config.locale
@@ -211,7 +225,7 @@ class Group(BaseModule):
 		'privileges':'privileges',
 		'attrs':'attrs'
 	}
-	optional_attrs = ['attrs']
+	optional_attrs = ['bio', 'privileges', 'attrs']
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}]]
@@ -230,6 +244,10 @@ class Group(BaseModule):
 	}
 
 	def pre_create(self, skip_events, env, session, query, doc):
+		if 'bio' not in doc.keys():
+			doc['bio'] = doc['name']
+		if 'privileges' not in doc.keys():
+			doc['privileges'] = {}
 		if 'attrs' not in doc.keys():
 			doc['attrs'] = {}
 		return (skip_events, env, session, query, doc)
