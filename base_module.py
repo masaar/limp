@@ -325,7 +325,7 @@ class BaseModule():
 		}
 	
 	def retrieve_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		attr, filename = query['var'][0].split(';')
+		attr_name, filename = query['var'][0].split(';')
 		del query['var'][0]
 		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query=query)
 		if not results['args']['count']:
@@ -337,7 +337,12 @@ class BaseModule():
 				}
 			}
 		doc = results['args']['docs'][0]
-		if attr not in doc._attrs():
+		try:
+			attr_path = attr_name.split('.')
+			attr = doc
+			for path in attr_path:
+				attr = doc[path]
+		except:
 			return {
 				'status': 404,
 				'msg': 'File not found.',
@@ -345,8 +350,9 @@ class BaseModule():
 					'code': '404 NOT FOUND'
 				}
 			}
-		if type(doc[attr]) == list:
-			for file in doc[attr]:
+
+		if type(attr) == list:
+			for file in attr:
 				if file['name'] == filename:
 					return {
 						'status': 291,
@@ -357,15 +363,15 @@ class BaseModule():
 							'size': file['size']
 						}
 					}
-		else:
-			if doc[attr]['name'] == filename:
+		elif type(attr) == dict:
+			if attr['name'] == filename:
 				return {
 					'status': 291,
-					'msg': doc[attr]['content'],
+					'msg': attr['content'],
 					'args': {
-						'name': doc[attr]['name'],
-						'type': doc[attr]['type'],
-						'size': doc[attr]['size']
+						'name': attr['name'],
+						'type': attr['type'],
+						'size': attr['size']
 					}
 				}
 		# [DOC] No filename match
@@ -433,6 +439,7 @@ class BaseMethod:
 			for attr in dict_query.keys():
 				query_attr = dict_query[attr]
 				if attr[0] != '$':
+					if type(query_attr) != dict: continue
 					if 'oper' in query_attr.keys() and query_attr['oper'] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
 						if query_attr['oper'] == '$bet':
 							query_attr = {'$bet':[query_attr['val'], query_attr['val2']]}
@@ -452,7 +459,7 @@ class BaseMethod:
 		doc = copy.deepcopy(doc)
 
 
-		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module, self.method, str(session)[:30], str(query)[:250], doc.keys())
+		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module.module_name, self.method, str(session)[:30], str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
 			if self.module.module_name == 'realm':

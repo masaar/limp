@@ -129,6 +129,7 @@ class Test():
 
 	@classmethod
 	def run_call(self, modules, env, session, results, module, method, query, doc, acceptance):
+		from utils import Query
 		call_results = {
 			'step':'call',
 			'module':module,
@@ -137,9 +138,11 @@ class Test():
 			'doc':doc,
 			'status':True
 		}
-		for attr in query.keys():
-			if type(query[attr]) == dict and type(query[attr]['val']) == str and query[attr]['val'].startswith('$__'):
-				query[attr]['val'] = self.extract_attr(results=results, attr_path=query[attr]['val'])
+		query = Query(query)
+		for attr in query._index:
+			for i in range(0, query[attr].__len__()):
+				if type(query[attr][i]) == str and query[attr][i].startswith('$__'):
+					query[attr][i] = self.extract_attr(results=results, attr_path=query[attr][i])
 		for attr in doc.keys():
 			if type(doc[attr]) == str and doc[attr].startswith('$__'):
 				doc[attr] = self.extract_attr(results=results, attr_path=doc[attr])

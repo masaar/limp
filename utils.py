@@ -14,7 +14,6 @@ class JSONEncoder(json.JSONEncoder):
 		elif isinstance(o, BaseModel) or isinstance(o, DictObj):
 			return o._attrs()
 		elif type(o) == datetime.datetime:
-			# return o.timestamp()
 			return (o - datetime.datetime(1970,1,1)).total_seconds()
 		elif type(o) == bytes:
 			return True
@@ -33,7 +32,7 @@ class DictObj:
 		try:
 			return self.__attrs[attr]
 		except Exception as e:
-			logger.debug('Unable to __getitem__ %s of %s.', attr, self._attrs())
+			logger.debug('Unable to __getitem__ %s of %s.', attr, self.__attrs().keys())
 			raise e
 	def __setitem__(self, attr, val):
 		self.__attrs[attr] = val
@@ -54,11 +53,15 @@ class Query(list):
 					elif attr.startswith('__or'):
 						self._create_index(query[i][attr], path=path + [i, attr])
 					else:
-						if attr not in self._index.keys():
-							self._index[attr] = []
+						if type(query[i][attr]) == dict and query[i][attr].keys().__len__() == 1 and list(query[i][attr].keys())[0][0] == '$':
+							attr_index = '{}:{}'.format(attr, list(query[i][attr].keys())[0])
+						else:
+							attr_index = '{}:$eq'.format(attr)
+						if attr_index not in self._index.keys():
+							self._index[attr_index] = []
 						if isinstance(query[i][attr], DictObj):
 							query[i][attr] = query[i][attr]._id
-						self._index[attr].append({
+						self._index[attr_index].append({
 							'path':path + [i],
 							'val':query[i][attr]
 						})
@@ -86,12 +89,40 @@ class Query(list):
 		if attr[0] == '$':
 			return attr in self._special.keys()
 		else:
+			if ':' not in attr:
+				attr += ':$eq'
 			return attr in self._index.keys()
 	def __getitem__(self, attr):
 		if attr[0] == '$':
 			return self._special[attr]
 		else:
-			return QueryAttrList(self, attr, [attr['path'] for attr in self._index[attr]], [attr['val'] for attr in self._index[attr]])
+			attrs = []
+			vals = []
+			paths = []
+
+			if attr.split(':')[0] == '*':
+				attr_filter = False
+			else:
+				attr_filter = attr.split(':')[0]
+
+			if ':' not in attr:
+				oper_filter = '$eq'
+				attr += ':$eq'
+			elif ':*' in attr:
+				oper_filter = False
+			else:
+				oper_filter = attr.split(':')[1]
+
+			for index_attr in self._index.keys():
+				print('testing', index_attr)
+				if attr_filter and index_attr.split(':')[0] != attr_filter: continue
+				if oper_filter and index_attr.split(':')[1] != oper_filter: continue
+				
+				print('- Valid!')
+				attrs += [index_attr for val in self._index[index_attr]]
+				vals += [val['val'] for val in self._index[index_attr]]
+				paths += [val['path'] for val in self._index[index_attr]]
+			return QueryAttrList(self, attrs, paths, vals)
 	def __setitem__(self, attr, val):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be updated by attr index.')
@@ -102,24 +133,35 @@ class Query(list):
 		del self._special[attr]
 
 class QueryAttrList(list):
-	def __init__(self, query, attr, paths, vals):
+	def __init__(self, query, attrs, paths, vals):
 		self._query = query
-		self._attr = attr
+		self._attrs = attrs
 		self._paths = paths
 		self._vals = vals
 		super().__init__(vals)
 	def __setitem__(self, item, val):
-		instance_attr = self._query._query
-		for path_part in self._paths[item]:
-			instance_attr = instance_attr[path_part]
-		instance_attr[self._attr] = val
-		self._query._index[self._attr][item]['val'] = val
+		if item == '*':
+			for i in range(0, self._vals.__len__()):
+				self.__setitem__(i, val)
+		else:
+			instance_attr = self._query._query
+			for path_part in self._paths[item]:
+				instance_attr = instance_attr[path_part]
+			instance_attr[self._attrs[item]] = val
+			self._query._index[self._attrs[item]][item]['val'] = val
 	def __delitem__(self, item):
-		instance_attr = self._query._query
-		for path_part in self._paths[item]:
-			instance_attr = instance_attr[path_part]
-		del instance_attr[self._attr]
-		del self._query._index[self._attr][item]
+		if item == '*':
+			for i in range(0, self._vals.__len__()):
+				self.__delitem__(i)
+		else:
+			instance_attr = self._query._query
+			print('attempting to extract:', item, instance_attr, 'using path:', self._paths[item])
+			for path_part in self._paths[item]:
+				print('-getting', path_part, 'of', instance_attr)
+				instance_attr = instance_attr[path_part]
+			print('final instance_attr', instance_attr)
+			del instance_attr[self._attrs[item].split(':')[0]]
+			del self._query._index[self._attrs[item]][item]
 	
 def import_modules(packages=None):
 	import modules as package

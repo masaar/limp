@@ -301,7 +301,6 @@ class MongoDb():
 		conn = env['conn']
 		# [DOC] Perform a read query to get all matching documents
 		read_results = self.read(env=env, session=session, collection=collection, attrs=attrs, extns={}, modules=modules, query=query)
-		# [DOC] Check if 
 		docs = [doc._id for doc in read_results['docs']]
 		# [DOC] Perform update query on matching docs
 		collection = conn[collection]
@@ -310,26 +309,26 @@ class MongoDb():
 		# [DOC] Check for increament oper
 		del_attrs = []
 		for attr in doc.keys():
-			# [DOC] Check for $inc update oper
+			# [DOC] Check for $add update oper
 			if type(doc[attr]) == dict and '$add' in doc[attr].keys():
 				if '$inc' not in update_doc.keys():
 					update_doc['$inc'] = {}
 				update_doc['$inc'][attr] = doc[attr]['$add']
 				del_attrs.append(attr)
 			# [DOC] Check for $push update oper
-			if type(doc[attr]) == dict and '$push' in doc[attr].keys():
+			elif type(doc[attr]) == dict and '$push' in doc[attr].keys():
 				if '$push' not in update_doc.keys():
 					update_doc['$push'] = {}
 				update_doc['$push'][attr] = doc[attr]['$push']
 				del_attrs.append(attr)
 			# [DOC] Check for $pushUnique update oper
-			if type(doc[attr]) == dict and '$pushUnique' in doc[attr].keys():
+			elif type(doc[attr]) == dict and '$pushUnique' in doc[attr].keys():
 				if '$addToSet' not in update_doc.keys():
 					update_doc['$addToSet'] = {}
 				update_doc['$addToSet'][attr] = doc[attr]['$pushUnique']
 				del_attrs.append(attr)
 			# [DOC] Check for $pull update oper
-			if type(doc[attr]) == dict and '$pull' in doc[attr].keys():
+			elif type(doc[attr]) == dict and '$pull' in doc[attr].keys():
 				if '$pullAll' not in update_doc.keys():
 					update_doc['$pullAll'] = {}
 				update_doc['$pullAll'][attr] = doc[attr]['$pull']

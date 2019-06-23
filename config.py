@@ -68,6 +68,25 @@ class Config:
 				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
 				exit()
 
+		# [DOC] Check for env data variables
+		data_attrs = {'server':'mongodb://localhost', 'name':'limp_data', 'ssl':False, 'ca_name':False, 'ca':False}
+		for data_attr_name in data_attrs.keys():
+			data_attr = getattr(self, 'data_{}'.format(data_attr_name))
+			if type(data_attr) == str and data_attr.startswith('__env.'):
+				logger.debug('Detected env variable for config attr \'data_%s\'', data_attr_name)
+				if not os.getenv(data_attr[6:]):
+					logger.warning('Couldn\'t read env variable for config attr \'data_%s\'. Defaulting to \'%s\'', data_attr_name, data_attrs[data_attr_name])
+					setattr(self, 'data_{}'.format(data_attr_name), data_attrs[data_attr_name])
+				else:
+					# [DOC] Set data_ssl to True rather than string env variable value
+					if data_attr_name == 'ssl':
+						data_attr = True
+					else:
+						data_attr = os.getenv(data_attr[6:])
+					logger.warning('Setting env variable for config attr \'data_%s\' to \'%s\'', data_attr_name, data_attr)
+					setattr(self, 'data_{}'.format(data_attr_name), data_attr)
+
+
 		# [DOC] Check SSL settings
 		if self.data_ca:
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
