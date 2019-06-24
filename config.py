@@ -101,10 +101,9 @@ class Config:
 			from drivers.mongodb import MongoDb
 			Data.driver = MongoDb
 
+		# [DOC] Create default env dict
 		conn = Data.create_conn()
 		env = {'conn':conn}
-		if self.realm:
-			env['realm'] = '__global'
 
 		if self.data_azure_mongo:
 			for module in modules:
@@ -119,6 +118,8 @@ class Config:
 		
 		logger.debug('Testing realm mode.')
 		if Config.realm:
+			# [DOC] Append realm to env dict
+			env['realm'] = '__global'
 			# [DOC] Append realm attrs to all modules attrs and set at as required in query_args and doc_args
 			for module in modules.keys():
 				if module != 'realm':
@@ -133,6 +134,20 @@ class Config:
 			for doc in realm_results.args.docs:
 				self._realms[doc.name] = doc
 				self._sys_docs[doc._id] = {'module':'realm'}
+			# [DOC] Create __global realm
+			if '__global' not in self._realms:
+				logger.debug('GLOBAL realm not found, creating it.')
+				modules['realm'].create(skip_events=[Event.__PERM__, Event.__PRE__], env=env, doc={
+					'_id':ObjectId('f00000000000000000000014'),
+					'user':ObjectId('f00000000000000000000010'),
+					'name':'__global',
+					'default':'f00000000000000000000013'
+				})
+			
+			logger.debug(self._sys_docs)
+			# self._sys_docs[ObjectId('f00000000000000000000014')] = {
+			# 	'module':'realm'
+			# }
 
 		
 		# [DOC] Check test mode

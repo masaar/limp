@@ -31,17 +31,17 @@ class Realm(BaseModule):
 
 	def pre_create(self, skip_events, env, session, query, doc):
 		user_results = self.modules['user'].create(skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, session=session, doc={
-			'username':doc['admin']['email'],
-			'email':doc['admin']['email'],
-			'name':doc['admin']['name'],
-			'bio':doc['admin']['bio'],
-			'address':doc['admin']['address'],
-			'postal_code':doc['admin']['postal_code'],
-			'phone':doc['admin']['phone'],
-			'website':doc['admin']['website'],
-			'username_hash':doc['admin']['username_hash'],
-			'email_hash':doc['admin']['email_hash'],
-			'phone_hash':doc['admin']['phone_hash'],
+			'username':doc['user']['username'],
+			'email':doc['user']['email'],
+			'name':doc['user']['name'],
+			'bio':doc['user']['bio'],
+			'address':doc['user']['address'],
+			'postal_code':doc['user']['postal_code'],
+			'phone':doc['user']['phone'],
+			'website':doc['user']['website'],
+			'username_hash':doc['user']['username_hash'],
+			'email_hash':doc['user']['email_hash'],
+			'phone_hash':doc['user']['phone_hash'],
 			'locale':Config.locale,
 			'groups':[],
 			'privileges':{'*':'*'},
@@ -54,7 +54,6 @@ class Realm(BaseModule):
 		user = user_results.args.docs[0]
 
 		group_results = self.modules['group'].create(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, session=session, doc={
-			'_id':ObjectId('f00000000000000000000013'),
 			'user':user._id,
 			'name':{
 				locale:'__DEFAULT' for locale in Config.locales
@@ -77,7 +76,7 @@ class Realm(BaseModule):
 	
 	def on_create(self, results, skip_events, env, session, query, doc):
 		for doc in results['docs']:
-			realm_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc._id}])
+			realm_results = self.read(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, session=session, query=[{'_id':doc._id}])
 			realm = realm_results.args.docs[0]
 			Config._realms[realm.name] = realm
 			Config._sys_docs[realm._id] = {'module':'realm'}

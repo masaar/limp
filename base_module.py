@@ -459,13 +459,16 @@ class BaseMethod:
 		doc = copy.deepcopy(doc)
 
 
-		logger.debug('Calling: %s.%s, with sid:%s, query:%s, doc.keys:%s', self.module.module_name, self.method, str(session)[:30], str(query)[:250], doc.keys())
+		logger.debug('Calling: %s.%s, with skip_events:%s, query:%s, doc.keys:%s', self.module.module_name, self.method, skip_events, str(query)[:250], doc.keys())
 
 		if Event.__ARGS__ not in skip_events and Config.realm:
 			if self.module.module_name == 'realm':
-				query.append({'name':env['realm']})
-				doc['name'] = env['realm']
-				logger.debug('Appended realm name attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
+				if self.method != 'create':
+					query.append({'name':env['realm']})
+					doc['name'] = env['realm']
+					logger.debug('Appended realm name attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
+				else:
+					logger.debug('Skipped Appending realm name attrs to query, doc for realm.create call')
 			else:
 				query.append({'realm':env['realm']})
 				doc['realm'] = env['realm']
