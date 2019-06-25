@@ -114,11 +114,9 @@ class Query(list):
 				oper_filter = attr.split(':')[1]
 
 			for index_attr in self._index.keys():
-				print('testing', index_attr)
 				if attr_filter and index_attr.split(':')[0] != attr_filter: continue
 				if oper_filter and index_attr.split(':')[1] != oper_filter: continue
 				
-				print('- Valid!')
 				attrs += [index_attr for val in self._index[index_attr]]
 				vals += [val['val'] for val in self._index[index_attr]]
 				paths += [val['path'] for val in self._index[index_attr]]
@@ -155,11 +153,8 @@ class QueryAttrList(list):
 				self.__delitem__(i)
 		else:
 			instance_attr = self._query._query
-			print('attempting to extract:', item, instance_attr, 'using path:', self._paths[item])
 			for path_part in self._paths[item]:
-				print('-getting', path_part, 'of', instance_attr)
 				instance_attr = instance_attr[path_part]
-			print('final instance_attr', instance_attr)
 			del instance_attr[self._attrs[item].split(':')[0]]
 			del self._query._index[self._attrs[item]][item]
 	
@@ -170,7 +165,7 @@ def import_modules(packages=None):
 	# package = modules
 	modules = {}
 	package_prefix = package.__name__ + '.'
-	for importer, pkgname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix):
+	for importer, pkgname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix): # pylint: disable=unused-variable
 		if packages and pkgname.replace('modules.', '') not in packages:
 			#logger.debug('Skipping package: %s', pkgname)
 			continue
@@ -187,7 +182,6 @@ def import_modules(packages=None):
 		child_prefix = child_package.__name__ + '.'
 		for importer, modname, ispkg in pkgutil.iter_modules(child_package.__path__, child_prefix):
 			module = __import__(modname, fromlist='*')
-			module_prefix = module.__name__ + '.'
 			for clsname in dir(module):
 				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
 					cls = getattr(module, clsname)
