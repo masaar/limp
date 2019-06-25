@@ -32,7 +32,7 @@ class DictObj:
 		try:
 			return self.__attrs[attr]
 		except Exception as e:
-			logger.debug('Unable to __getitem__ %s of %s.', attr, self.__attrs().keys())
+			logger.debug('Unable to __getitem__ %s of %s.', attr, self.__attrs.keys())
 			raise e
 	def __setitem__(self, attr, val):
 		self.__attrs[attr] = val
