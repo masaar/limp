@@ -168,7 +168,10 @@ def run_app(packages, port):
 					try:
 						res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
 					except Exception:
-						await ws.send_str(JSONEncoder().encode({'status':403, 'msg':'Request token is not accepted.', 'args':{'call_id':res['call_id'], 'code':'CORE_REQ_INVALID_TOKEN'}}))
+						await ws.send_str(JSONEncoder().encode({'status':403, 'msg':'Request token is not accepted.', 'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_REQ_INVALID_TOKEN'
+						}}))
 						continue
 
 					if 'query' not in res.keys(): res['query'] = {}
