@@ -79,7 +79,7 @@ class BaseModule():
 			if '$attrs' in query:
 				query['$attrs'].insert(0, '_id')
 				for i in range(0, results['docs'].__len__()):
-					results['docs'][i] = {attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()}
+					results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 
 		return {
 			'status':200,#if results['count'] else 204,

@@ -79,7 +79,7 @@ class Test():
 				results['steps'].append(auth_results)
 			elif step['step'] == 'signout':
 				logger.debug('Starting to test \'signout\' step: %s', step)
-				signout_results = self.run_call(modules=modules, env=env, session=session, results=results, module='session', method='signout', query={'_id':{'val':session._id}}, doc={}, acceptance={
+				signout_results = self.run_call(modules=modules, env=env, session=session, results=results, module='session', method='signout', query=[{'_id':session._id}], doc={}, acceptance={
 					'status':200
 				})
 				if signout_results['status']:
@@ -139,15 +139,41 @@ class Test():
 			'status':True
 		}
 		query = Query(query)
-		for attr in query._index:
+		# [DOC] Checking for any test variables, attr generators, attr joiners in query
+		for attr in query._index.keys():
 			for i in range(0, query[attr].__len__()):
+				# [DOC] test variables
 				if type(query[attr][i]) == str and query[attr][i].startswith('$__'):
 					query[attr][i] = self.extract_attr(results=results, attr_path=query[attr][i])
+				# [DOC] attr generators
+				elif type(query[attr][i]) == dict and '__attr' in query[attr][i].keys():
+					query[attr][i] = self.generate_attr(query[attr][i]['__attr'], **query[attr][i])
+				# [DOC] attr joiners
+				elif type(query[attr][i]) == dict and '__join' in query[attr][i].keys():
+					for ii in range(0, query[attr][i]['__join'].__len__()):
+						# [DOC] Checking for any test variables, attr generators in join attrs
+						if type(query[attr][i]['__join'][ii]) == str and query[attr][i]['__join'][ii].startswith('$__'):
+							query[attr][i]['__join'][ii] = self.extract_attr(results=results, attr_path=query[attr][i]['__join'][ii])
+						elif type(query[attr][i]['__join'][ii]) == dict and '__attr' in query[attr][i]['__join'][ii].keys():
+							query[attr][i]['__join'][ii] = self.generate_attr(query[attr][i]['__join'][ii]['__attr'], **query[attr][i]['__join'][ii])
+					query[attr][i] = query[attr][i]['separator'].join([str(join_attr) for join_attr in query[attr][i]['__join']])
+		# [DOC] Checking for any test variables, attr generators, attr joiners in doc
 		for attr in doc.keys():
+			# [DOC] test variables
 			if type(doc[attr]) == str and doc[attr].startswith('$__'):
 				doc[attr] = self.extract_attr(results=results, attr_path=doc[attr])
+			# [DOC] attr generators
 			elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
-				doc[attr] = self.generate_attr(doc[attr]['__attr'])
+				doc[attr] = self.generate_attr(doc[attr]['__attr'], **doc[attr])
+			# [DOC] attr joiners
+			elif type(doc[attr]) == dict and '__join' in doc[attr].keys():
+				for i in range(0, doc[attr]['__join'].__len__()):
+					# [DOC] Checking for any test variables, attr generators in join attrs
+					if type(doc[attr]['__join'][i]) == str and doc[attr]['__join'][i].startswith('$__'):
+						doc[attr]['__join'][i] = self.extract_attr(results=results, attr_path=doc[attr]['__join'][i])
+					elif type(doc[attr]['__join'][i]) == dict and '__attr' in doc[attr]['__join'][i].keys():
+						doc[attr]['__join'][i] = self.generate_attr(doc[attr]['__join'][i]['__attr'], **doc[attr]['__join'][i])
+				doc[attr] = doc[attr]['separator'].join(doc[attr]['__join'])
 		try:
 			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
 			call_results['acceptance'] = copy.deepcopy(acceptance)
@@ -169,6 +195,8 @@ class Test():
 					'args':{'tb':tb, 'code':'SERVER_ERROR'}
 				}
 			})
+			call_results['status'] = False
+			call_results['measure'] = measure
 		return call_results
 	
 	@classmethod
@@ -205,12 +233,11 @@ class Test():
 		attr_path = attr_path[3:].split('.')
 		attr = results
 		for child_attr in attr_path:
-			# logger.debug('Attempting to extract %s from %s', child_attr, attr)
-			try:
-				child_attr.index(':')
+			logger.debug('Attempting to extract %s from %s', child_attr, attr)
+			if ':' in child_attr:
 				child_attr = child_attr.split(':')
 				attr = attr[child_attr[0]][int(child_attr[1])]
-			except:
+			else:
 				attr = attr[child_attr]
 		return attr
 
@@ -222,7 +249,7 @@ class Test():
 				continue		
 	
 	@classmethod
-	def generate_attr(self, attr_type):
+	def generate_attr(self, attr_type, **attr_args):
 		if attr_type == 'any':
 			return '__any'
 		elif attr_type == 'id':
@@ -230,11 +257,27 @@ class Test():
 		elif attr_type == 'str':
 			return '__str-{}'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'int':
-			return math.ceil(random.random() * 10000)
+			if 'range' in attr_args.keys():
+				attr_val = random.choice([i for i in range(*attr_args['range'])])
+			else:
+				attr_val = math.ceil(random.random() * 10000)
+			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
+			# 	attr_val = str(attr_val)
+			return attr_val
 		elif type(attr_type) == tuple:
-			return attr_type[0]
+			attr_val = random.choice(attr_type)
+			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
+			# 	attr_val = str(attr_val)
+			# elif 'repr' in attr_args.keys() and attr_args['repr'] == 'int':
+			# 	attr_val = int(attr_val)
+			return attr_val
 		elif attr_type == 'bool':
-			return True
+			attr_val = random.choice([True, False])
+			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
+			# 	attr_val = str(attr_val)
+			# elif 'repr' in attr_args.keys() and attr_args['repr'] == 'int':
+			# 	attr_val = int(attr_val)
+			return attr_val
 		elif attr_type == 'email':
 			return 'some-{}@email.com'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'phone':
@@ -242,7 +285,10 @@ class Test():
 		elif attr_type == 'uri:web':
 			return 'https://some.uri-{}.com'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'time':
-			return datetime.datetime.today()
+			attr_val = datetime.datetime.today()
+			if 'format' in attr_args.keys():
+				attr_val = attr_val.strftime(attr_args['format'])
+			return attr_val
 		elif attr_type == 'file':
 			return [{
 				'name':'__file-{}'.format(math.ceil(random.random() * 10000)),
@@ -274,3 +320,5 @@ class Test():
 		elif attr_type == 'locales':
 			from config import Config
 			return Config.locale
+		
+		raise Exception('Unkown generator attr \'{}\''.format(attr_type))

@@ -43,6 +43,8 @@ class DictObj:
 
 class Query(list):
 	def _create_index(self, query, path=[]):
+		if not path:
+			self._index = {}
 		for i in range(0, query.__len__()):
 			if type(query[i]) == dict:
 				del_attrs = []
@@ -54,14 +56,15 @@ class Query(list):
 						self._create_index(query[i][attr], path=path + [i, attr])
 					else:
 						if type(query[i][attr]) == dict and query[i][attr].keys().__len__() == 1 and list(query[i][attr].keys())[0][0] == '$':
-							attr_index = '{}:{}'.format(attr, list(query[i][attr].keys())[0])
+							attr_oper = list(query[i][attr].keys())[0]
 						else:
-							attr_index = '{}:$eq'.format(attr)
-						if attr_index not in self._index.keys():
-							self._index[attr_index] = []
+							attr_oper = '$eq'
+						if attr not in self._index.keys():
+							self._index[attr] = []
 						if isinstance(query[i][attr], DictObj):
 							query[i][attr] = query[i][attr]._id
-						self._index[attr_index].append({
+						self._index[attr].append({
+							'oper':attr_oper,
 							'path':path + [i],
 							'val':query[i][attr]
 						})
@@ -82,16 +85,24 @@ class Query(list):
 			return self._query
 	def append(self, obj):
 		self._query.append(obj)
-		self._index = {}
 		self._create_index(self._query)
 		super().__init__(self._query)
 	def __contains__(self, attr):
 		if attr[0] == '$':
 			return attr in self._special.keys()
 		else:
-			if ':' not in attr:
+			if ':' in attr:
+				attr_index, attr_oper = attr.split(':')
+			else:
+				attr_index = attr
 				attr += ':$eq'
-			return attr in self._index.keys()
+				attr_oper = '$eq'
+
+			if attr_index in self._index.keys():
+				for val in self._index[attr_index]:
+					if val['oper'] == attr_oper:
+						return True
+			return False
 	def __getitem__(self, attr):
 		if attr[0] == '$':
 			return self._special[attr]
@@ -99,28 +110,28 @@ class Query(list):
 			attrs = []
 			vals = []
 			paths = []
+			indexes = []
+			attr_filter = False
+			oper_filter = False
 
-			if attr.split(':')[0] == '*':
-				attr_filter = False
-			else:
+			if attr.split(':')[0] != '*':
 				attr_filter = attr.split(':')[0]
 
 			if ':' not in attr:
 				oper_filter = '$eq'
 				attr += ':$eq'
-			elif ':*' in attr:
-				oper_filter = False
-			else:
+			elif ':*' not in attr:
 				oper_filter = attr.split(':')[1]
 
 			for index_attr in self._index.keys():
-				if attr_filter and index_attr.split(':')[0] != attr_filter: continue
-				if oper_filter and index_attr.split(':')[1] != oper_filter: continue
+				if attr_filter and index_attr != attr_filter: continue
+				# if oper_filter and index_attr.split(':')[1] != oper_filter: continue
 				
-				attrs += [index_attr for val in self._index[index_attr]]
-				vals += [val['val'] for val in self._index[index_attr]]
-				paths += [val['path'] for val in self._index[index_attr]]
-			return QueryAttrList(self, attrs, paths, vals)
+				attrs += [index_attr for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
+				vals += [val['val'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
+				paths += [val['path'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
+				indexes += [i for i in range(0, self._index[index_attr].__len__()) if not oper_filter or (oper_filter and self._index[index_attr][i]['oper'] == oper_filter)]
+			return QueryAttrList(self, attrs, paths, indexes, vals)
 	def __setitem__(self, attr, val):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be updated by attr index.')
@@ -131,10 +142,11 @@ class Query(list):
 		del self._special[attr]
 
 class QueryAttrList(list):
-	def __init__(self, query, attrs, paths, vals):
+	def __init__(self, query, attrs, paths, indexes, vals):
 		self._query = query
 		self._attrs = attrs
 		self._paths = paths
+		self._indexes = indexes
 		self._vals = vals
 		super().__init__(vals)
 	def __setitem__(self, item, val):
@@ -145,8 +157,9 @@ class QueryAttrList(list):
 			instance_attr = self._query._query
 			for path_part in self._paths[item]:
 				instance_attr = instance_attr[path_part]
-			instance_attr[self._attrs[item]] = val
-			self._query._index[self._attrs[item]][item]['val'] = val
+			instance_attr[self._attrs[item].split(':')[0]] = val
+			self._query._index[self._attrs[item].split(':')[0]][self._indexes[item]]['val'] = val
+			self._query._create_index(self._query._query)
 	def __delitem__(self, item):
 		if item == '*':
 			for i in range(0, self._vals.__len__()):
@@ -157,6 +170,7 @@ class QueryAttrList(list):
 				instance_attr = instance_attr[path_part]
 			del instance_attr[self._attrs[item].split(':')[0]]
 			del self._query._index[self._attrs[item]][item]
+			self._query._create_index(self._query._query)
 	
 def import_modules(packages=None):
 	import modules as package
