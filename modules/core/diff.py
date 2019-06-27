@@ -31,7 +31,7 @@ class Diff(BaseModule):
 
 	def pre_create(self, skip_events, env, session, query, doc):
 		# [DOC] Detect non-_id update query:
-		if '_id' not in query.keys():
+		if '_id' not in query:
 			results = self.modules[doc['module']].read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
 			if results.args.count > 1:
 				query.append({'_id':{'$in':[doc._id for doc in results.args.docs]}})
