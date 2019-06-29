@@ -6,8 +6,9 @@ from base_model import BaseModel
 
 from typing import List, Dict, Union, Tuple, Any
 
+from PIL import Image
 from bson import ObjectId
-import traceback, logging, datetime, time, re, sys, copy
+import traceback, logging, datetime, time, re, sys, copy, io, base64
 
 locales = {locale:'str' for locale in Config.locales}
 
@@ -324,11 +325,26 @@ class BaseModule():
 			'args':results
 		}
 	
+	def pre_retrieve_file(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_retrieve_file(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
 	def retrieve_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		attr_name, filename = query['var'][0].split(';')
+		if Event.__PRE__ not in skip_events:
+			pre_retrieve_file = self.pre_retrieve_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(pre_retrieve_file) in [DictObj, dict]: return pre_retrieve_file
+			skip_events, env, session, query, doc = pre_retrieve_file
+
+		try:
+			attr_name, thumb_dims, filename = query['var'][0].split(';')
+			thumb_dims = tuple([int(dim) for dim in thumb_dims.split(',')])
+		except:
+			thumb_dims = False
+			attr_name, filename = query['var'][0].split(';')
 		del query['var'][0]
-		results = self.methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, session=session, query=query)
-		if not results['args']['count']:
+
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status': 404,
 				'msg': 'File not found.',
@@ -336,7 +352,7 @@ class BaseModule():
 					'code': '404 NOT FOUND'
 				}
 			}
-		doc = results['args']['docs'][0]
+		doc = results.args.docs[0] # pylint: disable=no-member
 		try:
 			attr_path = attr_name.split('.')
 			attr = doc
@@ -351,37 +367,52 @@ class BaseModule():
 				}
 			}
 
+		file = False
+
 		if type(attr) == list:
-			for file in attr:
-				if file['name'] == filename:
-					return {
-						'status': 291,
-						'msg': file['content'],
-						'args': {
-							'name': file['name'],
-							'type': file['type'],
-							'size': file['size']
-						}
-					}
+			for item in attr:
+				if item['name'] == filename:
+					file = item
+					break
 		elif type(attr) == dict:
 			if attr['name'] == filename:
-				return {
-					'status': 291,
-					'msg': attr['content'],
-					'args': {
-						'name': attr['name'],
-						'type': attr['type'],
-						'size': attr['size']
-					}
+				file = item
+		
+		if file:
+			results = {
+				'status': 291,
+				'msg': file['content'],
+				'args': {
+					'name': file['name'],
+					'type': file['type'],
+					'size': file['size']
 				}
-		# [DOC] No filename match
-		return {
-			'status': 404,
-			'msg': 'File not found.',
-			'args': {
-				'code': '404 NOT FOUND'
 			}
-		}
+
+			if thumb_dims:
+				try:
+					image = Image.open(io.BytesIO(file['content']))
+					image.thumbnail(thumb_dims)
+					stream = io.BytesIO()
+					image.save(stream, format=image.format)
+					stream.seek(0)
+					file['content'] = stream.read()
+				except:
+					pass
+
+			if Event.__ON__ not in skip_events:
+				results, skip_events, env, session, query, doc = self.on_retrieve_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+
+			return results
+		else:
+			# [DOC] No filename match
+			return {
+				'status': 404,
+				'msg': 'File not found.',
+				'args': {
+					'code': '404 NOT FOUND'
+				}
+			}
 
 class BaseMethod:
 

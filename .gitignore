@@ -47,6 +47,7 @@ __pycache
 
 # VSTS
 .vs
+.gitmodules
 
 # Project Spcefic
 certs/*
