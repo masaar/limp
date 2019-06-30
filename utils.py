@@ -158,7 +158,6 @@ class QueryAttrList(list):
 			for path_part in self._paths[item]:
 				instance_attr = instance_attr[path_part]
 			instance_attr[self._attrs[item].split(':')[0]] = val
-			self._query._index[self._attrs[item].split(':')[0]][self._indexes[item]]['val'] = val
 			self._query._create_index(self._query._query)
 	def __delitem__(self, item):
 		if item == '*':
@@ -169,7 +168,20 @@ class QueryAttrList(list):
 			for path_part in self._paths[item]:
 				instance_attr = instance_attr[path_part]
 			del instance_attr[self._attrs[item].split(':')[0]]
-			del self._query._index[self._attrs[item]][item]
+			self._query._create_index(self._query._query)
+	def replace_attr(self, item, new_attr):
+		if item == '*':
+			for i in range(0, self._vals.__len__()):
+				self.replace_attr(i, new_attr)
+		else:
+			instance_attr = self._query._query
+			for path_part in self._paths[item]:
+				instance_attr = instance_attr[path_part]
+			# [DOC] Set new attr
+			instance_attr[new_attr] = instance_attr[self._attrs[item].split(':')[0]]
+			# [DOC] Delete old attr
+			del instance_attr[self._attrs[item].split(':')[0]]
+			# [DOC] Update index
 			self._query._create_index(self._query._query)
 	
 def import_modules(packages=None):

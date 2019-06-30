@@ -110,6 +110,10 @@ class MongoDb():
 				else:
 					# [DOC] Add extn query when required
 					if attr.find('.') != -1 and attr.split('.')[0] in extns.keys():
+						step_attr = attr.split('.')[1]
+						step_attrs = modules[extns[attr.split('.')[0]][0]].attrs
+
+						# [DOC] Don't attempt to extn attr that is already extn'ed
 						lookup_query = False
 						for stage in aggregate_prefix:
 							if '$lookup' in stage.keys() and stage['$lookup']['as'] == attr.split('.')[0]:
@@ -117,33 +121,58 @@ class MongoDb():
 								break
 						if not lookup_query:
 							extn_collection = modules[extns[attr.split('.')[0]][0]].collection
-							if modules[extns[attr.split('.')[0]][0]].attrs[attr.split('.')[1]] == 'id':
-								step[attr] = ObjectId(step[attr])
 							aggregate_prefix.append({'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
 							aggregate_prefix.append({'$unwind':'${}'.format(attr.split('.')[0])})
 							group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
 							group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
 							group_query['_id'] = '$_id'
 							aggregate_suffix.append({'$group':group_query})
+					else:
+						step_attr = attr
+						step_attrs = attrs
+
 					# [DOC] Convert strings and lists of strings to ObjectId when required
-					elif attr in attrs.keys() and attrs[attr] == 'id':
+					if step_attr in step_attrs.keys() and step_attrs[step_attr] == 'id':
 						step[attr] = ObjectId(step[attr])
-					elif attr in attrs.keys() and attrs[attr] == ['id']:
+					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == ['id']:
 						if type(step[attr]) == list:
 							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
 						elif type(step[attr]) == str:
 							step[attr] = ObjectId(step[attr])
-					elif attr == '_id':
+					elif step_attr == '_id':
 						if type(step[attr]) == str:
 							step[attr] = ObjectId(step[attr])
 						elif type(step[attr]) == list:
 							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
-					
+					# [DOC] Check for access sepcial attrs
+					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == 'access':
+						access_query = [
+							{'$project':{
+								'__user':'$user',
+								'__access.anon':'${}.anon'.format(attr),
+								'__access.users':{'$in':[ObjectId(step[attr]['$__user']), '${}.users'.format(attr)]},
+								'__access.groups':{'$or':[{'$in':[group, '${}.groups'.format(attr)]} for group in step[attr]['$__groups']]}
+							}},
+							# {'$project':{
+							# 	attr:{'$or':[{'__user':ObjectId(step[attr]['$__user'])}, {'__access.anon':True}, {'__access.users':True}, {'__access.groups':True}]}
+							# }},
+							{'$match':{'$or':[{'__user':ObjectId(step[attr]['$__user'])}, {'__access.anon':True}, {'__access.users':True}, {'__access.groups':True}]}}
+						]
+						access_query[0]['$project'].update({attr:'$'+attr for attr in attrs.keys()})
+						# access_query[1]['$project'].update({attr:'$'+attr for attr in attrs.keys()})
+
+						aggregate_prefix.append(access_query[0])
+						# aggregate_prefix.append(access_query[1])
+						# aggregate_suffix.insert(0, access_query[1])
+						step[attr] = access_query[1]
 					# [DOC] Check for $bet query oper
 					if type(step[attr]) == dict and '$bet' in step[attr].keys():
 						step[attr] = {'$gte':step[attr][0], '$lte':step[attr][1]}
-						
-					child_aggregate_query['$and'].append({attr:step[attr]})
+					
+					if type(step[attr]) == dict and '$match' in step[attr].keys():
+						child_aggregate_query['$and'].append(step[attr]['$match'])
+					else:
+						child_aggregate_query['$and'].append({attr:step[attr]})
 			if child_aggregate_query['$and'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$and'][0])
 			elif child_aggregate_query['$and'].__len__() > 1:

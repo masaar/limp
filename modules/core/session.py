@@ -3,7 +3,7 @@ from event import Event
 
 from bson import ObjectId
 
-import logging, datetime, time, json, jwt, secrets
+import logging, datetime, time, json, jwt, secrets, copy
 logger = logging.getLogger('limp')
 
 class Session(BaseModule):
@@ -157,6 +157,8 @@ class Session(BaseModule):
 	def check_permissions(self, session, module, permissions):
 		module = module.module_name
 		user = session.user
+
+		permissions = copy.deepcopy(permissions)
 
 		for permission in permissions:
 			logger.debug('checking permission: %s against: %s', permission, user.privileges)
