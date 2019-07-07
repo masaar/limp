@@ -7,7 +7,7 @@ from data import DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, D
 from pymongo import MongoClient
 from bson import ObjectId
 
-import os, logging, re
+import os, logging, re, datetime
 logger = logging.getLogger('limp')
 
 class MongoDb():
@@ -167,7 +167,15 @@ class MongoDb():
 						step[attr] = access_query[1]
 					# [DOC] Check for $bet query oper
 					if type(step[attr]) == dict and '$bet' in step[attr].keys():
-						step[attr] = {'$gte':step[attr][0], '$lte':step[attr][1]}
+						# [DOC] Check for time attr
+						if step_attr in step_attrs.keys() and step_attrs[step_attr] == 'time':
+							if type(step[attr]['$bet'][0]) == str:
+								# [DOC] Convert str to datetime object and split on '.' to avoid JS ISO format.
+								step[attr] = {'$gte':datetime.datetime.fromisoformat(step[attr]['$bet'][0].split('.')[0]), '$lte':datetime.datetime.fromisoformat(step[attr]['$bet'][1].split('.')[0])}
+							elif type(step[attr]['$bet'][0]) == int:
+								step[attr] = {'$gte':datetime.datetime.fromtimestamp(step[attr]['$bet'][0]), '$lte':datetime.datetime.fromtimestamp(step[attr]['$bet'][1])}
+						else:
+							step[attr] = {'$gte':step[attr]['$bet'][0], '$lte':step[attr]['$bet'][1]}
 					
 					if type(step[attr]) == dict and '$match' in step[attr].keys():
 						child_aggregate_query['$and'].append(step[attr]['$match'])

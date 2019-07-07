@@ -84,7 +84,7 @@ class Test():
 				})
 				if signout_results['status']:
 					logger.debug('Changing session after successful signout step.')
-					session = DictObj({'user':DictObj(Config.compile_anon_user())})
+					session = DictObj({**Config.compile_anon_session(), 'user':DictObj(Config.compile_anon_user())})
 				results['steps'].append(signout_results)
 			else:
 				logger.error('Unknown step \'%s\'. Exiting.', step['step'])
@@ -165,6 +165,11 @@ class Test():
 			# [DOC] attr generators
 			elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
 				doc[attr] = self.generate_attr(doc[attr]['__attr'], **doc[attr])
+			# [DOC] list of attr generators
+			elif type(doc[attr]) == list and doc[attr].__len__() and type(doc[attr][0]) and '__attr' in doc[attr][0].keys():
+				if 'count' not in doc[attr][0].keys():
+					doc[attr][0]['count'] = 1
+				doc[attr] = [self.generate_attr(doc[attr][0]['__attr'], **doc[attr][0]) for i in range(0, doc[attr][0]['count'])]
 			# [DOC] attr joiners
 			elif type(doc[attr]) == dict and '__join' in doc[attr].keys():
 				for i in range(0, doc[attr]['__join'].__len__()):
@@ -290,13 +295,13 @@ class Test():
 				attr_val = attr_val.strftime(attr_args['format'])
 			return attr_val
 		elif attr_type == 'file':
-			return [{
+			return {
 				'name':'__file-{}'.format(math.ceil(random.random() * 10000)),
 				'lastModified':100000,
 				'type':'text/plain',
 				'size':6,
 				'content':b'__file'
-			}]
+			}
 		elif attr_type == 'geo':
 			return {
 				'type':'Point',
