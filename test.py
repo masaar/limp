@@ -3,6 +3,14 @@ from bson import ObjectId
 import logging, traceback, math, random, datetime, os, json, copy
 logger = logging.getLogger('limp')
 
+calc_opers = {
+	'+':'__add__',
+	'-':'__sub__',
+	'*':'__mul__',
+	'/':'__truediv__',
+	'**':'__pow__'
+}
+
 class Test():
 	
 	@classmethod
@@ -139,7 +147,7 @@ class Test():
 			'status':True
 		}
 		query = Query(query)
-		# [DOC] Checking for any test variables, attr generators, attr joiners in query
+		# [DOC] Checking for any test variables, attr generators, attr joiners, attr calc in query
 		for attr in query._index.keys():
 			for i in range(0, query[attr].__len__()):
 				# [DOC] test variables
@@ -157,7 +165,18 @@ class Test():
 						elif type(query[attr][i]['__join'][ii]) == dict and '__attr' in query[attr][i]['__join'][ii].keys():
 							query[attr][i]['__join'][ii] = self.generate_attr(query[attr][i]['__join'][ii]['__attr'], **query[attr][i]['__join'][ii])
 					query[attr][i] = query[attr][i]['separator'].join([str(join_attr) for join_attr in query[attr][i]['__join']])
-		# [DOC] Checking for any test variables, attr generators, attr joiners in doc
+				# [DOC] attr calc
+				elif type(query[attr][i]) == dict and '__calc' in query[attr][i].keys():
+					if query[attr][i]['__calc'][1] not in calc_opers.keys():
+						logger.error('Unknown calc oper \'%s\'. Exiting.', query[attr][i]['__calc'][1])
+						exit()
+					# [DOC] Checking for test variables
+					for i in [0, 2]:
+						if type(query[attr][i]['__calc'][i]) == str and query[attr][i]['__calc'][i].startswith('$__'):
+							query[attr][i]['__calc'][i] = self.extract_attr(results, query[attr][i]['__calc'][i])
+					# [DOC] Running calc oper
+					query[attr][i] = getattr(query[attr][i]['__calc'][0], calc_opers[query[attr][i]['__calc'][1]])(query[attr][i]['__calc'][2])
+		# [DOC] Checking for any test variables, attr generators, attr joiners, attr calc in doc
 		for attr in doc.keys():
 			# [DOC] test variables
 			if type(doc[attr]) == str and doc[attr].startswith('$__'):
@@ -179,12 +198,35 @@ class Test():
 					elif type(doc[attr]['__join'][i]) == dict and '__attr' in doc[attr]['__join'][i].keys():
 						doc[attr]['__join'][i] = self.generate_attr(doc[attr]['__join'][i]['__attr'], **doc[attr]['__join'][i])
 				doc[attr] = doc[attr]['separator'].join(doc[attr]['__join'])
+			# [DOC] attr calc
+			elif type(doc[attr]) == dict and '__calc' in doc[attr].keys():
+				if doc[attr]['__calc'][1] not in calc_opers.keys():
+					logger.error('Unknown calc oper \'%s\'. Exiting.', doc[attr]['__calc'][1])
+					exit()
+				# [DOC] Checking for test variables
+				for i in [0, 2]:
+					if type(doc[attr]['__calc'][i]) == str and doc[attr]['__calc'][i].startswith('$__'):
+						doc[attr]['__calc'][i] = self.extract_attr(results, doc[attr]['__calc'][i])
+				# [DOC] Running calc oper
+				doc[attr] = getattr(doc[attr]['__calc'][0], calc_opers[doc[attr]['__calc'][1]])(doc[attr]['__calc'][2])
 		try:
 			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
 			call_results['acceptance'] = copy.deepcopy(acceptance)
 			for measure in acceptance.keys():
+				# [DOC] Check for test variabels
 				if type(call_results['acceptance'][measure]) == str and call_results['acceptance'][measure].startswith('$__'):
 					call_results['acceptance'][measure] = self.extract_attr(results, call_results['acceptance'][measure])
+				# [DOC] Check for attr calc
+				elif type(call_results['acceptance'][measure]) == dict and '__calc' in call_results['acceptance'][measure].keys():
+					if call_results['acceptance'][measure]['__calc'][1] not in calc_opers.keys():
+						logger.error('Unknown calc oper \'%s\'. Exiting.', call_results['acceptance'][measure]['__calc'][1])
+						exit()
+					# [DOC] Checking for test variables
+					for i in [0, 2]:
+						if type(call_results['acceptance'][measure]['__calc'][i]) == str and call_results['acceptance'][measure]['__calc'][i].startswith('$__'):
+							call_results['acceptance'][measure]['__calc'][i] = self.extract_attr(results, call_results['acceptance'][measure]['__calc'][i])
+					# [DOC] Running calc oper
+					call_results['acceptance'][measure] = getattr(call_results['acceptance'][measure]['__calc'][0], calc_opers[call_results['acceptance'][measure]['__calc'][1]])(call_results['acceptance'][measure]['__calc'][2])
 				if self.extract_attr(call_results['results'], '$__{}'.format(measure)) != call_results['acceptance'][measure]:
 					call_results['status'] = False
 					break
@@ -266,22 +308,12 @@ class Test():
 				attr_val = random.choice([i for i in range(*attr_args['range'])])
 			else:
 				attr_val = math.ceil(random.random() * 10000)
-			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
-			# 	attr_val = str(attr_val)
 			return attr_val
 		elif type(attr_type) == tuple:
 			attr_val = random.choice(attr_type)
-			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
-			# 	attr_val = str(attr_val)
-			# elif 'repr' in attr_args.keys() and attr_args['repr'] == 'int':
-			# 	attr_val = int(attr_val)
 			return attr_val
 		elif attr_type == 'bool':
 			attr_val = random.choice([True, False])
-			# if 'repr' in attr_args.keys() and attr_args['repr'] == 'str':
-			# 	attr_val = str(attr_val)
-			# elif 'repr' in attr_args.keys() and attr_args['repr'] == 'int':
-			# 	attr_val = int(attr_val)
 			return attr_val
 		elif attr_type == 'email':
 			return 'some-{}@email.com'.format(math.ceil(random.random() * 10000))
