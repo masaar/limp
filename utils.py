@@ -20,6 +20,7 @@ class JSONEncoder(json.JSONEncoder):
 		return json.JSONEncoder.default(self, o)
 
 class DictObj:
+	__attrs = {}
 	def __init__(self, attrs):
 		self.__attrs = attrs
 	def __deepcopy__(self, memo):
@@ -28,6 +29,10 @@ class DictObj:
 		return '<DictObj:{}>'.format(self.__attrs)
 	def __getattr__(self, attr):
 		return self.__attrs[attr]
+	def __setattr__(self, attr, val):
+		if not attr.endswith('__attrs'):
+			raise AttributeError
+		object.__setattr__(self, attr, val)
 	def __getitem__(self, attr):
 		try:
 			return self.__attrs[attr]
@@ -38,8 +43,10 @@ class DictObj:
 		self.__attrs[attr] = val
 	def __delitem__(self, attr):
 		del self.__attrs[attr]
+	def __contains__(self, attr):
+		return attr in self.__attrs.keys()
 	def _attrs(self):
-		return self.__attrs
+		return copy.deepcopy(self.__attrs)
 
 class Query(list):
 	def _create_index(self, query, path=[]):

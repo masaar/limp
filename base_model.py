@@ -1,9 +1,7 @@
 from utils import DictObj
 
 class BaseModel(DictObj):
-	
 	def __init__(self, attrs):
-		# #logger.debug('Initiating a model with attrs: %s.', attrs)
 		for attr in attrs.keys():
 			if type(attrs[attr]) == dict and '_id' in attrs[attr].keys():
 				attrs[attr] = BaseModel(attrs[attr])
