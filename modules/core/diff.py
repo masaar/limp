@@ -3,8 +3,6 @@ from event import Event
 
 from bson import ObjectId
 
-import datetime, time
-
 class Diff(BaseModule):
 	collection = 'diff'
 	attrs = {
@@ -13,7 +11,7 @@ class Diff(BaseModule):
 		'doc':'id',
 		'vars':'attrs',
 		'remarks':'str',
-		'create_time':'time'
+		'create_time':'datetime'
 	}
 	optional_attrs = ['doc', 'remarks']
 	methods = {

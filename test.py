@@ -106,7 +106,7 @@ class Test():
 				results['stats']['passed'] += 1
 
 		if results['steps'].__len__() == 0:
-			logger.error('No steps tested. Exiting')
+			logger.error('No steps tested. Exiting.')
 			exit()
 		results['success_rate'] = int((results['stats']['passed'] / results['stats']['total']) * 100)
 		if results['success_rate'] == 0:
@@ -118,7 +118,7 @@ class Test():
 		if test_name == Config.test:
 			logger.debug('Finished testing %s steps [Passed: %s, Failed: %s, Skipped: %s] with success rate of: %s%%', results['stats']['total'], results['stats']['passed'], results['stats']['failed'], results['stats']['skipped'], results['success_rate'])
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-			tests_log = os.path.join(__location__, 'tests', 'LIMP-TEST_{}_{}'.format(test_name, datetime.date.today().strftime('%d-%b-%Y')))
+			tests_log = os.path.join(__location__, 'tests', 'LIMP-TEST_{}_{}'.format(test_name, datetime.datetime.utcnow().strftime('%d-%b-%Y')))
 			if os.path.exists('{}.json'.format(tests_log)):
 				i = 1
 				while True:
@@ -146,87 +146,12 @@ class Test():
 			'doc':doc,
 			'status':True
 		}
-		query = Query(query)
-		# [DOC] Checking for any test variables, attr generators, attr joiners, attr calc in query
-		for attr in query._index.keys():
-			for i in range(0, query[attr].__len__()):
-				# [DOC] test variables
-				if type(query[attr][i]) == str and query[attr][i].startswith('$__'):
-					query[attr][i] = self.extract_attr(results=results, attr_path=query[attr][i])
-				# [DOC] attr generators
-				elif type(query[attr][i]) == dict and '__attr' in query[attr][i].keys():
-					query[attr][i] = self.generate_attr(query[attr][i]['__attr'], **query[attr][i])
-				# [DOC] attr joiners
-				elif type(query[attr][i]) == dict and '__join' in query[attr][i].keys():
-					for ii in range(0, query[attr][i]['__join'].__len__()):
-						# [DOC] Checking for any test variables, attr generators in join attrs
-						if type(query[attr][i]['__join'][ii]) == str and query[attr][i]['__join'][ii].startswith('$__'):
-							query[attr][i]['__join'][ii] = self.extract_attr(results=results, attr_path=query[attr][i]['__join'][ii])
-						elif type(query[attr][i]['__join'][ii]) == dict and '__attr' in query[attr][i]['__join'][ii].keys():
-							query[attr][i]['__join'][ii] = self.generate_attr(query[attr][i]['__join'][ii]['__attr'], **query[attr][i]['__join'][ii])
-					query[attr][i] = query[attr][i]['separator'].join([str(join_attr) for join_attr in query[attr][i]['__join']])
-				# [DOC] attr calc
-				elif type(query[attr][i]) == dict and '__calc' in query[attr][i].keys():
-					if query[attr][i]['__calc'][1] not in calc_opers.keys():
-						logger.error('Unknown calc oper \'%s\'. Exiting.', query[attr][i]['__calc'][1])
-						exit()
-					# [DOC] Checking for test variables
-					for i in [0, 2]:
-						if type(query[attr][i]['__calc'][i]) == str and query[attr][i]['__calc'][i].startswith('$__'):
-							query[attr][i]['__calc'][i] = self.extract_attr(results, query[attr][i]['__calc'][i])
-					# [DOC] Running calc oper
-					query[attr][i] = getattr(query[attr][i]['__calc'][0], calc_opers[query[attr][i]['__calc'][1]])(query[attr][i]['__calc'][2])
-		# [DOC] Checking for any test variables, attr generators, attr joiners, attr calc in doc
-		for attr in doc.keys():
-			# [DOC] test variables
-			if type(doc[attr]) == str and doc[attr].startswith('$__'):
-				doc[attr] = self.extract_attr(results=results, attr_path=doc[attr])
-			# [DOC] attr generators
-			elif type(doc[attr]) == dict and '__attr' in doc[attr].keys():
-				doc[attr] = self.generate_attr(doc[attr]['__attr'], **doc[attr])
-			# [DOC] list of attr generators
-			elif type(doc[attr]) == list and doc[attr].__len__() and type(doc[attr][0]) and '__attr' in doc[attr][0].keys():
-				if 'count' not in doc[attr][0].keys():
-					doc[attr][0]['count'] = 1
-				doc[attr] = [self.generate_attr(doc[attr][0]['__attr'], **doc[attr][0]) for i in range(0, doc[attr][0]['count'])]
-			# [DOC] attr joiners
-			elif type(doc[attr]) == dict and '__join' in doc[attr].keys():
-				for i in range(0, doc[attr]['__join'].__len__()):
-					# [DOC] Checking for any test variables, attr generators in join attrs
-					if type(doc[attr]['__join'][i]) == str and doc[attr]['__join'][i].startswith('$__'):
-						doc[attr]['__join'][i] = self.extract_attr(results=results, attr_path=doc[attr]['__join'][i])
-					elif type(doc[attr]['__join'][i]) == dict and '__attr' in doc[attr]['__join'][i].keys():
-						doc[attr]['__join'][i] = self.generate_attr(doc[attr]['__join'][i]['__attr'], **doc[attr]['__join'][i])
-				doc[attr] = doc[attr]['separator'].join(doc[attr]['__join'])
-			# [DOC] attr calc
-			elif type(doc[attr]) == dict and '__calc' in doc[attr].keys():
-				if doc[attr]['__calc'][1] not in calc_opers.keys():
-					logger.error('Unknown calc oper \'%s\'. Exiting.', doc[attr]['__calc'][1])
-					exit()
-				# [DOC] Checking for test variables
-				for i in [0, 2]:
-					if type(doc[attr]['__calc'][i]) == str and doc[attr]['__calc'][i].startswith('$__'):
-						doc[attr]['__calc'][i] = self.extract_attr(results, doc[attr]['__calc'][i])
-				# [DOC] Running calc oper
-				doc[attr] = getattr(doc[attr]['__calc'][0], calc_opers[doc[attr]['__calc'][1]])(doc[attr]['__calc'][2])
+		query = Query(self.parse_obj(results=results, obj=query))
+		doc = self.parse_obj(results=results, obj=doc)
 		try:
 			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
-			call_results['acceptance'] = copy.deepcopy(acceptance)
+			call_results['acceptance'] = self.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
-				# [DOC] Check for test variabels
-				if type(call_results['acceptance'][measure]) == str and call_results['acceptance'][measure].startswith('$__'):
-					call_results['acceptance'][measure] = self.extract_attr(results, call_results['acceptance'][measure])
-				# [DOC] Check for attr calc
-				elif type(call_results['acceptance'][measure]) == dict and '__calc' in call_results['acceptance'][measure].keys():
-					if call_results['acceptance'][measure]['__calc'][1] not in calc_opers.keys():
-						logger.error('Unknown calc oper \'%s\'. Exiting.', call_results['acceptance'][measure]['__calc'][1])
-						exit()
-					# [DOC] Checking for test variables
-					for i in [0, 2]:
-						if type(call_results['acceptance'][measure]['__calc'][i]) == str and call_results['acceptance'][measure]['__calc'][i].startswith('$__'):
-							call_results['acceptance'][measure]['__calc'][i] = self.extract_attr(results, call_results['acceptance'][measure]['__calc'][i])
-					# [DOC] Running calc oper
-					call_results['acceptance'][measure] = getattr(call_results['acceptance'][measure]['__calc'][0], calc_opers[call_results['acceptance'][measure]['__calc'][1]])(call_results['acceptance'][measure]['__calc'][2])
 				if self.extract_attr(call_results['results'], '$__{}'.format(measure)) != call_results['acceptance'][measure]:
 					call_results['status'] = False
 					break
@@ -234,6 +159,7 @@ class Test():
 				call_results['measure'] = measure
 		except Exception as e:
 			tb = traceback.format_exc()
+			logger.error('Exception occured: %s', tb)
 			call_results.update({
 				'measure':measure,
 				'results':{
@@ -276,24 +202,64 @@ class Test():
 		return auth_results
 	
 	@classmethod
+	def parse_obj(self, results, obj):
+		if type(obj) == dict:
+			obj_iter = obj.keys()
+		elif type(obj) == list:
+			obj_iter = range(0, obj.__len__())
+
+		for i in obj_iter:
+			if type(obj[i]) == dict:
+				if '__attr' in obj[i].keys():
+					obj[i] = self.generate_attr(attr_type=obj[i]['__attr'], **obj[i])
+				elif '__join' in obj[i].keys():
+					for ii in range(0, obj[i]['__join'].__len__()):
+						# [DOC] Checking for any test variables, attr generators in join attrs
+						if type(obj[i]['__join'][ii]) == str and obj[i]['__join'][ii].startswith('$__'):
+							obj[i]['__join'][ii] = str(self.extract_attr(results=results, attr_path=obj[i]['__join'][ii]))
+						elif type(obj[i]['__join'][ii]) == dict and '__attr' in obj[i]['__join'][ii].keys():
+							obj[i]['__join'][ii] = str(self.generate_attr(obj[i]['__join'][ii]['__attr'], **obj[i]['__join'][ii]))
+					obj[i] = obj[i]['separator'].join(obj[i]['__join'])
+				elif '__calc' in obj[i].keys():
+					if obj[i]['__calc'][1] not in calc_opers.keys():
+						logger.error('Unknown calc oper \'%s\'. Exiting.', obj[i]['__calc'][1])
+						exit()
+					# [DOC] Checking for test variables
+					for ii in [0, 2]:
+						if type(obj[i]['__calc'][ii]) == str and obj[i]['__calc'][ii].startswith('$__'):
+							obj[i]['__calc'][ii] = self.extract_attr(results, obj[i]['__calc'][ii])
+					# [DOC] Running calc oper
+					obj[i] = getattr(obj[i]['__calc'][0], calc_opers[obj[i]['__calc'][1]])(obj[i]['__calc'][2])
+				else:
+					obj[i] = self.parse_obj(results=results, obj=obj[i])
+			elif type(obj[i]) == list:
+				if obj[i].__len__() and type(obj[i][0]) == dict and '__attr' in obj[i][0].keys():
+					if 'count' not in obj[i][0].keys():
+						obj[i][0]['count'] = 1
+					obj[i] = [self.generate_attr(attr_type=obj[i][0]['__attr'], **obj[i][0]) for ii in range(0, obj[i][0]['count'])]
+				else:
+					obj[i] = self.parse_obj(results=results, obj=obj[i])
+			elif type(obj[i]) == str and obj[i].startswith('$__'):
+				obj[i] = self.extract_attr(results=results, attr_path=obj[i])
+
+		return obj
+
+	@classmethod
 	def extract_attr(self, results, attr_path):
 		attr_path = attr_path[3:].split('.')
 		attr = results
 		for child_attr in attr_path:
-			logger.debug('Attempting to extract %s from %s', child_attr, attr)
-			if ':' in child_attr:
-				child_attr = child_attr.split(':')
-				attr = attr[child_attr[0]][int(child_attr[1])]
-			else:
-				attr = attr[child_attr]
-		return attr
-
-	@classmethod
-	def generate_doc(self, _id, attrs, doc={}):
-		doc['_id'] = ObjectId(_id)
-		for attr in attrs.keys():
-			if attr in doc.keys():
-				continue		
+			# logger.debug('Attempting to extract %s from %s', child_attr, attr)
+			try:
+				if ':' in child_attr:
+					child_attr = child_attr.split(':')
+					attr = attr[child_attr[0]][int(child_attr[1])]
+				else:
+					attr = attr[child_attr]
+			except:
+				logger.error('Failed to extract %s from %s. Exiting.', child_attr, attr)
+				exit()
+		return attr	
 	
 	@classmethod
 	def generate_attr(self, attr_type, **attr_args):
@@ -321,16 +287,49 @@ class Test():
 			return '+97150{}'.format(math.ceil(random.random() * 10000))
 		elif attr_type == 'uri:web':
 			return 'https://some.uri-{}.com'.format(math.ceil(random.random() * 10000))
+		elif attr_type == 'datetime':
+			attr_val = datetime.datetime.utcnow()
+			if 'future' in attr_args.keys():
+				if type(attr_args['future']) == int:
+					seconds = attr_args['future']
+				elif type(attr_args['future']) == list:
+					seconds = random.randint(attr_args['future'][0], attr_args['future'][1])
+				else:
+					seconds = 0
+				attr_val += datetime.timedelta(seconds=seconds)
+			return attr_val.isoformat()
+		elif attr_type == 'date':
+			attr_val = datetime.datetime.utcnow()
+			if 'future' in attr_args.keys():
+				if type(attr_args['future']) == int:
+					seconds = attr_args['future']
+				elif type(attr_args['future']) == list:
+					seconds = random.randint(attr_args['future'][0], attr_args['future'][1])
+				else:
+					seconds = 0
+				attr_val += datetime.timedelta(seconds=seconds)
+			return attr_val.isoformat().split('T')[0]
 		elif attr_type == 'time':
-			attr_val = datetime.datetime.today()
-			if 'format' in attr_args.keys():
-				attr_val = attr_val.strftime(attr_args['format'])
-			return attr_val
+			attr_val = datetime.datetime.utcnow()
+			if 'future' in attr_args.keys():
+				if type(attr_args['future']) == int:
+					seconds = attr_args['future']
+				elif type(attr_args['future']) == list:
+					seconds = random.randint(attr_args['future'][0], attr_args['future'][1])
+				else:
+					seconds = 0
+				attr_val += datetime.timedelta(seconds=seconds)
+			return attr_val.isoformat().split('T')[1]
 		elif attr_type == 'file':
+			if 'extension' not in attr_args.keys():
+				attr_args['extension'] = 'txt'
+			file_name = '__file-{}.{}'.format(math.ceil(random.random() * 10000), attr_args['extension'])
+			if 'type' not in attr_args.keys():
+				attr_args['type'] = 'text/plain'
 			return {
-				'name':'__file-{}'.format(math.ceil(random.random() * 10000)),
+				'name':file_name,
 				'lastModified':100000,
-				'type':'text/plain',
+				'type':attr_args['type'],
 				'size':6,
 				'content':b'__file'
 			}

@@ -3,7 +3,6 @@ from event import Event
 from config import Config
 
 from bson import ObjectId
-import datetime, time
 
 class User(BaseModule):
 	collection = 'users'
@@ -17,8 +16,8 @@ class User(BaseModule):
 		'postal_code':'str',
 		'website':'uri:web',
 		'locale':'locales',
-		'create_time':'time',
-		'login_time':'time',
+		'create_time':'datetime',
+		'login_time':'datetime',
 		'groups':['id'],
 		'privileges':'privileges',
 		'username_hash':'str',
@@ -150,9 +149,11 @@ class User(BaseModule):
 		return results
 	
 	def add_group(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		# [DOC] Check group privileges
-		# if ('*' in session.user.privileges.keys() and session.user.privileges['*'] == '*') \
-		# or ('__group_*' in session.user.privileges.keys() and session.user.privileges['__group_'])
+		# [DOC] Check for list group attr
+		if type(doc['group']) == list:
+			for i in range(0, doc['group'].__len__()-1):
+				self.add_group(skip_events=skip_events, env=env, session=session, query=query, doc={'group':doc['group'][i]})
+			doc['group'] = doc['group'][-1]
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid

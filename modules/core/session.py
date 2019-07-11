@@ -3,7 +3,7 @@ from event import Event
 
 from bson import ObjectId
 
-import logging, datetime, time, json, jwt, secrets, copy
+import logging, jwt, secrets, copy, datetime
 logger = logging.getLogger('limp')
 
 class Session(BaseModule):
@@ -12,8 +12,8 @@ class Session(BaseModule):
 		'user':'id',
 		'host_add':'ip',
 		'user_agent':'str',
-		'timestamp':'time',
-		'expiry':'time',
+		'timestamp':'datetime',
+		'expiry':'datetime',
 		'token':'str'
 	}
 	extns = {
@@ -66,8 +66,8 @@ class Session(BaseModule):
 			'user':user._id,
 			'host_add':env['REMOTE_ADDR'],
 			'user_agent':env['HTTP_USER_AGENT'],
-			'timestamp':datetime.datetime.fromtimestamp(time.time()),
-			'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000),
+			'timestamp':datetime.datetime.utcnow().isoformat(),
+			'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat(),
 			'token':token
 		}
 		# logger.debug('creating session:%s', session)
@@ -112,7 +112,7 @@ class Session(BaseModule):
 				'msg':'Reauth token hash invalid.',
 				'args':{'code':'CORE_SESSION_INVALID_REAUTH_HASH'}
 			}
-		if results.args.docs[0].expiry < datetime.datetime.fromtimestamp(time.time()):
+		if results.args.docs[0].expiry < datetime.datetime.utcnow().isoformat():
 			results = self.delete(skip_events=[Event.__PERM__, Event.__SOFT__], env=env, session=session, query=[{'_id':session._id}])
 			return {
 				'status':403,
@@ -120,8 +120,8 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_SESSION_EXPIRED'}
 			}
 		# [DOC] update user's last_login timestamp
-		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.fromtimestamp(time.time())})
-		self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':datetime.datetime.fromtimestamp(time.time() + 2592000)})
+		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow()})
+		self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()})
 		# [DOC] read user privileges and return them
 		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user._id}])
 		results.args.docs[0]['user'] = user_results.args.docs[0]
@@ -204,7 +204,7 @@ class Session(BaseModule):
 										'$__groups':user.groups
 									}
 								elif attrs[attr] == '$__time':
-									attrs[attr] = datetime.datetime.fromtimestamp(time.time())
+									attrs[attr] = datetime.datetime.utcnow().isoformat()
 							elif type(attrs[attr]) == dict and list(attrs[attr].keys())[0] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
 								if attrs[attr][list(attrs[attr].keys())[0]] == '$__user':
 									attrs[attr][list(attrs[attr].keys())[0]] = user._id
@@ -214,7 +214,7 @@ class Session(BaseModule):
 										'$__groups':user.groups
 									}
 								elif attrs[attr][list(attrs[attr].keys())[0]] == '$__time':
-									attrs[attr][list(attrs[attr].keys())[0]] = datetime.datetime.fromtimestamp(time.time())
+									attrs[attr][list(attrs[attr].keys())[0]] = datetime.datetime.utcnow().isoformat()
 					elif type(attrs) == list:
 						for attr in attrs:
 							for child_attr in attr.keys():
@@ -228,7 +228,7 @@ class Session(BaseModule):
 											'$__groups':user.groups
 										}
 									elif attr[child_attr] == '$__time':
-										attr[child_attr] = datetime.datetime.fromtimestamp(time.time())
+										attr[child_attr] = datetime.datetime.utcnow().isoformat()
 								elif type(attr[child_attr]) == dict and list(attr[child_attr].keys())[0] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
 									#logger.debug('examining permission arg: %s, %s', attr, attrs[attr])
 									if attr[child_attr][list(attr[child_attr].keys())[0]] == '$__user':
@@ -239,7 +239,7 @@ class Session(BaseModule):
 											'$__groups':user.groups
 										}
 									elif attr[child_attr][list(attr[child_attr].keys())[0]] == '$__time':
-										attr[child_attr][list(attr[child_attr].keys())[0]] = datetime.datetime.fromtimestamp(time.time())
+										attr[child_attr][list(attr[child_attr].keys())[0]] = datetime.datetime.utcnow().isoformat()
 						#logger.debug('processed permission arg: %s, %s', attr, attrs[attr])
 					#logger.debug('processed permission args: %s', attrs)
 				return {

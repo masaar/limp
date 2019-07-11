@@ -1,14 +1,14 @@
 from base_module import BaseModule
 from config import Config
 
-import datetime, time
+import datetime
 
 class Notification(BaseModule):
 	collection = 'notifications'
 	attrs = {
 		'user':'id',
-		'create_time':'time',
-		'notify_time':'time',
+		'create_time':'datetime',
+		'notify_time':'datetime',
 		'title':'str',
 		'content':'id',
 		'status':('new', 'snooze', 'done')
@@ -31,5 +31,5 @@ class Notification(BaseModule):
 
 	def pre_create(self, skip_events, env, session, query, doc):
 		if 'notify_time'not in doc.keys():
-			doc['notify_time'] = datetime.datetime.fromtimestamp(time.time())
+			doc['notify_time'] = datetime.datetime.utcnow().isoformat()
 		return (skip_events, env, session, query, doc)

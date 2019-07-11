@@ -50,7 +50,7 @@ if args.log:
 	logger.removeHandler(handler)
 	if not os.path.exists(os.path.join(__location__, 'logs')):
 		os.makedirs(os.path.join(__location__, 'logs'))
-	handler = logging.FileHandler(filename=os.path.join(__location__, 'logs', '{}.log'.format((datetime.date.today().strftime('%d-%b-%Y')))))
+	handler = logging.FileHandler(filename=os.path.join(__location__, 'logs', '{}.log'.format((datetime.datetime.utcnow().strftime('%d-%b-%Y')))))
 	handler.setFormatter(formatter)
 	logger.addHandler(handler)
 	logger.setLevel(logging.DEBUG)

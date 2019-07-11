@@ -142,6 +142,9 @@ Optionally, you can add `skip_args` with value set to `True` in the dict to forc
 ### `realm`
 Flag to set the app to run in Realm mode. This is an advanced use-case of LIMP that has very specific scenario. Learn more about this mode in the [full reference of Realm mode](/docs/api-realm.md).
 
+### `types`
+App-specific attrs types. This is a dict with pair of key representing the type name and value being a callable that returns boolean based on the passed `attr_type` and `attr` values as args to the callable.
+
 ## Config Env Variables
 In some cases your app can be published to infrastrucure where the `data_*` config attrs might be dynamic. For this, we added support for env variables to config `data_*` attrs. If you want to make use of this feature, set any of the `data_*` config attrs to:
 ```python

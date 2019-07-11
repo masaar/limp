@@ -14,7 +14,7 @@ class JSONEncoder(json.JSONEncoder):
 		elif isinstance(o, BaseModel) or isinstance(o, DictObj):
 			return o._attrs()
 		elif type(o) == datetime.datetime:
-			return (o - datetime.datetime(1970,1,1)).total_seconds()
+			return o.isoformat()
 		elif type(o) == bytes:
 			return True
 		return json.JSONEncoder.default(self, o)
@@ -193,7 +193,7 @@ def import_modules(packages=None):
 	package_prefix = package.__name__ + '.'
 	for importer, pkgname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix): # pylint: disable=unused-variable
 		if packages and pkgname.replace('modules.', '') not in packages:
-			#logger.debug('Skipping package: %s', pkgname)
+			logger.debug('Skipping package: %s', pkgname)
 			continue
 		child_package = __import__(pkgname, fromlist='*')
 		for k, v in child_package.config().items():
@@ -272,8 +272,12 @@ def validate_attr(attr, attr_type):
 		return re.match(r'\+[0-9]+', attr) != None
 	elif type(attr_type) == str and attr_type == 'uri:web':
 		return re.match(r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr) != None
+	elif type(attr_type) == str and attr_type == 'datetime':
+		return re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$', attr)
+	elif type(attr_type) == str and attr_type == 'date':
+		return re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr)
 	elif type(attr_type) == str and attr_type == 'time':
-		return type(attr) == datetime.datetime
+		return re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr)
 	elif type(attr_type) == str and attr_type == 'file':
 		return type(attr) == dict and 'name' in attr.keys() and 'lastModified' in attr.keys() and 'type' in attr.keys() and 'size' in attr.keys() and 'content' in attr.keys()
 	elif type(attr_type) == str and attr_type == 'geo':
@@ -281,13 +285,24 @@ def validate_attr(attr, attr_type):
 	elif attr_type == 'privileges':
 		return type(attr) == dict
 	elif attr_type == 'attrs':
-		return type(attr) == dict or type(attr) == list
+		return type(attr) == dict
+	elif type(attr_type) == dict:
+		if type(attr) != dict: return False
+		for child_attr_type in attr_type.keys():
+			if child_attr_type not in attr.keys(): return False
+			if not validate_attr(attr[child_attr_type], attr_type[child_attr_type]):
+				return False
 	elif type(attr_type) == str and attr_type == 'access':
 		return type(attr) == dict and 'anon' in attr.keys() and type(attr['anon']) == bool and 'users' in attr.keys() and type(attr['users']) == list and 'groups' in attr.keys() and type(attr['groups']) == list
 	elif type(attr_type) == list:
 		if type(attr) != list: return False
 		for child_attr in attr:
-			if not validate_attr(child_attr, attr_type[0]):
+			child_attr_check = False
+			for child_attr_type in attr_type:
+				if validate_attr(child_attr, child_attr_type):
+					child_attr_check = True
+					break
+			if not child_attr_check:
 				return False
 	elif type(attr_type) == str and attr_type == 'locale':
 		if type(attr) != dict: return False
@@ -296,4 +311,6 @@ def validate_attr(attr, attr_type):
 				return False
 	elif type(attr_type) == str and attr_type == 'locales':
 		return attr in Config.locales
+	elif attr_type in Config.types.keys():
+		return Config.types[attr_type](attr=attr, attr_type=attr_type)
 	return True

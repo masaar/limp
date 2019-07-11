@@ -2,7 +2,7 @@ from bson import ObjectId
 from event import Event
 from test import Test
 
-import os, jwt, logging, datetime, time
+import os, jwt, logging, time
 
 logger = logging.getLogger('limp')
 
@@ -57,6 +57,8 @@ class Config:
 
 	realm = False
 
+	types = {}
+
 
 	@classmethod
 	def config_data(self, modules):
@@ -72,9 +74,9 @@ class Config:
 		data_attrs = {'server':'mongodb://localhost', 'name':'limp_data', 'ssl':False, 'ca_name':False, 'ca':False}
 		for data_attr_name in data_attrs.keys():
 			data_attr = getattr(self, 'data_{}'.format(data_attr_name))
-			if type(data_attr) == str and data_attr.startswith('__env.'):
+			if type(data_attr) == str and data_attr.startswith('$__env.'):
 				logger.debug('Detected env variable for config attr \'data_%s\'', data_attr_name)
-				if not os.getenv(data_attr[6:]):
+				if not os.getenv(data_attr[7:]):
 					logger.warning('Couldn\'t read env variable for config attr \'data_%s\'. Defaulting to \'%s\'', data_attr_name, data_attrs[data_attr_name])
 					setattr(self, 'data_{}'.format(data_attr_name), data_attrs[data_attr_name])
 				else:
@@ -82,7 +84,7 @@ class Config:
 					if data_attr_name == 'ssl':
 						data_attr = True
 					else:
-						data_attr = os.getenv(data_attr[6:])
+						data_attr = os.getenv(data_attr[7:])
 					logger.warning('Setting env variable for config attr \'data_%s\' to \'%s\'', data_attr_name, data_attr)
 					setattr(self, 'data_{}'.format(data_attr_name), data_attr)
 
@@ -342,8 +344,8 @@ class Config:
 			'user': ObjectId('f00000000000000000000011'),
 			'host_add': '127.0.0.1',
 			'user_agent': self.anon_token,
-			'timestamp': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
-			'expiry': datetime.datetime.fromtimestamp(86400) - datetime.timedelta(days=1),
+			'timestamp': '1970-01-01T00:00:00',
+			'expiry': '1970-01-01T00:00:00',
 			'token': self.anon_token
 		}
 		if self.realm:

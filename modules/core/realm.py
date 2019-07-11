@@ -10,7 +10,7 @@ class Realm(BaseModule):
 		'user':'id',
 		'name':'str',
 		'default':'id',
-		'create_time':'time'
+		'create_time':'datetime'
 	}
 	methods = {
 		'read':{

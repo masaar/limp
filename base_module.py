@@ -8,7 +8,7 @@ from typing import List, Dict, Union, Tuple, Any
 
 from PIL import Image
 from bson import ObjectId
-import traceback, logging, datetime, time, re, sys, copy, io, base64
+import traceback, logging, datetime, re, sys, io, copy
 
 locales = {locale:'str' for locale in Config.locales}
 
@@ -23,10 +23,12 @@ class BaseModule():
 	privileges: List[str] = ['read', 'create', 'update', 'delete', 'admin']
 	methods: Dict[str, 'BaseMethod'] = {}
 
+	package_name: str = None
 	module_name: str = None
 	modules: Dict[str, 'BaseModule'] = {}
 
 	def __init__(self):
+		self.package_name = self.__module__.replace('modules.', '').upper().split('.')[0]
 		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
 		for method in self.methods.keys():
 			if 'query_args' not in self.methods[method].keys():
@@ -62,7 +64,6 @@ class BaseModule():
 		return (results, skip_events, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
-			
 			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
 			skip_events, env, session, query, doc = pre_read
@@ -109,7 +110,7 @@ class BaseModule():
 		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session and Event.__ARGS__ not in skip_events:
 			doc['user'] = session.user._id
 		if 'create_time' in self.attrs.keys():
-			doc['create_time'] = datetime.datetime.fromtimestamp(time.time())
+			doc['create_time'] = datetime.datetime.utcnow().isoformat()
 		if 'host_add' in self.attrs.keys() and 'host_add' not in doc.keys():
 			doc['host_add'] = env['REMOTE_ADDR']
 		if 'user_agent' in self.attrs.keys() and 'user_agent' not in doc.keys():
@@ -121,13 +122,19 @@ class BaseModule():
 			if Event.__ARGS__ not in skip_events and attr not in doc.keys() and attr not in self.optional_attrs:
 				return {
 					'status':400,
-					'msg':'Missing doc attr \'{}\' from \'create\' request on module \'{}_{}\'.'.format(attr, self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper()),
-					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.__module__.replace('modules.', '').upper().split('.')[0], self.module_name.upper())}
+					'msg':'Missing doc attr \'{}\' from \'create\' request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 				}
 			elif Event.__ARGS__ in skip_events and attr not in doc.keys():
 				continue
 			elif attr not in doc.keys() and attr in self.optional_attrs:
-				doc[attr] = None
+				# [DOC] Set default empty value for dict and list types, None for others
+				if type(self.attrs[attr]) == dict or self.attrs[attr] in ['privileges', 'attrs', 'locale']:
+					doc[attr] = {}
+				elif type(self.attrs[attr]) == list:
+					doc[attr] = []
+				else:
+					doc[attr] = None
 			# [DOC] Convert id attr passed as str to ObjectId
 			if self.attrs[attr] == 'id' and type(doc[attr]) == str:
 				try:
@@ -135,8 +142,8 @@ class BaseModule():
 				except:
 					return {
 						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 			if type(self.attrs[attr]) == list and self.attrs[attr][0] == 'id' and type(doc[attr]) == list:
 				try:
@@ -148,8 +155,8 @@ class BaseModule():
 				except:
 					return {
 						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 			# [DOC] Convert bool attr passed as str to bool
 			if self.attrs[attr] == 'bool' and type(doc[attr]) == str:
@@ -158,16 +165,6 @@ class BaseModule():
 					doc[attr] = True
 				elif doc[attr].lower() == 'false':
 					doc[attr] = False
-			# [DOC] Convert time attr passed as int to datetime
-			if self.attrs[attr] == 'time' and type(doc[attr]) == int:
-				try:
-					doc[attr] = datetime.datetime.fromtimestamp(doc[attr])
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'datetime\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
-					}
 			# [DOC] Check file attr and extract first file
 			if self.attrs[attr] == 'file' and type(doc[attr]) == list and doc[attr].__len__() and validate_attr(doc[attr][0], self.attrs[attr]):
 				doc[attr] = doc[attr][0]
@@ -176,8 +173,8 @@ class BaseModule():
 				logger.debug('attr `%s`, value `%s` does not match required type `%s`.', attr, doc[attr], self.attrs[attr])
 				return {
 					'status':400,
-					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-					'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 				}
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
@@ -212,8 +209,8 @@ class BaseModule():
 				except:
 					return {
 						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 			# HERE HERE HERE
 			if type(self.attrs[attr]) == list and self.attrs[attr][0] == 'id' and type(doc[attr]) == list:
@@ -227,8 +224,8 @@ class BaseModule():
 				except:
 					return {
 						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 			# [DOC] Convert bool attr passed as str to bool
 			if self.attrs[attr] == 'bool' and type(doc[attr]) == str:
@@ -236,16 +233,6 @@ class BaseModule():
 					doc[attr] = True
 				elif doc[attr].lower() == 'false':
 					doc[attr] = False
-			# [DOC] Convert time attr passed as int to datetime
-			if self.attrs[attr] == 'time' and type(doc[attr]) == int:
-				try:
-					doc[attr] = datetime.datetime.fromtimestamp(doc[attr])
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'datetime\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
-					}
 			# [DOC] Check file attr and extract first file
 			if self.attrs[attr] == 'file' and type(doc[attr]) == list and doc[attr].__len__() and validate_attr(doc[attr][0], self.attrs[attr]):
 				doc[attr] = doc[attr][0]
@@ -253,8 +240,8 @@ class BaseModule():
 			if not validate_attr(doc[attr], self.attrs[attr]):
 				return {
 					'status':400,
-					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, *self.__module__.replace('modules.', '').upper().split('.')),
-					'args':{'code':'{}_{}_INVALID_ATTR'.format(*self.__module__.replace('modules.', '').upper().split('.'))}
+					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 				}
 		# [DOC] Delete all attrs not belonging to the doc
 		del_args = []
@@ -325,6 +312,34 @@ class BaseModule():
 			'args':results
 		}
 	
+	def pre_create_file(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_create_file(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
+	def create_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		pass
+	
+	def pre_update_file(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_update_file(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
+	def update_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		pass
+	
+	def pre_delete_file(self, skip_events, env, session, query, doc):
+		return (skip_events, env, session, query, doc)
+	def on_delete_file(self, results, skip_events, env, session, query, doc):
+		return (results, skip_events, env, session, query, doc)
+	def delete_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+		if not results.args.count: # pylint: disable=no-member
+			return {
+				'status':400,
+				'msg':'Doc is invalid.',
+				'args':{'code':'{}_{}_INVALID_DOC'.format(self.package_name, self.module_name.upper())}
+			}
+		doc = results.args.docs[0] # pylint: disable=no-member
+
 	def pre_retrieve_file(self, skip_events, env, session, query, doc):
 		return (skip_events, env, session, query, doc)
 	def on_retrieve_file(self, results, skip_events, env, session, query, doc):
@@ -440,8 +455,8 @@ class BaseMethod:
 				(arg_list_label == 'query' and arg not in args):
 					return DictObj({
 						'status':400,
-						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg, self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
-						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg, self.module.package_name.upper(), self.module.module_name.upper()),
+						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.package_name.upper(), self.module.module_name.upper())})
 					})
 			
 			elif type(arg) == tuple:
@@ -454,8 +469,8 @@ class BaseMethod:
 				if optinal_arg_test == False:
 					return DictObj({
 						'status':400,
-						'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(arg), self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper()),
-						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.__module__.replace('modules.', '').upper().split('.')[0], self.module.module_name.upper())})
+						'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(arg), self.module.package_name.upper(), self.module.module_name.upper()),
+						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.package_name.upper(), self.module.module_name.upper())})
 					})
 		
 		return True
@@ -545,7 +560,7 @@ class BaseMethod:
 			query = Query([])
 		except Exception as e:
 			logger.error('An error occured. Details: %s.', traceback.format_exc())
-			exc_type, exc_value, tb = sys.exc_info()
+			tb = sys.exc_info()[2]
 			if tb is not None:
 				prev = tb
 				curr = tb.tb_next
