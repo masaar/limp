@@ -139,19 +139,17 @@ class Config:
 			# [DOC] Create __global realm
 			if '__global' not in self._realms:
 				logger.debug('GLOBAL realm not found, creating it.')
-				modules['realm'].create(skip_events=[Event.__PERM__, Event.__PRE__], env=env, doc={
+				realm_results = modules['realm'].create(skip_events=[Event.__PERM__, Event.__PRE__], env=env, doc={
 					'_id':ObjectId('f00000000000000000000014'),
 					'user':ObjectId('f00000000000000000000010'),
 					'name':'__global',
 					'default':'f00000000000000000000013'
 				})
-			
-			logger.debug(self._sys_docs)
-			# self._sys_docs[ObjectId('f00000000000000000000014')] = {
-			# 	'module':'realm'
-			# }
+				logger.debug('GLOBAL realm creation results: %s', realm_results)
+				if realm_results.status != 200:
+					logger.error('Config step failed. Exiting.')
+					exit()
 
-		
 		# [DOC] Check test mode
 		if self.test:
 			logger.debug('Test mode detected.')
@@ -175,7 +173,7 @@ class Config:
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000010'}])
+		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000010'}])
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_doc = {
@@ -204,35 +202,44 @@ class Config:
 			}
 			if Config.realm:
 				admin_doc['realm'] = '__global'
-			admin_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=admin_doc)
+			admin_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=admin_doc)
 			logger.debug('ADMIN user creation results: %s', admin_results)
+			if admin_results.status != 200:
+				logger.error('Config step failed. Exiting.')
+				exit()
 		self._sys_docs[ObjectId('f00000000000000000000010')] = {
 			'module':'user'
 		}
 
-		user_results = modules['user'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000011'}])
+		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000011'}])
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
-			anon_results = modules['user'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_user())
+			anon_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
+			if anon_results.status != 200:
+				logger.error('Config step failed. Exiting.')
+				exit()
 		self._sys_docs[ObjectId('f00000000000000000000011')] = {
 			'module':'user'
 		}
 
 		logger.debug('Testing sessions collection.')
 		# [Doc] test if ANON session exists
-		session_results = modules['session'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000012'}])
+		session_results = modules['session'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000012'}])
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			anon_results = modules['session'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_session())
+			anon_results = modules['session'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
+			if anon_results.status != 200:
+				logger.error('Config step failed. Exiting.')
+				exit()
 		self._sys_docs[ObjectId('f00000000000000000000012')] = {
 			'module':'session'
 		}
 
 		logger.debug('Testing groups collection.')
 		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000013'}])
+		group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000013'}])
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
 			group_doc = {
@@ -249,8 +256,11 @@ class Config:
 			}
 			if self.realm:
 				group_doc['realm'] = '__global'
-			group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group_doc)
+			group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group_doc)
 			logger.debug('DEFAULT group creation results: %s', group_results)
+			if group_results.status != 200:
+				logger.error('Config step failed. Exiting.')
+				exit()
 		self._sys_docs[ObjectId('f00000000000000000000013')] = {
 			'module':'group'
 		}
@@ -258,13 +268,16 @@ class Config:
 		logger.debug('Testing app-specific groups collection.')
 		# [DOC] test app-specific groups
 		for group in self.groups:
-			group_results = modules['group'].methods['read'](skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':group['_id']}])
+			group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':group['_id']}])
 			if not group_results.args.count:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
 				if self.realm:
 					group['realm'] = '__global'
-				group_results = modules['group'].methods['create'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group)
+				group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
+				if group_results.status != 200:
+					logger.error('Config step failed. Exiting.')
+					exit()
 			self._sys_docs[ObjectId(group['_id'])] = {
 				'module':'group'
 			}
@@ -287,14 +300,18 @@ class Config:
 
 		logger.debug('Testing docs.')
 		for doc in self.docs:
-			doc_results = modules[doc['module']].methods['read'](skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, query=[{'_id':doc['doc']['_id']}])
+			doc_results = modules[doc['module']].read(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, query=[{'_id':doc['doc']['_id']}])
 			if not doc_results.args.count:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
 				skip_events = [Event.__PERM__]
 				if 'skip_args' in doc.keys() and doc['skip_args'] == True:
 					skip_events.append(Event.__ARGS__)
-				modules[doc['module']].methods['create'](skip_events=skip_events, env=env, doc=doc['doc'])
+				doc_results = modules[doc['module']].create(skip_events=skip_events, env=env, doc=doc['doc'])
+				logger.debug('App-specific doc with _id \'%s\' of module \'%s\' creation results: %s', doc['doc']['_id'], doc['module'], doc_results)
+				if doc_results.status != 200:
+					logger.error('Config step failed. Exiting.')
+					exit()
 			self._sys_docs[ObjectId(doc['doc']['_id'])] = {
 				'module':doc['module']
 			}

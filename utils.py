@@ -257,67 +257,150 @@ def signal_handler(signum, frame):
 		logger.info(' Have a great {}!'.format(msg))
 		exit()
 
+class MissingAttrException(Exception):
+	def __init__(self, attr):
+		self.attr = attr
+	def __str__(self):
+		return 'Missing attr \'{}\''.format(self.attr)
+
+class InvalidAttrException(Exception):
+	def __init__(self, attr, attr_type):
+		self.attr = attr
+		self.attr_type = attr_type
+	def __str__(self):
+		return 'Invalid attr \'{}\' of type \'{}\''.format(self.attr, self.attr_type)
+
+class ConvertAttrException(Exception):
+	def __init__(self, attr, attr_type, val_type):
+		self.attr = attr
+		self.attr_type = attr_type
+		self.val_type = val_type
+	def __str__(self):
+		return 'Can\'t convert attr \'{}\' of type \'{}\' to type \'{}\''.format(self.attr, self.val_type, self.attr_type)
+
+def validate_doc(doc, attrs, optional_attrs=[], allow_opers=False):
+	for attr in attrs:
+		if attr not in doc.keys():
+			if attr not in optional_attrs:
+				raise MissingAttrException(attr)
+		else:
+			if attr == None and attr in optional_attrs:
+				pass
+			else:
+				if allow_opers:
+					if type(doc[attr]) == dict:
+						if '$add' in doc[attr].keys():
+							doc[attr] = {'$add':validate_attr(doc[attr]['$add'], attrs[attr])}
+						elif '$push' in doc[attr].keys():
+							doc[attr] = {'$push':validate_attr([doc[attr]['$push']], attrs[attr])[0]}
+						elif '$pushUnique' in doc[attr].keys():
+							doc[attr] = {'$pushUnique':validate_attr([doc[attr]['$pushUnique']], attrs[attr])[0]}
+						elif '$pull' in doc[attr].keys():
+							doc[attr] = {'$pull':validate_attr(doc[attr]['$pull'], attrs[attr])}
+						else:
+							doc[attr] = validate_attr(doc[attr], attrs[attr])
+				else:
+					doc[attr] = validate_attr(doc[attr], attrs[attr])
+
 def validate_attr(attr, attr_type):
 	from base_model import BaseModel
-	
-	if attr == None: return True
-	if attr_type == 'any':
-		return True
-	elif type(attr_type) == str and attr_type == 'id':
-		return type(attr) == ObjectId or type(attr) == BaseModel
-	elif type(attr_type) == str and attr_type == 'str':
-		return type(attr) == str
-	elif type(attr_type) == str and attr_type == 'int':
-		return type(attr) == int
-	elif type(attr_type) == tuple:
-		return attr in attr_type
-	elif attr_type == 'bool':
-		return type(attr) == bool
-	elif type(attr_type) == str and attr_type == 'email':
-		return re.match(r'[^@]+@[^@]+\.[^@]+', attr) != None
-	elif type(attr_type) == str and attr_type == 'phone':
-		return re.match(r'\+[0-9]+', attr) != None
-	elif type(attr_type) == str and attr_type == 'uri:web':
-		return re.match(r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr) != None
-	elif type(attr_type) == str and attr_type == 'datetime':
-		return re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$', attr)
-	elif type(attr_type) == str and attr_type == 'date':
-		return re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr)
-	elif type(attr_type) == str and attr_type == 'time':
-		return re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr)
-	elif type(attr_type) == str and attr_type == 'file':
-		return type(attr) == dict and 'name' in attr.keys() and 'lastModified' in attr.keys() and 'type' in attr.keys() and 'size' in attr.keys() and 'content' in attr.keys()
-	elif type(attr_type) == str and attr_type == 'geo':
-		return type(attr) == dict and 'type' in attr.keys() and 'coordinates' in attr.keys() and attr['type'] in ['Point'] and type(attr['coordinates']) == list and attr['coordinates'].__len__() == 2 and type(attr['coordinates'][0]) in [int, float] and type(attr['coordinates'][1]) in [int, float]
-	elif attr_type == 'privileges':
-		return type(attr) == dict
-	elif attr_type == 'attrs':
-		return type(attr) == dict
-	elif type(attr_type) == dict:
-		if type(attr) != dict: return False
-		for child_attr_type in attr_type.keys():
-			if child_attr_type not in attr.keys(): return False
-			if not validate_attr(attr[child_attr_type], attr_type[child_attr_type]):
-				return False
-	elif type(attr_type) == str and attr_type == 'access':
-		return type(attr) == dict and 'anon' in attr.keys() and type(attr['anon']) == bool and 'users' in attr.keys() and type(attr['users']) == list and 'groups' in attr.keys() and type(attr['groups']) == list
-	elif type(attr_type) == list:
-		if type(attr) != list: return False
-		for child_attr in attr:
-			child_attr_check = False
-			for child_attr_type in attr_type:
-				if validate_attr(child_attr, child_attr_type):
-					child_attr_check = True
-					break
-			if not child_attr_check:
-				return False
-	elif type(attr_type) == str and attr_type == 'locale':
-		if type(attr) != dict: return False
-		for locale in attr.keys():
-			if locale not in Config.locales:
-				return False
-	elif type(attr_type) == str and attr_type == 'locales':
-		return attr in Config.locales
-	elif attr_type in Config.types.keys():
-		return Config.types[attr_type](attr=attr, attr_type=attr_type)
-	return True
+	try:
+		if attr_type == 'any':
+			return attr
+		elif type(attr_type) == str and attr_type == 'id':
+			if type(attr) == BaseModel:
+				return attr._id
+			elif type(attr) == ObjectId:
+				return attr
+			elif type(attr) == str:
+				try:
+					return ObjectId(attr)
+				except:
+					raise ConvertAttrException(attr, type(attr), attr_type)
+		elif type(attr_type) == str and attr_type == 'str':
+			if type(attr) == str:
+				return attr
+		elif type(attr_type) == str and attr_type == 'int':
+			if type(attr) == int:
+				return attr
+		elif type(attr_type) == str and attr_type == 'float':
+			if type(attr) == float:
+				return attr
+		elif type(attr_type) == tuple:
+			if attr in attr_type:
+				return attr
+		elif attr_type == 'bool':
+			if type(attr) == bool:
+				return attr
+		elif type(attr_type) == str and attr_type == 'ip':
+			if re.match(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'email':
+			if re.match(r'[^@]+@[^@]+\.[^@]+', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'phone':
+			if re.match(r'\+[0-9]+', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'uri:web':
+			if re.match(r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'datetime':
+			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'date':
+			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'time':
+			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr):
+				return attr
+		elif type(attr_type) == str and attr_type == 'file':
+			if type(attr) == dict and 'name' in attr.keys() and 'lastModified' in attr.keys() and 'type' in attr.keys() and 'size' in attr.keys() and 'content' in attr.keys():
+				return attr
+		elif type(attr_type) == str and attr_type == 'geo':
+			if type(attr) == dict and 'type' in attr.keys() and 'coordinates' in attr.keys() and attr['type'] in ['Point'] and type(attr['coordinates']) == list and attr['coordinates'].__len__() == 2 and type(attr['coordinates'][0]) in [int, float] and type(attr['coordinates'][1]) in [int, float]:
+				return attr
+		elif attr_type == 'privileges':
+			if type(attr) == dict:
+				return attr
+		elif attr_type == 'attrs':
+			if type(attr) == dict:
+				return attr
+		elif type(attr_type) == dict:
+			if type(attr) == dict:
+				for child_attr_type in attr_type.keys():
+					if child_attr_type not in attr.keys(): raise InvalidAttrException(attr, attr_type)
+					attr[child_attr_type] = validate_attr(attr[child_attr_type], attr_type[child_attr_type])
+				return attr
+		elif type(attr_type) == str and attr_type == 'access':
+			if type(attr) == dict and 'anon' in attr.keys() and type(attr['anon']) == bool and 'users' in attr.keys() and type(attr['users']) == list and 'groups' in attr.keys() and type(attr['groups']) == list:
+				return attr
+		elif type(attr_type) == list:
+			if type(attr) == list:
+				for child_attr in attr:
+					child_attr_check = False
+					for child_attr_type in attr_type:
+						try:
+							validate_attr(child_attr, child_attr_type)
+							child_attr_check = True
+							break
+						except:
+							pass
+					if not child_attr_check:
+						raise InvalidAttrException(attr, attr_type)
+				return attr
+		elif type(attr_type) == str and attr_type == 'locale':
+			if type(attr) == dict:
+				for locale in attr.keys():
+					if locale not in Config.locales:
+						raise InvalidAttrException(attr, attr_type)
+				return attr
+		elif type(attr_type) == str and attr_type == 'locales':
+			if attr in Config.locales:
+				return attr
+		elif attr_type in Config.types.keys():
+			Config.types[attr_type](attr=attr, attr_type=attr_type)
+			return attr
+		
+		raise InvalidAttrException(attr, attr_type)
+	except:
+		raise InvalidAttrException(attr, attr_type)

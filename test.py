@@ -152,10 +152,12 @@ class Test():
 			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
 			call_results['acceptance'] = self.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
-				if self.extract_attr(call_results['results'], '$__{}'.format(measure)) != call_results['acceptance'][measure]:
+				results_measure = self.extract_attr(call_results['results'], '$__{}'.format(measure))
+				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
 					break
 			if call_results['status'] == False:
+				logger.debug('Test step \'call\' failed at measure \'%s\'. Required value is \'%s\', but test results is \'%s\'', measure, call_results['acceptance'][measure], results_measure)
 				call_results['measure'] = measure
 		except Exception as e:
 			tb = traceback.format_exc()
@@ -189,6 +191,7 @@ class Test():
 			results = modules['session'].methods['auth'](env={'REMOTE_ADDR':'127.0.0.1', 'HTTP_USER_AGENT':'LIMPd Test', **env}, session=session, doc={var:val, 'hash':hash})
 			if results.status != 200:
 				auth_results['status'] = False
+				logger.debug('Test step \'auth\' failed with var \'%s\', val \'%s\', hash \'%s\'.', var, val, hash)
 			auth_results.update({'results':results})
 		except Exception as e:
 			tb = traceback.format_exc()
@@ -274,6 +277,12 @@ class Test():
 				attr_val = random.choice([i for i in range(*attr_args['range'])])
 			else:
 				attr_val = math.ceil(random.random() * 10000)
+			return attr_val
+		elif attr_type == 'float':
+			if 'range' in attr_args.keys():
+				attr_val = random.choice([i for i in range(*attr_args['range'])])
+			else:
+				attr_val = random.random() * 10000
 			return attr_val
 		elif type(attr_type) == tuple:
 			attr_val = random.choice(attr_type)

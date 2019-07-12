@@ -364,6 +364,9 @@ class MongoDb():
 				del_attrs.append(attr)
 		for del_attr in del_attrs:
 			del doc[del_attr]
+		if not list(update_doc['$set'].keys()).__len__():
+			del update_doc['$set']
+		logger.debug('Final update doc: %s', update_doc)
 		# [DOC] If using Azure Mongo service update docs one by one
 		if Config.data_azure_mongo:
 			update_count = 0

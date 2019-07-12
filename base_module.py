@@ -1,7 +1,7 @@
 from config import Config
 from event import Event
 from data import Data, DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS
-from utils import DictObj, validate_attr, Query
+from utils import DictObj, validate_doc, InvalidAttrException, MissingAttrException, ConvertAttrException, Query
 from base_model import BaseModel
 from base_method import BaseMethod
 
@@ -99,7 +99,6 @@ class BaseModule:
 			pre_create = self.pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
 			skip_events, env, session, query, doc = pre_create
-		# [TODO]: validate data
 		# [DOC] Deleted all extra doc args
 		del_args = []
 		for arg in doc.keys():
@@ -117,66 +116,26 @@ class BaseModule:
 		if 'user_agent' in self.attrs.keys() and 'user_agent' not in doc.keys():
 			doc['user_agent'] = env['HTTP_USER_AGENT']
 		# [DOC] Check presence and validate all attrs in doc args
-		#logger.debug('%s has following attrs: %s.', self.__module__, self.attrs.keys())
-		for attr in self.attrs.keys():
-			# [DOC] Allow optional_attrs to bypass requirement check
-			if Event.__ARGS__ not in skip_events and attr not in doc.keys() and attr not in self.optional_attrs:
-				return {
-					'status':400,
-					'msg':'Missing doc attr \'{}\' from \'create\' request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-				}
-			elif Event.__ARGS__ in skip_events and attr not in doc.keys():
-				continue
-			elif attr not in doc.keys() and attr in self.optional_attrs:
-				# [DOC] Set default empty value for dict and list types, None for others
-				if type(self.attrs[attr]) == dict or self.attrs[attr] in ['privileges', 'attrs', 'locale']:
-					doc[attr] = {}
-				elif type(self.attrs[attr]) == list:
-					doc[attr] = []
-				else:
-					doc[attr] = None
-			# [DOC] Convert id attr passed as str to ObjectId
-			if self.attrs[attr] == 'id' and type(doc[attr]) == str:
-				try:
-					doc[attr] = ObjectId(doc[attr])
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-					}
-			if type(self.attrs[attr]) == list and self.attrs[attr][0] == 'id' and type(doc[attr]) == list:
-				try:
-					id_list = []
-					for _id in doc[attr]:
-						if type(_id) == BaseModel: _id = _id._id
-						id_list.append(ObjectId(_id))
-					doc[attr] = id_list
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-					}
-			# [DOC] Convert bool attr passed as str to bool
-			if self.attrs[attr] == 'bool' and type(doc[attr]) == str:
-				#logger.debug('Converting str %s attr to bool %s', attr,doc[attr])
-				if doc[attr].lower() == 'true':
-					doc[attr] = True
-				elif doc[attr].lower() == 'false':
-					doc[attr] = False
-			# [DOC] Check file attr and extract first file
-			if self.attrs[attr] == 'file' and type(doc[attr]) == list and doc[attr].__len__() and validate_attr(doc[attr][0], self.attrs[attr]):
-				doc[attr] = doc[attr][0]
-			# [DOC] Pass value to validator
-			if doc[attr] != None and not validate_attr(doc[attr], self.attrs[attr]):
-				logger.debug('attr `%s`, value `%s` does not match required type `%s`.', attr, doc[attr], self.attrs[attr])
-				return {
-					'status':400,
-					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-				}
+		try:
+			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=self.optional_attrs)
+		except MissingAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
+		except InvalidAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
+		except ConvertAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
@@ -200,50 +159,27 @@ class BaseModule:
 			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
 			skip_events, env, session, query, doc = pre_update
-		# [TODO] validate data
-		for attr in self.attrs.keys():
-			if attr not in doc.keys(): continue
-			# [DOC] Convert id attr passed as str to ObjectId
-			if self.attrs[attr] == 'id' and type(doc[attr]) == str:
-				try:
-					doc[attr] = ObjectId(doc[attr])
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-					}
-			# HERE HERE HERE
-			if type(self.attrs[attr]) == list and self.attrs[attr][0] == 'id' and type(doc[attr]) == list:
-				try:
-					id_list = []
-					for _id in doc[attr]:
-						if type(_id) == BaseModel: _id = _id._id
-						id_list.append(ObjectId(_id))
-					doc[attr] = id_list
-					# doc[attr] = [ObjectId(_id) for _id in doc[attr]]
-				except:
-					return {
-						'status':400,
-						'msg':'Value for attr \'{}\' couldn\'t be converted to \'id\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-						'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-					}
-			# [DOC] Convert bool attr passed as str to bool
-			if self.attrs[attr] == 'bool' and type(doc[attr]) == str:
-				if doc[attr].lower() == 'true':
-					doc[attr] = True
-				elif doc[attr].lower() == 'false':
-					doc[attr] = False
-			# [DOC] Check file attr and extract first file
-			if self.attrs[attr] == 'file' and type(doc[attr]) == list and doc[attr].__len__() and validate_attr(doc[attr][0], self.attrs[attr]):
-				doc[attr] = doc[attr][0]
-			# [DOC] Pass value to validator
-			if not validate_attr(doc[attr], self.attrs[attr]):
-				return {
-					'status':400,
-					'msg':'Invalid value for attr \'{}\' from request on module \'{}_{}\'.'.format(attr, self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-				}
+		# [DOC] Check presence and validate all attrs in doc args
+		try:
+			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=self.attrs.keys(), allow_opers=True)
+		except MissingAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
+		except InvalidAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
+		except ConvertAttrException as e:
+			return {
+				'status':400,
+				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+			}
 		# [DOC] Delete all attrs not belonging to the doc
 		del_args = []
 		for arg in doc.keys():
@@ -318,8 +254,18 @@ class BaseModule:
 	def on_create_file(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
 	def create_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		pass
-	
+		if Event.__PRE__ not in skip_events:
+			pre_create_file = self.pre_create_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(pre_create_file) in [DictObj, dict]: return pre_create_file
+			skip_events, env, session, query, doc = pre_create_file
+		
+
+
+		if Event.__ON__ not in skip_events:
+			results, skip_events, env, session, query, doc = self.on_create_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+		
+		return results
+
 	def pre_update_file(self, skip_events, env, session, query, doc):
 		return (skip_events, env, session, query, doc)
 	def on_update_file(self, results, skip_events, env, session, query, doc):
@@ -332,6 +278,18 @@ class BaseModule:
 	def on_delete_file(self, results, skip_events, env, session, query, doc):
 		return (results, skip_events, env, session, query, doc)
 	def delete_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		if Event.__PRE__ not in skip_events:
+			pre_delete_file = self.pre_delete_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(pre_delete_file) in [DictObj, dict]: return pre_delete_file
+			skip_events, env, session, query, doc = pre_delete_file
+
+		if query['attr'][0] not in self.attrs.keys() or self.attrs[query['attr'][0]] != ['file']:
+			return {
+				'status':400,
+				'msg':'Attr is invalid.',
+				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
+			}
+
 		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
@@ -340,6 +298,43 @@ class BaseModule:
 				'args':{'code':'{}_{}_INVALID_DOC'.format(self.package_name, self.module_name.upper())}
 			}
 		doc = results.args.docs[0] # pylint: disable=no-member
+
+		if query['attr'][0] not in doc:
+			return {
+				'status':400,
+				'msg':'Doc attr is invalid.',
+				'args':{'code':'{}_{}_INVALID_DOC_ATTR'.format(self.package_name, self.module_name.upper())}
+			}
+		
+		if query['index'][0] not in range(0, doc[query['attr'][0]].__len__()):
+			return {
+				'status':400,
+				'msg':'Index is invalid.',
+				'args':{'code':'{}_{}_INVALID_INDEX'.format(self.package_name, self.module_name.upper())}
+			}
+		
+		if type(doc[query['attr'][0]][query['index'][0]]) != dict or 'name' not in doc[query['attr'][0]][query['index'][0]].keys():
+			return {
+				'status':400,
+				'msg':'Index value is invalid.',
+				'args':{'code':'{}_{}_INVALID_INDEX_VALUE'.format(self.package_name, self.module_name.upper())}
+			}
+		
+		if doc[query['attr'][0]][query['index'][0]]['name'] != query['name'][0]:
+			return {
+				'status':400,
+				'msg':'File name in query doesn\'t match value.',
+				'args':{'code':'{}_{}_FILE_NAME_MISMATCH'.format(self.package_name, self.module_name.upper())}
+			}
+		
+		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}], doc={
+			query['attr'][0]:{'$pull':[doc[query['attr'][0]][query['index'][0]]]}
+		})
+
+		if Event.__ON__ not in skip_events:
+			results, skip_events, env, session, query, doc = self.on_delete_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+
+		return results
 
 	def pre_retrieve_file(self, skip_events, env, session, query, doc):
 		return (skip_events, env, session, query, doc)
