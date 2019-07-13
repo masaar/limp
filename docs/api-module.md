@@ -21,11 +21,13 @@ class BoilerplateModule(BaseModule):
 		'locales_attr':'locales',
 		'str_attr':'str',
 		'int_attr':'int',
+		'datetime_attr':'datetime',
+		'date_attr':'date',
 		'time_attr':'time',
 		'str_list_attr':['str'],
 		'attrs':'attrs',
 		'id_attr':'id',
-		'create_time':'time'
+		'create_time':'datetime'
 	}
 	diff = True
 	extns = {
@@ -79,12 +81,16 @@ The `attrs` attr is a dict representing the attrs every doc in your module colle
 8. **`email`**: Self-descriptive email type. Accepts a string that matches the regexp `r'[^@]+@[^@]+\.[^@]+'` in Python.
 9. **`phone`**: Self-descriptive phone type. Accepts a string that matches the regexp `r'\+[0-9]+'` in Python.
 10. **`uri:web`**: Self-descriptive web URI type. Accepts a string that matches the regexp `r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$'` in Python.
-11. **`time`**: Self-descriptive time type. Accepts Python `datetime.datetime` type. Since this is a binary type that you can't send via LIMP SDKs. LIMP base methods convert your front-end app sent timestamps as `int` to `datetime.datetime`.
-12. **`file`**: Self-descriptive file type. Accepts a Python dict that has the file attrs as required by LIMP which are: `name`, `size`, `type`, `lastModified` and `content`.
-13. **`geo`**: A GeoJSON-compatible type. This is essentially for use with MongoDB `$geo` features.
-14. **Tuple**: Tuple type is the native Python tuple type. This is used to define set of options for the attr. Any other value not from the tuple would be considered wrong value. For instance, a `shipment` module with attr `status` can have the type tuple as `('at-warehouse', 'shipped', 'received', 'cancelled')`.
-15. **List**: A list of other type. For instance, your `blog` module, can have the `tag` attr set to `['str']` to flag that it accepts list of strings.
-16. **`attrs`**: A type representing either a Python list or Python dict. This is used when you need complex data types of your definition. You would have to type-check attrs set to `attrs` by yourself.
+11. **`datetime`**: Self-descriptive datetime type. Accepts Python ISO format `datetime` value which matches the regexp `r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$'`.
+12. **`date`**: Self-descriptive date type. Accepts Python ISO format `date` value `r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`.
+13. **`time`**: Self-descriptive time type. Accepts Python ISO format `time` value which matches the regexp `r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$'`.
+14. **`file`**: Self-descriptive file type. Accepts a Python dict that has the file attrs as required by LIMP which are: `name`, `size`, `type`, `lastModified` and `content`. You can append to it a comma-separated list of MIME types allowed within square brackets for additional control on allowed files. You can use wild-card `*` as second part of the MIME type to allow all subtypes, for instance you can set the attr to `file[image/*,video/*]` to allow all files which are `image` and `video`, or to `file[image/jpeg]` to allow only JPEG images.
+15. **`geo`**: A GeoJSON-compatible type. This is essentially for use with MongoDB `$geo` features.
+16. **Tuple**: Tuple type is the native Python tuple type. This is used to define set of options for the attr. Any other value not from the tuple would be considered wrong value. For instance, a `shipment` module with attr `status` can have the type tuple as `('at-warehouse', 'shipped', 'received', 'cancelled')`.
+17. **List**: A list of other type. For instance, your `blog` module, can have the `tag` attr set to `['str']` to flag that it accepts list of strings. You can pass more than one type in the list to allow multiple types.
+18. **`attrs`**: A type representing either a Python list or Python dict. This is used when you need complex data types of your definition. You would have to type-check attrs set to `attrs` by yourself.
+19. **Dict**: Dict type is the native Python dict type. You can use this as a value if you want more control over `attrs` type. With this you can pass child attrs and their respective types from native types as well as [app-specific attrs types](/docs/api-package.md#types).
+20. **App-specific attrs types**: You can always extend the list 
 
 ### Special Attrs
 Another aspect of `attrs` is that it has set of special attrs. These attrs value get dynamically set whether the user passed them or not; which are:
@@ -109,7 +115,7 @@ attrs = {
 	'user':'id',
 	'number':'str',
 	'type':('fiction', 'non-fiction', 'mixed'),
-	'create_time':'time'
+	'create_time':'datetime'
 }
 
 # Book attrs:
@@ -118,9 +124,9 @@ attrs = {
 	'title':'str',
 	'author':'str',
 	'type':('fiction', 'non-fiction'),
-	'release_time':'time',
+	'release_time':'datetime',
 	'shelf':'id',
-	'create_time':'time'
+	'create_time':'datetime'
 }
 ```
 As you notice with the `Book` module, we are having attr `shelf`, which is self-descriptively the shelf `_id`. What extensions workflow and `extns` in module allow you to do is to specify an attr and LIMP would take care on your behalf the extending of the attr into the full doc it's pointing at. To get the results explained here set `extns` to:
@@ -372,8 +378,8 @@ class Blog(BaseModule):
 		'tags':['str'],
 		'cat':'id',
 		'access':'access',
-		'create_time':'time',
-		'expiry_time':'time'
+		'create_time':'datetime',
+		'expiry_time':'datetime'
 	}
 	diff = True
 	optional_attrs = ['subtitle', 'tags', 'permalink', 'access', 'expiry_time']

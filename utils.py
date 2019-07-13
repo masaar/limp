@@ -353,9 +353,14 @@ def validate_attr(attr, attr_type):
 		elif type(attr_type) == str and attr_type == 'time':
 			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr):
 				return attr
-		elif type(attr_type) == str and attr_type == 'file':
-			if type(attr) == dict and 'name' in attr.keys() and 'lastModified' in attr.keys() and 'type' in attr.keys() and 'size' in attr.keys() and 'content' in attr.keys():
-				return attr
+		elif type(attr_type) == str and attr_type.startswith('file'):
+			file_type = type(attr) == dict and 'name' in attr.keys() and 'lastModified' in attr.keys() and 'type' in attr.keys() and 'size' in attr.keys() and 'content' in attr.keys()
+			if not file_type: return False
+			if attr_type != 'file':
+				for file_type in attr_type[5:-1].split(','):
+					if attr['type'].split('/')[0] == file_type.split('/')[0]:
+						if attr['type'].split('/')[1] == file_type.split('/')[1] or file_type.split('/')[1] == '*':
+							return attr
 		elif type(attr_type) == str and attr_type == 'geo':
 			if type(attr) == dict and 'type' in attr.keys() and 'coordinates' in attr.keys() and attr['type'] in ['Point'] and type(attr['coordinates']) == list and attr['coordinates'].__len__() == 2 and type(attr['coordinates'][0]) in [int, float] and type(attr['coordinates'][1]) in [int, float]:
 				return attr

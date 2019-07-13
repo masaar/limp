@@ -259,7 +259,16 @@ class BaseModule:
 			if type(pre_create_file) in [DictObj, dict]: return pre_create_file
 			skip_events, env, session, query, doc = pre_create_file
 		
-
+		if query['attr'][0] not in self.attrs.keys() or type(self.attrs[query['attr'][0]]) != list or not self.attrs[query['attr'][0]][0].startswith('file'):
+			return {
+				'status':400,
+				'msg':'Attr is invalid.',
+				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
+			}
+		
+		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}], doc={
+			query['attr'][0]:{'$push':doc['file']}
+		})
 
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_create_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
@@ -283,7 +292,7 @@ class BaseModule:
 			if type(pre_delete_file) in [DictObj, dict]: return pre_delete_file
 			skip_events, env, session, query, doc = pre_delete_file
 
-		if query['attr'][0] not in self.attrs.keys() or self.attrs[query['attr'][0]] != ['file']:
+		if query['attr'][0] not in self.attrs.keys() or type(self.attrs[query['attr'][0]]) != list or not self.attrs[query['attr'][0]][0].startswith('file'):
 			return {
 				'status':400,
 				'msg':'Attr is invalid.',
