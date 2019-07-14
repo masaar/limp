@@ -13,7 +13,7 @@ class Diff(BaseModule):
 		'remarks':'str',
 		'create_time':'datetime'
 	}
-	optional_attrs = ['doc', 'remarks']
+	optional_attrs = {'doc':None, 'remarks':''}
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}]]

@@ -26,7 +26,8 @@ class User(BaseModule):
 		'status':('active', 'banned', 'deleted', 'disabled_password'),
 		'attrs':'attrs'
 	}
-	optional_attrs = ['website', 'locale', 'login_time', 'status', 'attrs']
+	optional_attrs = {'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
+	unique_attrs = ['username', 'email', 'phone']
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]]
@@ -80,13 +81,13 @@ class User(BaseModule):
 		return (results, skip_events, env, session, query, doc)
 	
 	def pre_create(self, skip_events, env, session, query, doc):
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'username':doc['username']}, {'email':doc['email']}, {'phone':doc['phone']}, {'$limit':1}])
-		if results.args.count:
-			return {
-				'status':400,
-				'msg':'A user with the same username, email or phone already exists.',
-				'args':{'code':'CORE_USER_DUPLICATE_USER'}
-			}
+		# results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{'username':doc['username']}, {'email':doc['email']}, {'phone':doc['phone']}], {'$limit':1}])
+		# if results.args.count:
+		# 	return {
+		# 		'status':400,
+		# 		'msg':'A user with the same username, email or phone already exists.',
+		# 		'args':{'code':'CORE_USER_DUPLICATE_USER'}
+		# 	}
 		if Event.__ARGS__ not in skip_events:
 			if Config.realm:
 				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
@@ -94,13 +95,13 @@ class User(BaseModule):
 				doc['groups'] = [realm.default]
 			else:
 				doc['groups'] = [ObjectId('f00000000000000000000013')]
-		doc['privileges'] = {}
-		if 'locale' not in doc.keys():
-			doc['locale'] = Config.locale
-		if 'status' not in doc.keys():
-			doc['status'] = 'active'
-		if 'attrs' not in doc.keys():
-			doc['attrs'] = {}
+		# doc['privileges'] = {}
+		# if 'locale' not in doc.keys():
+		# 	doc['locale'] = Config.locale
+		# if 'status' not in doc.keys():
+		# 	doc['status'] = 'active'
+		# if 'attrs' not in doc.keys():
+		# 	doc['attrs'] = {}
 		# print('(skip_events, env, session, query, doc)', (skip_events, env, session, query, doc))
 		return (skip_events, env, session, query, doc)
 	
@@ -226,7 +227,7 @@ class Group(BaseModule):
 		'privileges':'privileges',
 		'attrs':'attrs'
 	}
-	optional_attrs = ['bio', 'privileges', 'attrs']
+	optional_attrs = {'bio':{locale:'' for locale in Config.locales}, 'privileges':{}, 'attrs':{}}
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}]]
@@ -245,12 +246,12 @@ class Group(BaseModule):
 	}
 
 	def pre_create(self, skip_events, env, session, query, doc):
-		if 'bio' not in doc.keys():
-			doc['bio'] = doc['name']
-		if 'privileges' not in doc.keys():
-			doc['privileges'] = {}
-		if 'attrs' not in doc.keys():
-			doc['attrs'] = {}
+		# if 'bio' not in doc.keys():
+		# 	doc['bio'] = doc['name']
+		# if 'privileges' not in doc.keys():
+		# 	doc['privileges'] = {}
+		# if 'attrs' not in doc.keys():
+		# 	doc['attrs'] = {}
 		return (skip_events, env, session, query, doc)
 
 	def pre_update(self, skip_events, env, session, query, doc):

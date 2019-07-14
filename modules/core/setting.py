@@ -9,7 +9,7 @@ class Setting(BaseModule):
 		'val':'any',
 		'type':('global', 'user')
 	}
-	optional_attrs = ['user']
+	optional_attrs = {'user':None}
 	extns = {
 		'user':['user', ['name', 'email']]
 	}
@@ -17,10 +17,6 @@ class Setting(BaseModule):
 		'read':{
 			'permissions':[['admin', {'$limit':1}, {}], ['read', {'user':'$__user', '$limit':1}, {}]],
 			'query_args':[('_id', 'var')]
-		},
-		'get_setting':{
-			'permissions':[['admin', {'$limit':1}, {}], ['read', {'user':'$__user', '$limit':1}, {}]],
-			'query_args':['var']
 		},
 		'create':{
 			'permissions':[['admin', {'$limit':1}, {}], ['create', {}, {'type':'user', 'user':'$__user', '$limit':1}]]
@@ -50,10 +46,3 @@ class Setting(BaseModule):
 		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, session, query, doc)
-
-	def get_setting(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
-		if not results.args.count:
-			return False
-		else:
-			return results.args.docs[0].val

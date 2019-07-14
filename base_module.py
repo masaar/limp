@@ -17,9 +17,11 @@ logger = logging.getLogger('limp')
 
 class BaseModule:
 	collection: Union[str, bool] = False
+	proxy: str = False
 	attrs: Dict[str, Union[str, List[str], Tuple[str]]] = {}
 	diff: bool = False
-	optional_attrs: List[str] = []
+	optional_attrs: Dict[str, Any] = {}
+	unique_attrs: List[str] = []
 	extns: Dict[str, List[Union[str, List[str]]]] = {}
 	privileges: List[str] = ['read', 'create', 'update', 'delete', 'admin']
 	methods: Dict[str, 'BaseMethod'] = {}
@@ -29,8 +31,12 @@ class BaseModule:
 	modules: Dict[str, 'BaseModule'] = {}
 
 	def __init__(self):
+		# [DOC] Populate package and module names for in-context use.
 		self.package_name = self.__module__.replace('modules.', '').upper().split('.')[0]
 		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
+	
+	def __initilise(self):
+		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
@@ -46,10 +52,44 @@ class BaseModule:
 				doc_args=self.methods[method]['doc_args'],
 				get_method=self.methods[method]['get_method']
 			)
+		# [DOC] Replace attrs with type locale with standard locale dict
 		for attr in self.attrs.keys():
 			if self.attrs[attr] == 'locale':
 				self.attrs[attr] = locales
 		logger.debug('Initialised module %s', self.module_name)
+
+	def update_modules(self, modules):
+		self.modules = modules
+		# [DOC] Check for proxy
+		if self.proxy:
+			logger.debug('Module \'%s\' is a proxy module. Updating.', self.module_name)
+			# [DOC] Copy regular attrs
+			self.collection = self.modules[self.proxy].collection
+			self.attrs = copy.deepcopy(self.modules[self.proxy].attrs)
+			self.diff = self.modules[self.proxy].diff
+			self.optional_attrs = copy.deepcopy(self.modules[self.proxy].optional_attrs)
+			self.unique_attrs = copy.deepcopy(self.modules[self.proxy].unique_attrs)
+			self.extns = copy.deepcopy(self.modules[self.proxy].extns)
+			self.privileges = copy.deepcopy(self.modules[self.proxy].privileges)
+			# [DOC] Update methods from original module
+			for method in self.modules[self.proxy].methods.keys():
+				# [DOC] Copy method attrs if not present in proxy
+				if method not in self.methods.keys():
+					if type(self.modules[self.proxy].methods[method]) == dict:
+						self.methods[method] = copy.deepcopy(self.modules[self.proxy].methods[method])
+					elif type(self.modules[self.proxy].methods[method]) == BaseMethod:
+						self.methods[method] = {
+							'permissions':copy.deepcopy(self.modules[self.proxy].methods[method].permissions),
+							'query_args':copy.deepcopy(self.modules[self.proxy].methods[method].query_args),
+							'doc_args':copy.deepcopy(self.modules[self.proxy].methods[method].doc_args),
+							'get_method':self.modules[self.proxy].methods[method].get_method
+						}
+				# [DOC] Create methods functions in proxy module if not present
+				if not getattr(self, method, None):
+					setattr(self, method, lambda self=self, skip_events=[], env={}, session=None, query=[], doc={}: getattr(self.modules[self.proxy], method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc))
+		# [DOC] Initlise module
+		self.__initilise()
+			
 	
 	def __getattribute__(self, attr):
 		if attr in object.__getattribute__(self, 'methods').keys():
@@ -65,6 +105,12 @@ class BaseModule:
 		return (results, skip_events, env, session, query, doc)
 	def read(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_read
+				pre_read = self.modules[self.proxy].pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(pre_read) in [DictObj, dict]: return pre_read
+				skip_events, env, session, query, doc = pre_read
 			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
 			skip_events, env, session, query, doc = pre_read
@@ -77,7 +123,15 @@ class BaseModule:
 		else:
 			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, session, query, doc = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module on_read
+				on_read = self.modules[self.proxy].on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(on_read) in [DictObj, dict]: return on_read
+				results, skip_events, env, session, query, doc = on_read
+			on_read = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(on_read) in [DictObj, dict]: return on_read
+			results, skip_events, env, session, query, doc = on_read
 			# [DOC] if $attrs query arg is present return only required keys.
 			if '$attrs' in query:
 				query['$attrs'].insert(0, '_id')
@@ -96,6 +150,12 @@ class BaseModule:
 		return (results, skip_events, env, session, query, doc)
 	def create(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_create
+				pre_create = self.modules[self.proxy].pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(pre_create) in [DictObj, dict]: return pre_create
+				skip_events, env, session, query, doc = pre_create
 			pre_create = self.pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
 			skip_events, env, session, query, doc = pre_create
@@ -121,24 +181,42 @@ class BaseModule:
 		except MissingAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
 		except InvalidAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
 		except ConvertAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
+		# [DOC] Check unique_attrs
+		if self.unique_attrs:
+			unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
+			if unique_results.args.count: # pylint: disable=no-member
+				return {
+					'status':400,
+					'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
+					'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+				}
+		# [DOC] Execute Data driver create
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, session, query, doc = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module on_create
+				on_create = self.modules[self.proxy].on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(on_create) in [DictObj, dict]: return on_create
+				results, skip_events, env, session, query, doc = on_create
+			on_create = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(on_create) in [DictObj, dict]: return on_create
+			results, skip_events, env, session, query, doc = on_create
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['docs'][0]}]])
@@ -156,28 +234,34 @@ class BaseModule:
 		return (results, skip_events, env, session, query, doc)
 	def update(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_update
+				pre_update = self.modules[self.proxy].pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(pre_update) in [DictObj, dict]: return pre_update
+				skip_events, env, session, query, doc = pre_update
 			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
 			skip_events, env, session, query, doc = pre_update
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
-			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=self.attrs.keys(), allow_opers=True)
+			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=True, allow_opers=True)
 		except MissingAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
 		except InvalidAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
 		except ConvertAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
 				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 			}
 		# [DOC] Delete all attrs not belonging to the doc
@@ -196,7 +280,15 @@ class BaseModule:
 			}
 		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, session, query, doc = self.on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module on_update
+				on_update = self.modules[self.proxy].on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(on_update) in [DictObj, dict]: return on_update
+				results, skip_events, env, session, query, doc = on_update
+			on_update = self.on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(on_update) in [DictObj, dict]: return on_update
+			results, skip_events, env, session, query, doc = on_update
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
 			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
@@ -231,7 +323,16 @@ class BaseModule:
 		return (results, skip_events, env, session, query, doc)
 	def delete(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		# [TODO] refactor for template use
-		if Event.__PRE__ not in skip_events: skip_events, env, session, query, doc = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_delete
+				pre_delete = self.modules[self.proxy].pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(pre_delete) in [DictObj, dict]: return pre_delete
+				skip_events, env, session, query, doc = pre_delete
+			pre_delete = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(pre_delete) in [DictObj, dict]: return pre_delete
+			skip_events, env, session, query, doc = pre_delete
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] Pick delete strategy based on skip_events
 		strategy = DELETE_SOFT_SKIP_SYS
@@ -242,7 +343,16 @@ class BaseModule:
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
 			strategy = DELETE_FORCE_SYS
 		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, strategy=strategy)
-		if Event.__ON__ not in skip_events: results, skip_events, env, session, query, doc = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+		if Event.__ON__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module on_delete
+				on_delete = self.modules[self.proxy].on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				if type(on_delete) in [DictObj, dict]: return on_delete
+				results, skip_events, env, session, query, doc = on_delete
+			on_delete = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			if type(on_delete) in [DictObj, dict]: return on_delete
+			results, skip_events, env, session, query, doc = on_delete
 		return {
 			'status':200,
 			'msg':'Deleted {} docs.'.format(results['count']),
@@ -396,7 +506,7 @@ class BaseModule:
 					break
 		elif type(attr) == dict:
 			if attr['name'] == filename:
-				file = item
+				file = attr
 		
 		if file:
 			results = {

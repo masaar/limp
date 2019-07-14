@@ -80,7 +80,7 @@ class Session(BaseModule):
 		results.args.docs[0] = BaseModel(session)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=results.args.docs[0], query=[{'_id':user._id}])
+		user_results = self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, session=results.args.docs[0], query=[{'_id':user._id}])
 		if user_results.status != 200:
 			return user_results
 		results.args.docs[0]['user'] = user_results.args.docs[0]
@@ -120,10 +120,10 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_SESSION_EXPIRED'}
 			}
 		# [DOC] update user's last_login timestamp
-		self.modules['user'].methods['update'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow()})
+		self.modules['user'].update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow().isoformat()})
 		self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()})
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].methods['read_privileges'](skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user._id}])
+		user_results = self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user._id}])
 		results.args.docs[0]['user'] = user_results.args.docs[0]
 		return {
 			'status':200,

@@ -133,7 +133,16 @@ class BaseMethod:
 			del query['$extn']
 
 		try:
-			results = getattr(self.module, '_method_{}'.format(self.method))(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			# [DOC] Check for proxy module
+			if self.module.proxy:
+				if not getattr(self.module, '_method_{}'.format(self.method), None):
+					method = getattr(self.module.modules[self.module.proxy], '_method_{}'.format(self.method))
+				else:
+					method = getattr(self.module, '_method_{}'.format(self.method))
+			else:
+				method = getattr(self.module, '_method_{}'.format(self.method))
+			# [DOC] Call method function
+			results = method(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			query = Query([])
 		except Exception as e:
 			logger.error('An error occured. Details: %s.', traceback.format_exc())
