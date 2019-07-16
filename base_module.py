@@ -377,20 +377,13 @@ class BaseModule:
 			}
 		
 		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}], doc={
-			query['attr'][0]:{'$push':doc['file']}
+			query['attr'][0]:{'$push':doc['file'][0]}
 		})
 
 		if Event.__ON__ not in skip_events:
 			results, skip_events, env, session, query, doc = self.on_create_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 		
 		return results
-
-	def pre_update_file(self, skip_events, env, session, query, doc):
-		return (skip_events, env, session, query, doc)
-	def on_update_file(self, results, skip_events, env, session, query, doc):
-		return (results, skip_events, env, session, query, doc)
-	def update_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
-		pass
 	
 	def pre_delete_file(self, skip_events, env, session, query, doc):
 		return (skip_events, env, session, query, doc)
@@ -526,7 +519,7 @@ class BaseModule:
 					stream = io.BytesIO()
 					image.save(stream, format=image.format)
 					stream.seek(0)
-					file['content'] = stream.read()
+					results['msg'] = stream.read()
 				except:
 					pass
 
