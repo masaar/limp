@@ -9,7 +9,6 @@ class Setting(BaseModule):
 		'val':'any',
 		'type':('global', 'user')
 	}
-	# optional_attrs = {'user':None}
 	extns = {
 		'user':['user', ['name', 'email']]
 	}
@@ -19,7 +18,7 @@ class Setting(BaseModule):
 			'query_args':[('_id', 'var')]
 		},
 		'create':{
-			'permissions':[['admin', {'$limit':1}, {}], ['create', {}, {'type':'user', 'user':'$__user', '$limit':1}]]
+			'permissions':[['admin', {}, {}], ['create', {}, {'type':'user'}]]
 		},
 		'update':{
 			'permissions':[['admin', {'$limit':1}, {}], ['update', {'type':'user', 'user':'$__user', '$limit':1}, {'type':None, 'user':None}]],

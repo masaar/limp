@@ -285,20 +285,24 @@ class ConvertAttrException(Exception):
 	def __str__(self):
 		return 'Can\'t convert attr \'{}\' of type \'{}\' to type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
 
-def validate_doc(doc, attrs, allow_opers=False):
+def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
 	for attr in attrs:
 		if attr not in doc.keys():
-			# if optional_attrs != True and attr not in optional_attrs.keys():
-			raise MissingAttrException(attr)
-			# elif optional_attrs != True and attr in optional_attrs.keys():
-			# 	doc[attr] = optional_attrs[attr]
+			if not allow_none:
+				if attr not in defaults.keys():
+					raise MissingAttrException(attr)
+				else:
+					doc[attr] = defaults[attr]
+					continue
 		else:
-			# if optional_attrs != True and doc[attr] == None and attr in optional_attrs.keys():
-			# 	doc[attr] = optional_attrs[attr]
-			# 	continue
-			# elif optional_attrs == True and doc[attr] == None:
-			# 	continue
-			if doc[attr] == NONE_VALUE:
+			if doc[attr] == None:
+				if not allow_none:
+					if attr in defaults.keys():
+						doc[attr] = defaults[attr]
+						continue
+					else:
+						raise MissingAttrException(attr)
+			elif doc[attr] == NONE_VALUE:
 				doc[attr] = None
 				continue
 			if allow_opers:
