@@ -20,7 +20,7 @@ class BaseModule:
 	proxy: str = False
 	attrs: Dict[str, Union[str, List[str], Tuple[str]]] = {}
 	diff: bool = False
-	optional_attrs: Dict[str, Any] = {}
+	# optional_attrs: Dict[str, Any] = {}
 	unique_attrs: List[str] = []
 	extns: Dict[str, List[Union[str, List[str]]]] = {}
 	privileges: List[str] = ['read', 'create', 'update', 'delete', 'admin']
@@ -67,7 +67,7 @@ class BaseModule:
 			self.collection = self.modules[self.proxy].collection
 			self.attrs = copy.deepcopy(self.modules[self.proxy].attrs)
 			self.diff = self.modules[self.proxy].diff
-			self.optional_attrs = copy.deepcopy(self.modules[self.proxy].optional_attrs)
+			# self.optional_attrs = copy.deepcopy(self.modules[self.proxy].optional_attrs)
 			self.unique_attrs = copy.deepcopy(self.modules[self.proxy].unique_attrs)
 			self.extns = copy.deepcopy(self.modules[self.proxy].extns)
 			self.privileges = copy.deepcopy(self.modules[self.proxy].privileges)
@@ -177,7 +177,7 @@ class BaseModule:
 			doc['user_agent'] = env['HTTP_USER_AGENT']
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
-			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=self.optional_attrs)
+			validate_doc(doc=doc, attrs=self.attrs)
 		except MissingAttrException as e:
 			return {
 				'status':400,
@@ -245,7 +245,7 @@ class BaseModule:
 			skip_events, env, session, query, doc = pre_update
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
-			validate_doc(doc=doc, attrs=self.attrs, optional_attrs=True, allow_opers=True)
+			validate_doc(doc=doc, attrs=self.attrs, allow_opers=True)
 		except MissingAttrException as e:
 			return {
 				'status':400,

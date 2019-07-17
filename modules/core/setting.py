@@ -9,7 +9,7 @@ class Setting(BaseModule):
 		'val':'any',
 		'type':('global', 'user')
 	}
-	optional_attrs = {'user':None}
+	# optional_attrs = {'user':None}
 	extns = {
 		'user':['user', ['name', 'email']]
 	}

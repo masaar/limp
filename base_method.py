@@ -1,4 +1,4 @@
-from utils import DictObj, Query
+from utils import DictObj, Query, NONE_VALUE
 from event import Event
 from config import Config
 from base_model import BaseModel
@@ -108,8 +108,46 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
 				})
 			else:
-				query.append(copy.deepcopy(permissions_check['query']))
-				doc.update(copy.deepcopy(permissions_check['doc']))
+				# [TODO] Implement NONE_VALUE handler
+				if type(permissions_check['query']) == dict:
+					permissions_check['query'] = [permissions_check['query']]
+				for i in range(0, permissions_check['query'].__len__()):
+					del_args = []
+					for attr in permissions_check['query'][i].keys():
+						# [DOC] Check for optional attr
+						if type(permissions_check['query'][i][attr]) == dict and '__optional' in permissions_check['query'][i][attr].keys():
+							# [TODO] Implement condition
+							# [DOC] Flag attr for deletion if attr is present in query
+							if attr in query or permissions_check['query'][i][attr]['__optional'] == None:
+								del_args.append(attr)
+							permissions_check['query'][i][attr] = permissions_check['query'][i][attr]['__optional']
+						# [DOC] Flag attr for deletion if value is None
+						if permissions_check['query'][i][attr] == None:
+							del_args.append(attr)
+					for attr in del_args:
+						del permissions_check['query'][i][attr]
+				# [DOC] Append query permissions args to query
+				query.append(permissions_check['query'])
+
+				del_args = []
+				for attr in permissions_check['doc'].keys():
+					# [DOC] Check for optional attr
+					if type(permissions_check['doc'][attr]) == dict and '__optional' in permissions_check['doc'][attr].keys():
+						# [TODO] Implement condition
+						# [DOC] Flag attr for deletion if attr is present in doc
+						if attr in doc.keys():
+							del_args.append(attr)
+						permissions_check['doc'][attr] = permissions_check['doc'][attr]['__optional']
+					# [DOC] Replace None value with NONE_VALUE to bypass later validate step
+					if permissions_check['doc'][attr] == None:
+						permissions_check['doc'][attr] = NONE_VALUE
+				for attr in del_args:
+					del permissions_check['doc'][attr]
+				# [DOC] Update doc with doc permissions args
+				doc.update(permissions_check['doc'])
+				
+				# query.append(copy.deepcopy(permissions_check['query']))
+				# doc.update(copy.deepcopy(permissions_check['doc']))
 	
 		if Event.__ARGS__ not in skip_events:
 			test_query = self.test_args('query', query)

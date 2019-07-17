@@ -6,6 +6,8 @@ from bson import ObjectId, binary
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
 
+NONE_VALUE = 'NONE_VALUE'
+
 class JSONEncoder(json.JSONEncoder):
 	def default(self, o): # pylint: disable=E0202
 		from base_model import BaseModel
@@ -283,18 +285,21 @@ class ConvertAttrException(Exception):
 	def __str__(self):
 		return 'Can\'t convert attr \'{}\' of type \'{}\' to type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
 
-def validate_doc(doc, attrs, optional_attrs, allow_opers=False):
+def validate_doc(doc, attrs, allow_opers=False):
 	for attr in attrs:
 		if attr not in doc.keys():
-			if optional_attrs != True and attr not in optional_attrs.keys():
-				raise MissingAttrException(attr)
-			elif optional_attrs != True and attr in optional_attrs.keys():
-				doc[attr] = optional_attrs[attr]
+			# if optional_attrs != True and attr not in optional_attrs.keys():
+			raise MissingAttrException(attr)
+			# elif optional_attrs != True and attr in optional_attrs.keys():
+			# 	doc[attr] = optional_attrs[attr]
 		else:
-			if optional_attrs != True and doc[attr] == None and attr in optional_attrs.keys():
-				doc[attr] = optional_attrs[attr]
-				continue
-			elif optional_attrs == True and doc[attr] == None:
+			# if optional_attrs != True and doc[attr] == None and attr in optional_attrs.keys():
+			# 	doc[attr] = optional_attrs[attr]
+			# 	continue
+			# elif optional_attrs == True and doc[attr] == None:
+			# 	continue
+			if doc[attr] == NONE_VALUE:
+				doc[attr] = None
 				continue
 			if allow_opers:
 				if type(doc[attr]) == dict:

@@ -13,13 +13,13 @@ class Diff(BaseModule):
 		'remarks':'str',
 		'create_time':'datetime'
 	}
-	optional_attrs = {'doc':None, 'remarks':''}
+	# optional_attrs = {'doc':None, 'remarks':''}
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}]]
 		},
 		'create':{
-			'permissions':[['admin', {}, {'user':'$__user'}]]
+			'permissions':[['admin', {}, {'user':'$__user', 'doc':{'__optional':{}}, 'remarks':{'__optional':None}}]]
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}]],

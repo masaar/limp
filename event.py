@@ -1,5 +1,6 @@
 class Event:
 	__ARGS__ = '__ARGS__'
+	__VALIDATE__ = '__VALIDATE__'
 	__PERM__ = '__PERM__'
 	__PRE__ = '__PRE__'
 	__ON__ = '__ON__'

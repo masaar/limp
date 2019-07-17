@@ -26,14 +26,14 @@ class User(BaseModule):
 		'status':('active', 'banned', 'deleted', 'disabled_password'),
 		'attrs':'attrs'
 	}
-	optional_attrs = {'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
+	# optional_attrs = {'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
 	unique_attrs = ['username', 'email', 'phone']
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]]
 		},
 		'create':{
-			'permissions':[['admin', {}, {}]]
+			'permissions':[['admin', {}, {'login_time':None, 'website':{'__optional':None}, 'locale':{'__optional':Config.locale}, 'status':{'__optional':'active'}, 'attrs':{'__optional':{}}, 'groups':{'__optional':[]}, 'privileges':{'__optional':{}}}]]
 		},
 		'update':{
 			'permissions':[['admin', {}, {'groups':None}], ['update', {'_id':'$__user'}, {'groups':None, 'privileges':None}]],
@@ -227,13 +227,13 @@ class Group(BaseModule):
 		'privileges':'privileges',
 		'attrs':'attrs'
 	}
-	optional_attrs = {'bio':{locale:'' for locale in Config.locales}, 'privileges':{}, 'attrs':{}}
+	# optional_attrs = {'bio':{locale:'' for locale in Config.locales}, 'privileges':{}, 'attrs':{}}
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}]]
 		},
 		'create':{
-			'permissions':[['admin', {}, {}]]
+			'permissions':[['admin', {}, {'bio':{'__optional':{locale:'' for locale in Config.locales}}, 'privileges':{'__optional':{}}, 'attrs':{'__optional':{}}}]]
 		},
 		'update':{
 			'permissions':[['admin', {}, {}], ['update', {'user':'$__user', 'privileges':None}]],
