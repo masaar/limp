@@ -199,47 +199,47 @@ class Session(BaseModule):
 
 	def parse_permission_args(self, permission_args, user):
 		if type(permission_args) == list:
-			args_iter = permission_args
+			args_iter = range(0, permission_args.__len__())
 		elif type(permission_args) == dict:
 			args_iter = list(permission_args.keys())
 		
-		for i in range(0, args_iter.__len__()):
-			if type(permission_args[args_iter[i]]) == dict:
+		for j in args_iter:
+			if type(permission_args[j]) == dict:
 				# [DOC] Check for optional attrs
-				if '__optional' in permission_args[args_iter[i]].keys():
+				if '__optional' in permission_args[j].keys():
 					# [TODO] Implement conditions
 					# [DOC] Convert None values to NONE_VALUE
-					# if permission_args[args_iter[i]]['__optional'] == None:
-					# 	permission_args[args_iter[i]]['__optional'] = NONE_VALUE
-					permission_args[args_iter[i]] = self.parse_permission_args(permission_args=[permission_args[args_iter[i]]['__optional']], user=user)[0]
+					# if permission_args[j]['__optional'] == None:
+					# 	permission_args[j]['__optional'] = NONE_VALUE
+					permission_args[j] = self.parse_permission_args(permission_args=[permission_args[j]['__optional']], user=user)[0]
 				else:
 					# [DOC] Check opers
 					for oper in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
-						if oper in permission_args[args_iter[i]].keys():
+						if oper in permission_args[j].keys():
 							if oper == '$bet':
-								permission_args[args_iter[i]]['$bet'] = self.parse_permission_args(permission_args=permission_args[args_iter[i]]['$bet'], user=user)
+								permission_args[j]['$bet'] = self.parse_permission_args(permission_args=permission_args[j]['$bet'], user=user)
 							else:
-								permission_args[args_iter[i]][oper] = self.parse_permission_args(permission_args=[permission_args[args_iter[i]][oper]], user=user)[0]
+								permission_args[j][oper] = self.parse_permission_args(permission_args=[permission_args[j][oper]], user=user)[0]
 							# [DOC] Continue the iteration
 							continue
 					# [DOC] Child args, parse
-					permission_args[args_iter[i]] = self.parse_permission_args(permission_args=permission_args[args_iter[i]], user=user)
-			elif type(permission_args[args_iter[i]]) == list:
-				permission_args[args_iter[i]] = self.parse_permission_args(permission_args=permission_args[args_iter[i]], user=user)
-			elif type(permission_args[args_iter[i]]) == str:
+					permission_args[j] = self.parse_permission_args(permission_args=permission_args[j], user=user)
+			elif type(permission_args[j]) == list:
+				permission_args[j] = self.parse_permission_args(permission_args=permission_args[j], user=user)
+			elif type(permission_args[j]) == str:
 				# [DOC] Check for variables
-				if permission_args[args_iter[i]] == '$__user':
-					permission_args[args_iter[i]] = user._id
-				elif permission_args[args_iter[i]] == '$__access':
-					permission_args[args_iter[i]] = {
+				if permission_args[j] == '$__user':
+					permission_args[j] = user._id
+				elif permission_args[j] == '$__access':
+					permission_args[j] = {
 						'$__user':user._id,
 						'$__groups':user.groups
 					}
-				elif permission_args[args_iter[i]] == '$__datetime':
-					permission_args[args_iter[i]] = datetime.datetime.utcnow().isoformat()
-				elif permission_args[args_iter[i]] == '$__date':
-					permission_args[args_iter[i]] = datetime.date.today().isoformat()
-				elif permission_args[args_iter[i]] == '$__time':
-					permission_args[args_iter[i]] = datetime.datetime.now().time().isoformat()
+				elif permission_args[j] == '$__datetime':
+					permission_args[j] = datetime.datetime.utcnow().isoformat()
+				elif permission_args[j] == '$__date':
+					permission_args[j] = datetime.date.today().isoformat()
+				elif permission_args[j] == '$__time':
+					permission_args[j] = datetime.datetime.now().time().isoformat()
 		
 		return permission_args
