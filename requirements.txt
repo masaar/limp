@@ -3,3 +3,4 @@ Pillow==6.1.0
 pymongo==3.7.2
 PyJWT==1.7.1
 twilio==6.25.1
+dnspython==1.16.0
