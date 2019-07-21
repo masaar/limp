@@ -73,13 +73,13 @@ The convention of the `collection` value is it should be the `snake_case` plural
 The `attrs` attr is a dict representing the attrs every doc in your module collection should have, and the associated types. LIMP is type-driven. This means, you can simply defined every type you expect for your module `attrs` and LIMP would take the burden on checking the types, or convert them if required. The List of available types are:
 1. **`any`**: This means your attr can have any type, ultimately skipping type-check on it altogether.
 2. **`id`**: This means your attr is `BSON ObjectId` or any matching type. This is usually the type you set for your attr that has the `_id` value of another doc from the same module or another. Since this is a binary type that you can't send via LIMP SDKs. LIMP base methods convert your front-end app sent value as `str` to `ObejctId`.
-3. **`str`**: Self-descriptive string type. Accepts anything that is a string.
-4. **`int`**: Self-descriptive integer type. Accepts anything that is an integer.
+3. **`str`**: Self-descriptive string type. Accepts anything that is a string. You can append to it Python format regexp, like `str[[a-zA-Z]{2,4}]`, to force specific pattern check.
+4. **`int`**: Self-descriptive integer type. Accepts anything that is an integer. You can append to it colon-separated two or three numbers to generate a range the accepted int value should be part in. For instance you can set the attr to `int[1:10]` to match anything from inclusive `1` to execlusive `10`. You can also add optional third number for range step. For instance you can set the attr to `int[0:11:2]` to match all even numbers from `1` to `10` all-inclusive.
 5. **`bool`**: Self-descriptive boolean type. Accepts anything that is a boolean.
 6. **`locale`**: As part of the built-in multi-language support. An attr in LIMP module can be set to `locale` to specify that it accepts multiple value, each repressing a supported language in your app.
 7. **`locales`**: Another aspect of the built-in multi-language support is the `locales` type. This is a dynamic type that gets converted to a tuple with its values set to the locales your app supports. This is essentially a type that you can use to determine the language or locale of specific item or doc.
 8. **`email`**: Self-descriptive email type. Accepts a string that matches the regexp `r'[^@]+@[^@]+\.[^@]+'` in Python.
-9. **`phone`**: Self-descriptive phone type. Accepts a string that matches the regexp `r'\+[0-9]+'` in Python.
+9. **`phone`**: Self-descriptive phone type. Accepts a string that matches the regexp `r'\+[0-9]+'` in Python. You can append to it comma-spearated list of accepted phone codes. For instance you can set the attr to `phone[123,456,789,0]` to match any phone which has either of the codes `123`, `456`, `789` or `0`.
 10. **`uri:web`**: Self-descriptive web URI type. Accepts a string that matches the regexp `r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$'` in Python.
 11. **`datetime`**: Self-descriptive datetime type. Accepts Python ISO format `datetime` value which matches the regexp `r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$'`.
 12. **`date`**: Self-descriptive date type. Accepts Python ISO format `date` value `r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`.

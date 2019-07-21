@@ -337,15 +337,29 @@ def validate_attr(attr_name, attr_type, attr_val):
 					return ObjectId(attr_val)
 				except:
 					raise ConvertAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-		elif type(attr_type) == str and attr_type == 'str':
+		elif type(attr_type) == str and attr_type.startswith('str'):
 			if type(attr_val) == str:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'int':
+				if attr_type != 'str':
+					if re.match(f'^{attr_type[4:-1]}$', attr_val):
+						return attr_val
+				else:
+					return attr_val
+		elif type(attr_type) == str and attr_type.startswith('int'):
 			if type(attr_val) == int:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'float':
+				if attr_type != 'int':
+					vals_range = range(*[int(val) for val in attr_type[4:-1].split(':')])
+					if attr_val in vals_range:
+						return attr_val
+				else:
+					return attr_val
+		elif type(attr_type) == str and attr_type.startswith('float'):
 			if type(attr_val) == float:
-				return attr_val
+				if attr_type != 'float':
+					vals_range = range(*[int(val) for val in attr_type[6:-1].split(':')])
+					if int(attr_val) in vals_range:
+						return attr_val
+				else:
+					return attr_val
 		elif type(attr_type) == tuple:
 			if attr_val in attr_type:
 				return attr_val
@@ -358,9 +372,14 @@ def validate_attr(attr_name, attr_type, attr_val):
 		elif type(attr_type) == str and attr_type == 'email':
 			if re.match(r'[^@]+@[^@]+\.[^@]+', attr_val):
 				return attr_val
-		elif type(attr_type) == str and attr_type == 'phone':
-			if re.match(r'\+[0-9]+', attr_val):
-				return attr_val
+		elif type(attr_type) == str and attr_type.startswith('phone'):
+			if attr_type != 'phone':
+				for phone_code in attr_type[6:-1].split(','):
+					if re.match(fr'\+{phone_code}[0-9]+', attr_val):
+						return attr_val
+			else:
+				if re.match(r'\+[0-9]+', attr_val):
+					return attr_val
 		elif type(attr_type) == str and attr_type == 'uri:web':
 			if re.match(r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr_val):
 				return attr_val
@@ -428,8 +447,7 @@ def validate_attr(attr_name, attr_type, attr_val):
 			if attr_val in Config.locales:
 				return attr_val
 		elif attr_type in Config.types.keys():
-			Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
-			return attr_val
+			return Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
 		
 		raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 	except:
