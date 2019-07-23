@@ -101,6 +101,17 @@ If this gets translated into Python condition it would be:
 ```python
 attr1 == 'conditionVal' and (attr2 == 'conditionVal' or attr3 == 'conditionVal') and (attr4 == 'conditionVal' or attr5 == 'conditionVal')
 ```
+One important point is although `query` object is a list itself, but it reflects `and` logical condition. This is a design change encouraged by how the object is being constructed in LIMP. This means that passing multiple objects as part of the top level `query` object list wouldn't reflect an `or` condition but `and`, For instance, The first `and` example in this section can also be rewritten to:
+```typescript
+[
+	{
+		attr1: 'conditionVal'
+	},
+	{
+		attr2: 'conditionVal'
+	}
+]
+```
 
 ### Query Opers
 By passing an attr in `query` object, you are telling LIMP to match docs that are having the attrs set to the value passed in the `query`. However, additional opers are available for wider accessibility and control:
