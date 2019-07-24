@@ -267,7 +267,8 @@ class BaseModule:
 		# [DOC] Delete all attrs not belonging to the doc
 		del_args = []
 		for arg in doc.keys():
-			if arg not in self.attrs.keys() or doc[arg] == None:
+			# [DOC] When checken if the arg is an attr split it with '.' to make sure you check only top level attrs.
+			if arg.split('.')[0] not in self.attrs.keys() or doc[arg] == None:
 				del_args.append(arg)
 		for arg in del_args:
 			del doc[arg]

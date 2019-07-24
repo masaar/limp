@@ -26,7 +26,7 @@ class User(BaseModule):
 		'status':('active', 'banned', 'deleted', 'disabled_password'),
 		'attrs':'attrs'
 	}
-	defaults = {'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
+	defaults = {'bio':{locale:'' for locale in Config.locales}, 'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
 	unique_attrs = ['username', 'email', 'phone']
 	methods = {
 		'read':{
@@ -70,7 +70,16 @@ class User(BaseModule):
 				for attr in user.attrs.keys():
 					if type(user.attrs[attr]) == dict and '__extn' in user.attrs[attr].keys():
 						extn = user.attrs[attr]['__extn']
-						extn_query = [{'_id':extn[1]}]
+						if type(extn[1]) == list:
+							if not extn[1].__len__():
+								# [DOC] This is placeholder __extn attr with no value. Skip.
+								continue
+							extn_query = [{'_id':{'$in':extn[1]}}]
+						else:
+							if not extn[1]:
+								# [DOC] This is placeholder __extn attr with no value. Skip.
+								continue
+							extn_query = [{'_id':extn[1]}]
 						if extn[2] != ['*']:
 							extn_query.append({'$attrs':extn[2]})
 						extn_results = self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=extn_query)
@@ -81,13 +90,6 @@ class User(BaseModule):
 		return (results, skip_events, env, session, query, doc)
 	
 	def pre_create(self, skip_events, env, session, query, doc):
-		# results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{'username':doc['username']}, {'email':doc['email']}, {'phone':doc['phone']}], {'$limit':1}])
-		# if results.args.count:
-		# 	return {
-		# 		'status':400,
-		# 		'msg':'A user with the same username, email or phone already exists.',
-		# 		'args':{'code':'CORE_USER_DUPLICATE_USER'}
-		# 	}
 		if Event.__ARGS__ not in skip_events:
 			if Config.realm:
 				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
@@ -95,39 +97,18 @@ class User(BaseModule):
 				doc['groups'] = [realm.default]
 			else:
 				doc['groups'] = [ObjectId('f00000000000000000000013')]
-		# doc['privileges'] = {}
-		# if 'locale' not in doc.keys():
-		# 	doc['locale'] = Config.locale
-		# if 'status' not in doc.keys():
-		# 	doc['status'] = 'active'
-		# if 'attrs' not in doc.keys():
-		# 	doc['attrs'] = {}
-		# print('(skip_events, env, session, query, doc)', (skip_events, env, session, query, doc))
 		return (skip_events, env, session, query, doc)
 	
 	def pre_update(self, skip_events, env, session, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
-			results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
-			if not results.args.count:
-				return {
-					'status':400,
-					'msg':'User is invalid.',
-					'args':{'code':'CORE_USER_INVALID_USER'}
-				}
-			if results.args.count > 1:
-				return {
-					'status':400,
-					'msg':'Updating user attrs can be done only to individual users.',
-					'args':{'code':'CORE_USER_MULTI_ATTRS_UPDATE'}
-				}
-			results.args.docs[0]['attrs'].update(
-				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
-			)
-			doc['attrs'] = results.args.docs[0]['attrs']
+			attrs = {}
+			for attr in doc['attrs'].keys():
+				if attr in ['$add', '$push', '$push_unique', '$pull']:
+					attrs[attr] = doc['attrs'][attr]
+				else:
+					attrs[f'attrs.{attr}'] = doc['attrs'][attr]
 		return (skip_events, env, session, query, doc)
-	
-	# [TODO] Add pre_update method to check for duplications at time of updating
 
 	def read_privileges(self, skip_events=[], env={}, session=None, query=[], doc={}):
 		# [DOC] Confirm _id is valid
@@ -246,12 +227,6 @@ class Group(BaseModule):
 	}
 
 	def pre_create(self, skip_events, env, session, query, doc):
-		# if 'bio' not in doc.keys():
-		# 	doc['bio'] = doc['name']
-		# if 'privileges' not in doc.keys():
-		# 	doc['privileges'] = {}
-		# if 'attrs' not in doc.keys():
-		# 	doc['attrs'] = {}
 		return (skip_events, env, session, query, doc)
 
 	def pre_update(self, skip_events, env, session, query, doc):

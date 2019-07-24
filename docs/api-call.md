@@ -211,9 +211,9 @@ interface { $push: any; }
 ```
 This operator pushes a value into the list attr.
 
-#### `$pushUnique`
+#### `$push_unique`
 ```typescript
-interface { $pushUnique: any; }
+interface { $push_unique: any; }
 ```
 This operator pushes a value into the list attr of it doesn't exist.
 

@@ -334,3 +334,6 @@ Having the ability to access any value from the test allows for endless scenario
 
 ## Tests Workflow `test-force` arg
 One last aspect to share it with you in LIMP tests workflow is running it with `test-force` arg. By running LIMPd test mode with this arg you ultimately force LIMPd to continue running all tests even if any failed. This is usually not what a developer would like to do, but since we are trying to make a framework for all use-cases we considered adding this feature as well.
+
+## Tests Workflow `test-breakpoint` arg
+WIP

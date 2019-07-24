@@ -350,11 +350,11 @@ class MongoDb():
 					update_doc['$push'] = {}
 				update_doc['$push'][attr] = doc[attr]['$push']
 				del_attrs.append(attr)
-			# [DOC] Check for $pushUnique update oper
-			elif type(doc[attr]) == dict and '$pushUnique' in doc[attr].keys():
+			# [DOC] Check for $push_unique update oper
+			elif type(doc[attr]) == dict and '$push_unique' in doc[attr].keys():
 				if '$addToSet' not in update_doc.keys():
 					update_doc['$addToSet'] = {}
-				update_doc['$addToSet'][attr] = doc[attr]['$pushUnique']
+				update_doc['$addToSet'][attr] = doc[attr]['$push_unique']
 				del_attrs.append(attr)
 			# [DOC] Check for $pull update oper
 			elif type(doc[attr]) == dict and '$pull' in doc[attr].keys():

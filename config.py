@@ -20,6 +20,7 @@ class Config:
 	test_flush = False
 	test_force = False
 	test_env = False
+	test_breakpoint = False
 	tests = {}
 
 	data_driver = 'mongodb'

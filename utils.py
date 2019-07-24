@@ -295,32 +295,34 @@ def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
 					doc[attr] = defaults[attr]
 					continue
 		else:
-			if doc[attr] == None:
-				if not allow_none:
-					if attr in defaults.keys():
-						doc[attr] = defaults[attr]
-						continue
-					else:
-						raise MissingAttrException(attr)
-			elif doc[attr] == NONE_VALUE:
-				doc[attr] = None
-				continue
-			if allow_opers:
-				if type(doc[attr]) == dict:
-					if '$add' in doc[attr].keys():
-						doc[attr] = {'$add':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$add'])}
-					elif '$push' in doc[attr].keys():
-						doc[attr] = {'$push':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$push']])[0]}
-					elif '$pushUnique' in doc[attr].keys():
-						doc[attr] = {'$pushUnique':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$pushUnique']])[0]}
-					elif '$pull' in doc[attr].keys():
-						doc[attr] = {'$pull':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$pull'])}
+			try:
+				if allow_opers:
+					if type(doc[attr]) == dict:
+						if '$add' in doc[attr].keys():
+							doc[attr] = {'$add':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$add'])}
+						elif '$push' in doc[attr].keys():
+							doc[attr] = {'$push':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$push']])[0]}
+						elif '$push_unique' in doc[attr].keys():
+							doc[attr] = {'$push_unique':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$push_unique']])[0]}
+						elif '$pull' in doc[attr].keys():
+							doc[attr] = {'$pull':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$pull'])}
+						else:
+							doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
 					else:
 						doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
 				else:
 					doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
-			else:
-				doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
+			except Exception as e:
+				if type(e) in [MissingAttrException, InvalidAttrException, ConvertAttrException]:
+					if allow_none:
+						doc[attr] = None
+					else:
+						if attr in defaults.keys():
+							doc[attr] = defaults[attr]
+						else:
+							raise e
+				else:
+					raise e
 
 def validate_attr(attr_name, attr_type, attr_val):
 	from base_model import BaseModel

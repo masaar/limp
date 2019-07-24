@@ -1,6 +1,6 @@
 from bson import ObjectId
 
-import logging, traceback, math, random, datetime, os, json, copy
+import logging, traceback, math, random, datetime, os, json, copy, pdb
 logger = logging.getLogger('limp')
 
 calc_opers = {
@@ -155,6 +155,7 @@ class Test():
 				results_measure = self.extract_attr(call_results['results'], '$__{}'.format(measure))
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
+					self.break_debugger()
 					break
 			if call_results['status'] == False:
 				logger.debug('Test step \'call\' failed at measure \'%s\'. Required value is \'%s\', but test results is \'%s\'', measure, call_results['acceptance'][measure], results_measure)
@@ -162,6 +163,7 @@ class Test():
 		except Exception as e:
 			tb = traceback.format_exc()
 			logger.error('Exception occured: %s', tb)
+			self.break_debugger()
 			call_results.update({
 				'measure':measure,
 				'results':{
@@ -191,10 +193,13 @@ class Test():
 			results = modules['session'].methods['auth'](env={'REMOTE_ADDR':'127.0.0.1', 'HTTP_USER_AGENT':'LIMPd Test', **env}, session=session, doc={var:val, 'hash':hash})
 			if results.status != 200:
 				auth_results['status'] = False
+				self.break_debugger()
 				logger.debug('Test step \'auth\' failed with var \'%s\', val \'%s\', hash \'%s\'.', var, val, hash)
 			auth_results.update({'results':results})
 		except Exception as e:
 			tb = traceback.format_exc()
+			logger.error('Exception occured: %s', tb)
+			self.break_debugger()
 			auth_results.update({
 				'results':{
 					'status':500,
@@ -252,7 +257,6 @@ class Test():
 		attr_path = attr_path[3:].split('.')
 		attr = results
 		for child_attr in attr_path:
-			# logger.debug('Attempting to extract %s from %s', child_attr, attr)
 			try:
 				if ':' in child_attr:
 					child_attr = child_attr.split(':')
@@ -261,6 +265,7 @@ class Test():
 					attr = attr[child_attr]
 			except:
 				logger.error('Failed to extract %s from %s. Exiting.', child_attr, attr)
+				self.break_debugger()
 				exit()
 		return attr	
 	
@@ -367,3 +372,10 @@ class Test():
 			return Config.locale
 		
 		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
+	
+	@classmethod
+	def break_debugger(self):
+		from config import Config
+		if Config.test_breakpoint:
+			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')
+			pdb.set_trace()
