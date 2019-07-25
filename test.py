@@ -378,4 +378,5 @@ class Test():
 		from config import Config
 		if Config.test_breakpoint:
 			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')
-			pdb.set_trace()
+			logger.debug('All variables are available under \'locals()\' function.')
+			breakpoint()
