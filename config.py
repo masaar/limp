@@ -12,6 +12,7 @@ class Config:
 	env = None
 	_sys_docs = {}
 	_realms = {}
+	_cache = {}
 
 	_limp_version = None
 	version = None
@@ -22,6 +23,8 @@ class Config:
 	test_env = False
 	test_breakpoint = False
 	tests = {}
+
+	realm = False
 
 	data_driver = 'mongodb'
 	data_server = 'mongodb://localhost'
@@ -39,8 +42,6 @@ class Config:
 	locales = ['ar_AE', 'en_AE']
 	locale = 'ar_AE'
 
-	l10n = {}
-
 	admin_username = '__ADMIN'
 	admin_email = 'ADMIN@LIMP.MASAAR.COM'
 	admin_phone = '+971500000000'
@@ -56,20 +57,33 @@ class Config:
 
 	docs = []
 
-	realm = False
+	l10n = {}
 
 	types = {}
-
 
 	@classmethod
 	def config_data(self, modules):
 
+		# [DOC] Check API version
 		if not self.version:
 			logger.warning('No version sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding version to eliminate specs mismatch.')
 		else:
 			if self._limp_version != self.version:
 				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
 				exit()
+		
+		# [DOC] Check default values
+		security_warning = '[SECURITY WARNING] %s is not explicitly set. It has been defaulted to \'%s\' but in production environment you should consider setting it to your own to protect your app from breaches.'
+		if self.admin_username == '__ADMIN':
+			logger.warning(security_warning, 'Admin username', '__ADMIN')
+		if self.admin_email == 'ADMIN@LIMP.MASAAR.COM':
+			logger.warning(security_warning, 'Admin email', '__ADMIN')
+		if self.admin_phone == '+971500000000':
+			logger.warning(security_warning, 'Admin phone', '__ADMIN')
+		if self.admin_password == '__ADMIN':
+			logger.warning(security_warning, 'Admin password', '__ADMIN')
+		if self.anon_token == '__ANON_TOKEN_f00000000000000000000012':
+			logger.warning(security_warning, 'Anon token', '__ANON_TOKEN_f00000000000000000000012')
 
 		# [DOC] Check for env data variables
 		data_attrs = {'server':'mongodb://localhost', 'name':'limp_data', 'ssl':False, 'ca_name':False, 'ca':False}

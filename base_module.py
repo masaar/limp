@@ -16,21 +16,42 @@ locales = {locale:'str' for locale in Config.locales}
 logger = logging.getLogger('limp')
 
 class BaseModule:
-	collection: Union[str, bool] = False
-	proxy: str = False
-	attrs: Dict[str, Union[str, List[str], Tuple[str]]] = {}
-	diff: bool = False
-	defaults: Dict[str, Any] = {}
-	unique_attrs: List[str] = []
-	extns: Dict[str, List[Union[str, List[str]]]] = {}
-	privileges: List[str] = ['read', 'create', 'update', 'delete', 'admin']
-	methods: Dict[str, 'BaseMethod'] = {}
+	collection: Union[str, bool]
+	proxy: str
+	attrs: Dict[str, Union[str, List[str], Tuple[str]]]
+	diff: bool
+	defaults: Dict[str, Any]
+	unique_attrs: List[str]
+	extns: Dict[str, List[Union[str, List[str]]]]
+	privileges: List[str]
+	methods: Dict[str, 'BaseMethod']
 
-	package_name: str = None
-	module_name: str = None
-	modules: Dict[str, 'BaseModule'] = {}
+	package_name: str
+	module_name: str
+	modules: Dict[str, 'BaseModule']
 
 	def __init__(self):
+		if not getattr(self, 'collection', None):
+			self.collection = False
+		if not getattr(self, 'proxy', None):
+			self.proxy = False
+		if not getattr(self, 'attrs', None):
+			self.attrs = {}
+		if not getattr(self, 'diff', None):
+			self.diff = False
+		if not getattr(self, 'defaults', None):
+			self.defaults = {}
+		if not getattr(self, 'unique_attrs', None):
+			self.unique_attrs = []
+		if not getattr(self, 'extns', None):
+			self.extns = {}
+		if not getattr(self, 'privileges', None):
+			self.privileges = ['read', 'create', 'update', 'delete', 'admin']
+		if not getattr(self, 'methods', None):
+			self.methods = {}
+		
+		self.modules = {}
+		
 		# [DOC] Populate package and module names for in-context use.
 		self.package_name = self.__module__.replace('modules.', '').upper().split('.')[0]
 		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
@@ -38,6 +59,7 @@ class BaseModule:
 	def __initilise(self):
 		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
+			# if type(self.methods[method]) == dict:
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
 			if 'doc_args' not in self.methods[method].keys():
@@ -92,6 +114,12 @@ class BaseModule:
 			
 	
 	def __getattribute__(self, attr):
+		# [DOC] Module is not yet initialised, skip to return exact attr
+		try:
+			object.__getattribute__(self, 'methods')
+		except AttributeError:
+			return object.__getattribute__(self, attr)
+		# [DOC] Module is initialised attempt to check for methods
 		if attr in object.__getattribute__(self, 'methods').keys():
 			return object.__getattribute__(self, 'methods')[attr]
 		elif attr.startswith('_method_'):

@@ -224,7 +224,11 @@ def import_modules(packages=None):
 			for clsname in dir(module):
 				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
 					cls = getattr(module, clsname)
-					modules[re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()] = cls()
+					module_name = re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()
+					if module_name in modules.keys():
+						logger.error('Duplicate module name \'%s\'. Exiting.', module_name)
+						exit()
+					modules[module_name] = cls()
 	for module in modules.values():
 		module.update_modules(modules)
 	return modules
