@@ -154,11 +154,13 @@ class BaseModule:
 		else:
 			# [DOC] Check for cache workflow instructins
 			if self.cache:
+				results = False
 				for cache_set in self.cache:
 					if cache_set['condition'](skip_events=skip_events, env=env, session=session, query=query) == True:
 						if 'queries' not in cache_set.keys():
 							cache_set['queries'] = {}
-							results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+							if not results:
+								results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 							cache_set['queries'][str(query._sanitise_query)] = {
 								'results':results,
 								'query_time':datetime.datetime.utcnow()
@@ -168,7 +170,8 @@ class BaseModule:
 							if sanitise_query in cache_set['queries'].keys():
 								if 'period' in cache_set.keys():
 									if (cache_set['queries'][sanitise_query]['query_time'] + datetime.timedelta(seconds=cache_set['period'])) < datetime.datetime.utcnow():
-										results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+										if not results:
+											results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 										cache_set['queries'][sanitise_query] = {
 											'results':results,
 											'query_time':datetime.datetime.utcnow()
@@ -180,11 +183,14 @@ class BaseModule:
 									results = cache_set['queries'][sanitise_query]['results']
 									results['cache'] = cache_set['queries'][sanitise_query]['query_time'].isoformat()
 							else:
-								results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+								if not results:
+									results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 								cache_set['queries'][sanitise_query] = {
 									'results':results,
 									'query_time':datetime.datetime.utcnow()
 								}
+				if not results:
+					results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 			else:
 				results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
