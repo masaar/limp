@@ -55,6 +55,12 @@ class DictObj:
 		return copy.deepcopy(self.__attrs)
 
 class Query(list):
+	def __init__(self, query):
+		self._query = query
+		self._special = {}
+		self._index = {}
+		self._create_index(query)
+		super().__init__(query)
 	def _create_index(self, query, path=[]):
 		if not path:
 			self._index = {}
@@ -85,12 +91,26 @@ class Query(list):
 					del query[i][attr]
 			elif type(query[i]) == list:
 				self._create_index(query[i], path=path + [i])
-	def __init__(self, query):
-		self._query = query
-		self._special = {}
-		self._index = {}
-		self._create_index(query)
-		super().__init__(query)
+	def _sanitise_query(self, query=None):
+		if query == None:
+			query = self._query
+		query_shadow = []
+		for step in query:
+			if type(step) == dict:
+				for attr in step.keys():
+					if attr.startswith('__or'):
+						step[attr] = self._sanitise_query(step[attr])
+						if len(step[attr]):
+							query_shadow.append(step)
+							break
+					elif attr[0] != '$':
+						query_shadow.append(step)
+						break
+			elif type(step) == list:
+				step = self._sanitise_query(step)
+				if len(step):
+					query_shadow.append(step)
+		return query_shadow
 	def __deepcopy__(self, memo):
 		try:
 			return self._query.__deepcopy__(memo)

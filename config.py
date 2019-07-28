@@ -77,9 +77,9 @@ class Config:
 		if self.admin_username == '__ADMIN':
 			logger.warning(security_warning, 'Admin username', '__ADMIN')
 		if self.admin_email == 'ADMIN@LIMP.MASAAR.COM':
-			logger.warning(security_warning, 'Admin email', '__ADMIN')
+			logger.warning(security_warning, 'Admin email', 'ADMIN@LIMP.MASAAR.COM')
 		if self.admin_phone == '+971500000000':
-			logger.warning(security_warning, 'Admin phone', '__ADMIN')
+			logger.warning(security_warning, 'Admin phone', '+971500000000')
 		if self.admin_password == '__ADMIN':
 			logger.warning(security_warning, 'Admin password', '__ADMIN')
 		if self.anon_token == '__ANON_TOKEN_f00000000000000000000012':

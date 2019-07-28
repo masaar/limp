@@ -25,6 +25,7 @@ class BaseModule:
 	extns: Dict[str, List[Union[str, List[str]]]]
 	privileges: List[str]
 	methods: Dict[str, 'BaseMethod']
+	cache: List[Dict[str, Any]]
 
 	package_name: str
 	module_name: str
@@ -49,6 +50,8 @@ class BaseModule:
 			self.privileges = ['read', 'create', 'update', 'delete', 'admin']
 		if not getattr(self, 'methods', None):
 			self.methods = {}
+		if not getattr(self, 'cache', None):
+			self.cache = []
 		
 		self.modules = {}
 		
@@ -149,7 +152,41 @@ class BaseModule:
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
 			}, modules=self.modules, query=query)
 		else:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+			# [DOC] Check for cache workflow instructins
+			if self.cache:
+				for cache_set in self.cache:
+					if cache_set['condition'](skip_events=skip_events, env=env, session=session, query=query) == True:
+						if 'queries' not in cache_set.keys():
+							cache_set['queries'] = {}
+							results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+							cache_set['queries'][str(query._sanitise_query)] = {
+								'results':results,
+								'query_time':datetime.datetime.utcnow()
+							}
+						else:
+							sanitise_query = str(query._sanitise_query)
+							if sanitise_query in cache_set['queries'].keys():
+								if 'period' in cache_set.keys():
+									if (cache_set['queries'][sanitise_query]['query_time'] + datetime.timedelta(seconds=cache_set['period'])) < datetime.datetime.utcnow():
+										results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+										cache_set['queries'][sanitise_query] = {
+											'results':results,
+											'query_time':datetime.datetime.utcnow()
+										}
+									else:
+										results = cache_set['queries'][sanitise_query]['results']
+										results['cache'] = cache_set['queries'][sanitise_query]['query_time'].isoformat()
+								else:
+									results = cache_set['queries'][sanitise_query]['results']
+									results['cache'] = cache_set['queries'][sanitise_query]['query_time'].isoformat()
+							else:
+								results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+								cache_set['queries'][sanitise_query] = {
+									'results':results,
+									'query_time':datetime.datetime.utcnow()
+								}
+			else:
+				results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -167,7 +204,7 @@ class BaseModule:
 					results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 
 		return {
-			'status':200,#if results['count'] else 204,
+			'status':200,
 			'msg':'Found {} docs.'.format(results['count']),
 			'args':results
 		}
