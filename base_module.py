@@ -11,8 +11,6 @@ from PIL import Image
 from bson import ObjectId
 import traceback, logging, datetime, re, sys, io, copy
 
-locales = {locale:'str' for locale in Config.locales}
-
 logger = logging.getLogger('limp')
 
 class BaseModule:
@@ -78,6 +76,7 @@ class BaseModule:
 				get_method=self.methods[method]['get_method']
 			)
 		# [DOC] Replace attrs with type locale with standard locale dict
+		locales = {locale:'str' for locale in Config.locales}
 		for attr in self.attrs.keys():
 			if self.attrs[attr] == 'locale':
 				self.attrs[attr] = locales
@@ -246,36 +245,37 @@ class BaseModule:
 			doc['host_add'] = env['REMOTE_ADDR']
 		if 'user_agent' in self.attrs.keys() and 'user_agent' not in doc.keys():
 			doc['user_agent'] = env['HTTP_USER_AGENT']
-		# [DOC] Check presence and validate all attrs in doc args
-		try:
-			validate_doc(doc=doc, attrs=self.attrs, defaults=self.defaults)
-		except MissingAttrException as e:
-			return {
-				'status':400,
-				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-			}
-		except InvalidAttrException as e:
-			return {
-				'status':400,
-				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-			}
-		except ConvertAttrException as e:
-			return {
-				'status':400,
-				'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
-			}
-		# [DOC] Check unique_attrs
-		if self.unique_attrs:
-			unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
-			if unique_results.args.count: # pylint: disable=no-member
+		if Event.__ARGS__ not in skip_events:
+			# [DOC] Check presence and validate all attrs in doc args
+			try:
+				validate_doc(doc=doc, attrs=self.attrs, defaults=self.defaults)
+			except MissingAttrException as e:
 				return {
 					'status':400,
-					'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
-					'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
 				}
+			except InvalidAttrException as e:
+				return {
+					'status':400,
+					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+				}
+			except ConvertAttrException as e:
+				return {
+					'status':400,
+					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
+					'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+				}
+			# [DOC] Check unique_attrs
+			if self.unique_attrs:
+				unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
+				if unique_results.args.count: # pylint: disable=no-member
+					return {
+						'status':400,
+						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
+						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+					}
 		# [DOC] Execute Data driver create
 		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
