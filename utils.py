@@ -59,8 +59,8 @@ class Query(list):
 		self._query = query
 		self._special = {}
 		self._index = {}
-		self._create_index(query)
-		super().__init__(query)
+		self._create_index(self._query)
+		super().__init__(self._query)
 	def _create_index(self, query, path=[]):
 		if not path:
 			self._index = {}
@@ -91,6 +91,8 @@ class Query(list):
 					del query[i][attr]
 			elif type(query[i]) == list:
 				self._create_index(query[i], path=path + [i])
+		if not path:
+			self._query = self._sanitise_query()
 	def _sanitise_query(self, query=None):
 		if query == None:
 			query = self._query

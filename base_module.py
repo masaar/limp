@@ -156,35 +156,35 @@ class BaseModule:
 				results = False
 				for cache_set in self.cache:
 					if cache_set['condition'](skip_events=skip_events, env=env, session=session, query=query) == True:
+						cache_key = str(query._special)
 						if 'queries' not in cache_set.keys():
 							cache_set['queries'] = {}
 							if not results:
 								results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
-							cache_set['queries'][str(query._sanitise_query)] = {
+							cache_set['queries'][cache_key] = {
 								'results':results,
 								'query_time':datetime.datetime.utcnow()
 							}
 						else:
-							sanitise_query = str(query._sanitise_query)
-							if sanitise_query in cache_set['queries'].keys():
+							if cache_key in cache_set['queries'].keys():
 								if 'period' in cache_set.keys():
-									if (cache_set['queries'][sanitise_query]['query_time'] + datetime.timedelta(seconds=cache_set['period'])) < datetime.datetime.utcnow():
+									if (cache_set['queries'][cache_key]['query_time'] + datetime.timedelta(seconds=cache_set['period'])) < datetime.datetime.utcnow():
 										if not results:
 											results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
-										cache_set['queries'][sanitise_query] = {
+										cache_set['queries'][cache_key] = {
 											'results':results,
 											'query_time':datetime.datetime.utcnow()
 										}
 									else:
-										results = cache_set['queries'][sanitise_query]['results']
-										results['cache'] = cache_set['queries'][sanitise_query]['query_time'].isoformat()
+										results = cache_set['queries'][cache_key]['results']
+										results['cache'] = cache_set['queries'][cache_key]['query_time'].isoformat()
 								else:
-									results = cache_set['queries'][sanitise_query]['results']
-									results['cache'] = cache_set['queries'][sanitise_query]['query_time'].isoformat()
+									results = cache_set['queries'][cache_key]['results']
+									results['cache'] = cache_set['queries'][cache_key]['query_time'].isoformat()
 							else:
 								if not results:
 									results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
-								cache_set['queries'][sanitise_query] = {
+								cache_set['queries'][cache_key] = {
 									'results':results,
 									'query_time':datetime.datetime.utcnow()
 								}
@@ -293,6 +293,9 @@ class BaseModule:
 			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['docs'][0]}]])
 			results = results['args']
 
+		# [DOC] Module collection is updated, delete_cache
+		self.delete_cache()
+
 		return {
 			'status':200,
 			'msg':'Created {} docs.'.format(results['count']),
@@ -382,6 +385,9 @@ class BaseModule:
 				logger.debug('diff results: %s', diff_results)
 		else:
 			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
+
+		# [DOC] Module collection is updated, delete_cache
+		self.delete_cache()
 
 		return {
 			'status':200,
@@ -608,3 +614,13 @@ class BaseModule:
 					'code': '404 NOT FOUND'
 				}
 			}
+	
+	def delete_cache(self, skip_events=[], env={}, session=None, query=[], doc={}):
+		if self.cache:
+			for cache_set in self.cache:
+				cache_set['queries'] = {}
+		return {
+			'status':200,
+			'msg':'Cache deleted.',
+			'args':{}
+		}
