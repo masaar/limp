@@ -156,7 +156,7 @@ class BaseModule:
 				results = False
 				for cache_set in self.cache:
 					if cache_set['condition'](skip_events=skip_events, env=env, session=session, query=query) == True:
-						cache_key = str(query) + str(query._special)
+						cache_key = str(query._query) + str(query._special)
 						if 'queries' not in cache_set.keys():
 							cache_set['queries'] = {}
 							if not results:
