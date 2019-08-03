@@ -8,13 +8,14 @@ import logging, copy, traceback, sys
 logger = logging.getLogger('limp')
 
 class BaseMethod:
-	def __init__(self, module, method, permissions, query_args, doc_args, get_method = False):
+	def __init__(self, module, method, permissions, query_args, doc_args, get_method, get_args):
 		self.module = module
 		self.method = method
 		self.permissions = permissions
 		self.query_args = query_args
 		self.doc_args = doc_args
 		self.get_method = get_method
+		self.get_args = get_args
 	
 	def test_args(self, args_list, args):
 		arg_list_label = args_list
@@ -53,28 +54,14 @@ class BaseMethod:
 		return True
 
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
-		# [DEPRECATED] Convert dict query to compatible list query
+		# [DEPRECATED] Return error for obsolete dict query
 		if type(query) == dict:
-			logger.debug('Detected deprecated dict query. Attempting to convert it to Query object: %s', query)
-			dict_query = query
-			query = [{}, []]
-
-			for attr in dict_query.keys():
-				query_attr = dict_query[attr]
-				if attr[0] != '$':
-					if type(query_attr) != dict: continue
-					if 'oper' in query_attr.keys() and query_attr['oper'] in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
-						if query_attr['oper'] == '$bet':
-							query_attr = {'$bet':[query_attr['val'], query_attr['val2']]}
-						else:
-							query_attr = {query_attr['oper']:query_attr['val']}
-					else:
-						query_attr = query_attr['val']
-					query[0][attr] = query_attr
-				elif attr.startswith('__OR:'):
-					query[1].append({attr.replace('__OR:', ''):query_attr})
-				else:
-					query[0][attr] = query_attr
+			logger.debug('Detected obsolete dict query. Returning error: %s')
+			return DictObj({
+				'status':400,
+				'msg':'Request was sent using obsolete Query structure. Upgrade your SDK.',
+				'args':DictObj({'code':'CORE_REQ_OBSOLETE_QUERY'})
+			})
 
 		# [DOC] Convert list query to Query object
 		query = Query(copy.deepcopy(query))
