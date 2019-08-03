@@ -67,13 +67,24 @@ class BaseModule:
 				self.methods[method]['doc_args'] = []
 			if 'get_method' not in self.methods[method].keys():
 				self.methods[method]['get_method'] = False
+				self.methods[method]['get_args'] = False
+			if self.methods[method]['get_method'] == True:
+				if 'get_args' not in self.methods[method].keys():
+					if method == 'retrieve_file':
+						self.methods[method]['get_args'] = [
+							{'_id':'id', 'attr':'str', 'filename':'str'},
+							{'_id':'id', 'attr':'str', 'thumb':'str[[0-9]+x[0-9]+]', 'filename':'str'}
+						]
+					else:
+						self.methods[method]['get_args'] = [{'_id':'id', 'var':'str'}]
 			self.methods[method] = BaseMethod(
 				module=self,
 				method=method,
 				permissions=self.methods[method]['permissions'],
 				query_args=self.methods[method]['query_args'],
 				doc_args=self.methods[method]['doc_args'],
-				get_method=self.methods[method]['get_method']
+				get_method=self.methods[method]['get_method'],
+				get_args=self.methods[method]['get_args']
 			)
 		# [DOC] Replace attrs with type locale with standard locale dict
 		locales = {locale:'str' for locale in Config.locales}
@@ -536,21 +547,21 @@ class BaseModule:
 			if type(pre_retrieve_file) in [DictObj, dict]: return pre_retrieve_file
 			skip_events, env, session, query, doc = pre_retrieve_file
 
-		try:
-			attr_name, thumb_dims, filename = query['var'][0].split(';')
-			thumb_dims = tuple([int(dim) for dim in thumb_dims.split(',')])
-		except:
+		attr_name = query['attr'][0]
+		filename = query['filename'][0]
+		if 'thumb' in query:
+			thumb_dims = [int(dim) for dim in query['thumb'][0].split('x')]
+		else:
 			thumb_dims = False
-			attr_name, filename = query['var'][0].split(';')
-		del query['var'][0]
 
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
-				'status': 404,
-				'msg': 'File not found.',
-				'args': {
-					'code': '404 NOT FOUND'
+				'status':404,
+				'msg':'File not found.',
+				'args':{
+					'code':'404 NOT FOUND',
+					'return':'json'
 				}
 			}
 		doc = results.args.docs[0] # pylint: disable=no-member
@@ -561,10 +572,11 @@ class BaseModule:
 				attr = doc[path]
 		except:
 			return {
-				'status': 404,
-				'msg': 'File not found.',
-				'args': {
-					'code': '404 NOT FOUND'
+				'status':404,
+				'msg':'File not found.',
+				'args':{
+					'code':'404 NOT FOUND',
+					'return':'json'
 				}
 			}
 
@@ -581,12 +593,13 @@ class BaseModule:
 		
 		if file:
 			results = {
-				'status': 291,
-				'msg': file['content'],
-				'args': {
-					'name': file['name'],
-					'type': file['type'],
-					'size': file['size']
+				'status':200,
+				'msg':file['content'],
+				'args':{
+					'return':'file',
+					'name':file['name'],
+					'type':file['type'],
+					'size':file['size']
 				}
 			}
 
@@ -608,10 +621,11 @@ class BaseModule:
 		else:
 			# [DOC] No filename match
 			return {
-				'status': 404,
-				'msg': 'File not found.',
-				'args': {
-					'code': '404 NOT FOUND'
+				'status':404,
+				'msg':'File not found.',
+				'args':{
+					'code':'404 NOT FOUND',
+					'return':'json'
 				}
 			}
 	

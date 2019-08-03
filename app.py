@@ -3,7 +3,7 @@ def run_app(packages, port):
 
 	from bson import ObjectId
 
-	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj
+	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
 	from base_module import Event
 	from config import Config
 	from data import Data
@@ -20,6 +20,16 @@ def run_app(packages, port):
 	if not Config.realm:
 		del modules['realm']
 	Config.config_data(modules=modules)
+	# [DOC] Populate GET routes:
+	routes = []
+	for module in modules.values():
+		for method in module.methods.values():
+			if method.get_method:
+				for get_args_set in method.get_args:
+					if Config.realm:
+						routes.append(f'/{{realm}}/{module.module_name}/{method.method}/{{{"}/{".join(list(get_args_set.keys()))}}}')
+					else:
+						routes.append(f'/{module.module_name}/{method.method}/{{{"}/{".join(list(get_args_set.keys()))}}}')
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
@@ -33,7 +43,10 @@ def run_app(packages, port):
 			('Access-Control-Allow-Headers', 'Content-Type'),
 			('Access-Control-Expose-Headers', 'Content-Disposition')
 		]
-		return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
+		if Config.debug:
+			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
+		else:
+			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
 
 	async def http_handler(request):
 		headers = [
@@ -51,6 +64,7 @@ def run_app(packages, port):
 			try:
 				realm = request.match_info['realm'].lower()
 				if realm not in Config._realms.keys():
+					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
 						'status':400,
 						'msg':'Unknown realm.',
@@ -64,51 +78,69 @@ def run_app(packages, port):
 					'args':{'code':'CORE_CONN_REALM'}
 				}).encode('utf-8'))
 
-		module = request.match_info['module'].lower()
-		method = request.match_info['method'].lower()
-		_id = request.match_info['_id']
-		var = request.match_info['var']
+		module = request.url.parts[1].lower()
+		method = request.url.parts[2].lower()
+		get_args = dict(request.match_info.items())
+		
+		# [DOC] Attempt to validate query as doc
+		for get_args_set in modules[module].methods[method].get_args:
+			if len(get_args_set.keys()) == len(get_args.keys()) and \
+			sum([1 if get_arg in get_args.keys() else 0 for get_arg in get_args_set.keys()]) == len(get_args_set.keys()):
+				# [DOC] Check presence and validate all attrs in doc args
+				try:
+					validate_doc(get_args, get_args_set)
+				except InvalidAttrException as e:
+					headers.append(('Content-Type', 'application/json; charset=utf-8'))
+					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
+						'status':400,
+						'msg':f'{str(e)} for \'GET\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
+						'args':{'code':f'{modules[module].package_name.upper()}_{module.upper()}_INVALID_ATTR'}
+					}).encode('utf-8'))
+				except ConvertAttrException as e:
+					headers.append(('Content-Type', 'application/json; charset=utf-8'))
+					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
+						'status':400,
+						'msg':f'{str(e)} for \'GET\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
+						'args':{'code':f'{modules[module].package_name.upper()}_{module.upper()}_CONVERT_INVALID_ATTR'}
+					}).encode('utf-8'))
+				break
 
-		if module in modules.keys() and \
-		method in modules[module].methods.keys() and \
-		modules[module].methods[method].get_method:
-			conn = Data.create_conn() #pylint: disable=no-value-for-parameter
-			env = {'conn':conn}
-			if Config.realm:
-				env['realm'] = realm
-			anon_user = Config.compile_anon_user()
-			anon_session = Config.compile_anon_session()
-			anon_session['user'] = DictObj(anon_user)
-			session = DictObj(anon_session)
-			results = modules[module].methods[method](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':_id, 'var':var}]])
-			if results['status'] == 404:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({
+		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
+		env = {'conn':conn}
+		if Config.realm:
+			env['realm'] = realm
+		anon_user = Config.compile_anon_user()
+		anon_session = Config.compile_anon_session()
+		anon_session['user'] = DictObj(anon_user)
+		session = DictObj(anon_session)
+
+		results = modules[module].methods[method](skip_events=[Event.__PERM__], env=env, session=session, query=[get_args])
+
+		if results.args['return'] == 'json':
+			del results.args['return']
+			headers.append(('Content-Type', 'application/json; charset=utf-8'))
+			if results.status == 400:
+				return aiohttp.web.Response(status=results.status, headers=headers, body=JSONEncoder().encode({
 					'status':404,
 					'msg':'Requested content not found.'
 				}).encode('utf-8'))
-			elif results['status'] == 291:
-				expiry_time = datetime.datetime.utcnow() + datetime.timedelta(days=30)
-				headers.append(('Content-Type', results['args']['type']))
-				headers.append(('Cache-Control', 'public, max-age=31536000'))
-				headers.append(('Expires', expiry_time.strftime('%a, %d %b %Y %H:%M:%S GMT')))
-				# headers.append(('Content-Disposition', 'attachment; filename={}'.format(results['args']['name'].encode('utf-8').decode('latin-1'))))
-				return aiohttp.web.Response(status=200, headers=headers, body=results['msg'])
-			elif results['status'] == 292:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				results['status'] = results['args']['status']
-				del results['args']['status']
-				return aiohttp.web.Response(status=results['status'], headers=headers, body=JSONEncoder().encode(results))
-			elif results['status'] == 200:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=200, headers=headers, body=results['msg'])
 			else:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=results['status'], headers=headers, body=JSONEncoder().encode(results))
+				return aiohttp.web.Response(status=results.status, headers=headers, body=JSONEncoder().encode(results))
+		elif results.args['return'] == 'file':
+			del results.args['return']
+			expiry_time = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+			headers.append(('Content-Type', results.args.type))
+			headers.append(('Cache-Control', 'public, max-age=31536000'))
+			headers.append(('Expires', expiry_time.strftime('%a, %d %b %Y %H:%M:%S GMT')))
+			return aiohttp.web.Response(status=results.status, headers=headers, body=results.msg)
+		elif results.args['return'] == 'msg':
+			del results.args['return']
+			headers.append(('Content-Type', 'application/json; charset=utf-8'))
+			return aiohttp.web.Response(status=results.status, headers=headers, body=results.msg)
 
 		headers.append(('Content-Type', 'application/json; charset=utf-8'))
 		return aiohttp.web.Response(status=405, headers=headers, body=JSONEncoder().encode({'status':405, 'msg':'METHOD NOT ALLOWED'}))
-
+	
 	async def websocket_handler(request):
 		files = {}
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
@@ -226,7 +258,7 @@ def run_app(packages, port):
 					results = method(skip_events=[], env=env, session=session, query=query, doc=doc)
 
 					logger.debug('Call results: %s', str(results)[:512])
-					if results['status'] == 204:
+					if results.status == 204:
 						await ws.send_str(JSONEncoder().encode({
 							'status':204,
 							'args':{
@@ -234,9 +266,9 @@ def run_app(packages, port):
 							}
 						}))
 					else:
-						if '/'.join(request['path']) in ['session/auth', 'session/reauth'] and results['status'] == 200:
+						if '/'.join(request['path']) in ['session/auth', 'session/reauth'] and results.status == 200:
 							session = results.args.docs[0]
-						if '/'.join(request['path']) == 'session/signout' and results['status'] == 200:
+						if '/'.join(request['path']) == 'session/signout' and results.status == 200:
 							session = None
 						results.args['call_id'] = request['call_id']
 						await ws.send_str(JSONEncoder().encode(results))
@@ -261,9 +293,11 @@ def run_app(packages, port):
 
 	app = aiohttp.web.Application()
 	app.router.add_route('GET', '/', root_handler)
-	app.router.add_route('GET', '/{module}/{method}/{_id}/{var}', http_handler)
-	app.router.add_route('GET', '/{realm}/{module}/{method}/{_id}/{var}', http_handler)
-	app.router.add_route('*', '/ws', websocket_handler)
-	app.router.add_route('*', '/ws/{realm}', websocket_handler)
+	if Config.realm:
+		app.router.add_route('*', '/ws/{realm}', websocket_handler)
+	else:
+		app.router.add_route('*', '/ws', websocket_handler)
+	for route in routes:
+		app.router.add_route('GET', route, http_handler)
 	logger.info('Welcome to LIMPd.')
 	aiohttp.web.run_app(app, host='0.0.0.0', port=port)
