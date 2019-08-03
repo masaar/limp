@@ -2,7 +2,9 @@ from bson import ObjectId
 from event import Event
 from test import Test
 
-import os, jwt, logging, time
+from croniter import croniter
+
+import os, jwt, logging, datetime, time
 
 logger = logging.getLogger('limp')
 
@@ -61,6 +63,29 @@ class Config:
 
 	types = {}
 
+	jobs = [
+		{
+			'schedule':'*/2 * * * *',
+			'type':'call',
+			'module':'user',
+			'method':'read',
+			'query':[],
+			'doc':{},
+			# 'auth':{'var', 'val', 'hash'}
+			'acceptance': {
+				'status':200
+			},
+			'failure_repeat':True,
+			'prevent_disable':True
+		},
+		{
+			'schedule':'*/3 * * * *',
+			'type':'job',
+			'job': lambda modules: print('I am a working job')
+		}
+	]
+	_jobs_base = 0
+
 	@classmethod
 	def config_data(self, modules):
 
@@ -72,6 +97,17 @@ class Config:
 				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
 				exit()
 		
+		# [DOC] Check jobs schedule validity
+		self._jobs_base = datetime.datetime.utcnow()
+		for job in self.jobs:
+			if not croniter.is_valid(job['schedule']):
+				logger.error('Job with schedule \'%s\' is invalid. Exiting.', job['schedule'])
+				exit()
+			else:
+				job['schedule'] = croniter(job['schedule'], self._jobs_base)
+				job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
+			
+
 		# [DOC] Check default values
 		security_warning = '[SECURITY WARNING] %s is not explicitly set. It has been defaulted to \'%s\' but in production environment you should consider setting it to your own to protect your app from breaches.'
 		if self.admin_username == '__ADMIN':

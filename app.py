@@ -1,15 +1,14 @@
 def run_app(packages, port):
-	import aiohttp.web
-
-	from bson import ObjectId
-
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
 	from base_module import Event
 	from config import Config
 	from data import Data
 	from test import Test
 
-	import traceback, jwt, argparse, json, re, signal, urllib.parse, os, datetime, logging
+	from bson import ObjectId
+	import aiohttp.web, asyncio, nest_asyncio, traceback, jwt, argparse, json, re, signal, urllib.parse, os, datetime, logging
+
+	nest_asyncio.apply()
 
 	signal.signal(signal.SIGINT, signal_handler)
 
@@ -291,13 +290,40 @@ def run_app(packages, port):
 		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
 		return ws
 
-	app = aiohttp.web.Application()
-	app.router.add_route('GET', '/', root_handler)
-	if Config.realm:
-		app.router.add_route('*', '/ws/{realm}', websocket_handler)
-	else:
-		app.router.add_route('*', '/ws', websocket_handler)
-	for route in routes:
-		app.router.add_route('GET', route, http_handler)
-	logger.info('Welcome to LIMPd.')
-	aiohttp.web.run_app(app, host='0.0.0.0', port=port)
+	async def jobs_loop():
+		while True:
+			await asyncio.sleep(60)
+			try:
+				current_time = datetime.datetime.utcnow().isoformat()[:16]
+				logger.debug('Time to check for jobs!')
+				logger.debug('Checking %s, %s', Config.jobs, current_time)
+				for job in Config.jobs:
+					# [DOC] Check if job is scheduled for current_time
+					if current_time == job['next_time']:
+						# [DOC] Update job next_time
+						job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
+						# Run the job
+						logger.debug('Running job!')
+						if job['type'] == 'job':
+							print(job['job'](modules))
+						elif job['type'] == 'call':
+							pass
+			except Exception as e:
+				logger.error('An error occured. Details: %s.', traceback.format_exc())				
+	
+	async def web_loop():
+		app = aiohttp.web.Application()
+		app.router.add_route('GET', '/', root_handler)
+		if Config.realm:
+			app.router.add_route('*', '/ws/{realm}', websocket_handler)
+		else:
+			app.router.add_route('*', '/ws', websocket_handler)
+		for route in routes:
+			app.router.add_route('GET', route, http_handler)
+		logger.info('Welcome to LIMPd.')
+		await aiohttp.web.run_app(app, host='0.0.0.0', port=port)
+	
+	async def loop_gather():
+		await asyncio.gather(jobs_loop(), web_loop())
+	
+	asyncio.run(loop_gather())
