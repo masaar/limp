@@ -209,9 +209,9 @@ class Config:
 				'website': 'https://ADMIN.limp.masaar.com',
 				'groups': [],
 				'privileges': {'*': '*'},
-				'email_hash': jwt.encode({'hash':['email', self.admin_email, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
-				'phone_hash': jwt.encode({'hash':['phone', self.admin_phone, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
-				'username_hash': jwt.encode({'hash':['username', self.admin_username, self.admin_password]}, self.admin_password).decode('utf-8').split('.')[1],
+				'email_hash': jwt.encode({'hash':['email', self.admin_email, self.admin_password, self.anon_token]}, self.admin_password).decode('utf-8').split('.')[1],
+				'phone_hash': jwt.encode({'hash':['phone', self.admin_phone, self.admin_password, self.anon_token]}, self.admin_password).decode('utf-8').split('.')[1],
+				'username_hash': jwt.encode({'hash':['username', self.admin_username, self.admin_password, self.anon_token]}, self.admin_password).decode('utf-8').split('.')[1],
 				'locale': self.locale,
 				'attrs':{}
 			}
