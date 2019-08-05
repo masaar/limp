@@ -12,9 +12,11 @@ logger = logging.getLogger('limp')
 class Config:
 	debug = False
 	env = None
+	
 	_sys_docs = {}
 	_realms = {}
 	_cache = {}
+	_jobs_base = None
 
 	_limp_version = None
 	version = None
@@ -84,7 +86,6 @@ class Config:
 			'job': lambda modules: print('I am a working job')
 		}
 	]
-	_jobs_base = 0
 
 	@classmethod
 	def config_data(self, modules):
