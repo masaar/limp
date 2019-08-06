@@ -28,6 +28,8 @@ class Config:
 	test_breakpoint = False
 	tests = {}
 
+	emulate_test = False
+
 	realm = False
 
 	data_driver = 'mongodb'
@@ -66,25 +68,25 @@ class Config:
 	types = {}
 
 	jobs = [
-		{
-			'schedule':'*/2 * * * *',
-			'type':'call',
-			'module':'user',
-			'method':'read',
-			'query':[],
-			'doc':{},
-			# 'auth':{'var', 'val', 'hash'}
-			'acceptance': {
-				'status':200
-			},
-			'failure_repeat':True,
-			'prevent_disable':True
-		},
-		{
-			'schedule':'*/3 * * * *',
-			'type':'job',
-			'job': lambda modules: print('I am a working job')
-		}
+		# {
+		# 	'schedule':'*/2 * * * *',
+		# 	'type':'call',
+		# 	'module':'user',
+		# 	'method':'read',
+		# 	'query':[],
+		# 	'doc':{},
+		# 	# 'auth':{'var', 'val', 'hash'}
+		# 	'acceptance': {
+		# 		'status':200
+		# 	},
+		# 	'failure_repeat':True,
+		# 	'prevent_disable':True
+		# },
+		# {
+		# 	'schedule':'*/3 * * * *',
+		# 	'type':'job',
+		# 	'job': lambda modules: print('I am a working job')
+		# }
 	]
 
 	@classmethod
@@ -157,7 +159,7 @@ class Config:
 
 		# [DOC] Create default env dict
 		conn = Data.create_conn()
-		env = {'conn':conn}
+		env = {'conn':conn, 'REMOTE_ADDR':'127.0.0.1', 'HTTP_USER_AGENT':'LIMPd'}
 
 		if self.data_azure_mongo:
 			for module in modules:
@@ -375,6 +377,9 @@ class Config:
 			anon_session['user'] = DictObj(self.compile_anon_user())
 			Test.run_test(test_name=self.test, steps=False, modules=modules, env=env, session=DictObj(anon_session))
 			exit()
+		
+		if self.emulate_test:
+			self.test = True
 	
 	@classmethod
 	def compile_anon_user(self):

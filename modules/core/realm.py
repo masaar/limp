@@ -21,11 +21,11 @@ class Realm(BaseModule):
 		},
 		'update':{
 			'permissions':[['update', {}, {'user':None, 'create_time':None}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'delete':{
 			'permissions':[['delete', {}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		}
 	}
 

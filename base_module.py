@@ -371,13 +371,17 @@ class BaseModule:
 		# [DOC] Find which docs are to be updated
 		docs_results = results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		# [DOC] Check unique_attrs
-		if self.unique_attrs:
+		if self.unique_attrs and sum([1 if attr in doc.keys() else 0 for attr in self.unique_attrs]) > 0:
 			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
-			if len(docs_results['docs']) > 1 and sum([1 if attr in doc.keys() else 0 for attr in self.unique_attrs]) > 0:
-				pass
+			if len(docs_results['docs']) > 1:
+				return {
+					'status':400,
+					'msg':'Update call query has more than one doc as results. This would result in duplication.',
+					'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
+				}
 			else:
 				unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[
-					[{attr:doc[attr]} for attr in self.unique_attrs],
+					[{attr:doc[attr]} for attr in self.unique_attrs if attr in doc.keys()],
 					{'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}},
 					{'$limit':1}
 				])

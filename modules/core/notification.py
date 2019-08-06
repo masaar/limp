@@ -25,7 +25,7 @@ class Notification(BaseModule):
 		},
 		'delete':{
 			'permissions':[['delete', {'user':'$__user'}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		}
 	}
 

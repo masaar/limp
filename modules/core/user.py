@@ -37,25 +37,25 @@ class User(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {'groups':None}], ['update', {'_id':'$__user'}, {'groups':None, 'privileges':None}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}], ['delete', {'_id':'$__user'}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'read_privileges':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'add_group':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':['_id'],
-			'doc_args':['group']
+			'query_args':{'_id':'id'},
+			'doc_args':{'group':'id'}
 		},
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':['_id'],
-			'doc_args':['group']
+			'query_args':{'_id':'id'},
+			'doc_args':{'group':'id'}
 		}
 	}
 
@@ -218,11 +218,11 @@ class Group(BaseModule):
 		},
 		'update':{
 			'permissions':[['admin', {}, {}], ['update', {'user':'$__user', 'privileges':None}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'delete':{
 			'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		}
 	}
 

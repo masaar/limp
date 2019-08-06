@@ -29,23 +29,27 @@ class Session(BaseModule):
 		},
 		'update':{
 			'permissions':[['update', {'user':'$__user'}, {'user':None}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'delete':{
 			'permissions':[['delete', {'user':'$__user'}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		},
 		'auth':{
 			'permissions':[['*', {}, {}]],
-			'doc_args':['hash', ('username', 'phone', 'email')]
+			'doc_args':[
+				{'hash':'str', 'username':'str'},
+				{'hash':'str', 'email':'email'},
+				{'hash':'str', 'phone':'phone'}
+			]
 		},
 		'reauth':{
 			'permissions':[['*', {}, {}]],
-			'query_args':['_id', 'hash']
+			'query_args':{'_id':'id', 'hash':'str'}
 		},
 		'signout':{
 			'permissions':[['*', {}, {}]],
-			'query_args':['_id']
+			'query_args':{'_id':'id'}
 		}
 	}
 
