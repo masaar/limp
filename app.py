@@ -32,6 +32,7 @@ def run_app(packages, port):
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
+	logger.debug('Generated routes: %s', routes)
 
 	async def root_handler(request):
 		headers = [
@@ -118,7 +119,7 @@ def run_app(packages, port):
 		if results.args['return'] == 'json':
 			del results.args['return']
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
-			if results.status == 400:
+			if results.status == 404:
 				return aiohttp.web.Response(status=results.status, headers=headers, body=JSONEncoder().encode({
 					'status':404,
 					'msg':'Requested content not found.'
@@ -301,14 +302,14 @@ def run_app(packages, port):
 					# [DOC] Check if job is scheduled for current_time
 					if current_time == job['next_time']:
 						# [DOC] Update job next_time
-						job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
+						job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16] # pylint: disable=no-member
 						# Run the job
 						logger.debug('Running job!')
 						if job['type'] == 'job':
 							print(job['job'](modules))
 						elif job['type'] == 'call':
 							pass
-			except Exception as e:
+			except Exception:
 				logger.error('An error occured. Details: %s.', traceback.format_exc())				
 	
 	async def web_loop():
