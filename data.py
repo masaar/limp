@@ -27,13 +27,13 @@ class Data():
 		return self.driver.create(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)
 	
 	@classmethod
-	def update(self, env, session, collection, attrs, extns, modules, query, doc):
+	def update(self, env, session, collection, attrs, extns, modules, docs, doc):
 		doc = self.sanitise_attrs(doc)
-		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
+		return self.driver.update(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, docs=docs, doc=doc)
 	
 	@classmethod
-	def delete(self, env, session, collection, attrs, extns, modules, query, strategy):
-		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, strategy=strategy)
+	def delete(self, env, session, collection, attrs, extns, modules, docs, strategy):
+		return self.driver.delete(env=env, session=session, collection=collection, attrs=attrs, extns=extns, modules=modules, docs=docs, strategy=strategy)
 
 	@classmethod
 	def drop(self, env, session, collection):

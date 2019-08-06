@@ -60,12 +60,11 @@ class BaseModule:
 	def __initilise(self):
 		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
-			# if type(self.methods[method]) == dict:
 			if 'query_args' not in self.methods[method].keys():
 				self.methods[method]['query_args'] = []
 			if 'doc_args' not in self.methods[method].keys():
 				self.methods[method]['doc_args'] = []
-			if 'get_method' not in self.methods[method].keys():
+			if 'get_method' not in self.methods[method].keys() or self.methods[method]['get_method'] == False:
 				self.methods[method]['get_method'] = False
 				self.methods[method]['get_args'] = False
 			if self.methods[method]['get_method'] == True:
@@ -77,6 +76,8 @@ class BaseModule:
 						]
 					else:
 						self.methods[method]['get_args'] = [{'_id':'id', 'var':'str'}]
+				elif type(self.methods[method]['get_args']) == dict:
+					self.methods[method]['get_args'] = [self.methods[method]['get_args']]
 			self.methods[method] = BaseMethod(
 				module=self,
 				method=method,
@@ -364,7 +365,26 @@ class BaseModule:
 				'msg':'Nothing to update.',
 				'args':{}
 			}
-		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, doc=doc)
+		# [DOC] Find which docs are to be updated
+		docs_results = results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		# [DOC] Check unique_attrs
+		if self.unique_attrs:
+			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
+			if len(docs_results['docs']) > 1 and sum([1 if attr in doc.keys() else 0 for attr in self.unique_attrs]) > 0:
+				pass
+			else:
+				unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[
+					[{attr:doc[attr]} for attr in self.unique_attrs],
+					{'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}},
+					{'$limit':1}
+				])
+				if unique_results.args.count: # pylint: disable=no-member
+					return {
+						'status':400,
+						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
+						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+					}
+		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -431,7 +451,9 @@ class BaseModule:
 			strategy = DELETE_FORCE_SKIP_SYS
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
 			strategy = DELETE_FORCE_SYS
-		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query, strategy=strategy)
+		
+		docs_results = results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
