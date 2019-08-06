@@ -368,6 +368,8 @@ def validate_attr(attr_name, attr_type, attr_val):
 					return ObjectId(attr_val)
 				except:
 					raise ConvertAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+		elif attr_type == 'locale':
+			return validate_attr(attr_name=attr_name, attr_type={locale:'str' for locale in Config.locales}, attr_val=attr_val)
 		elif type(attr_type) == str and attr_type.startswith('str'):
 			if type(attr_val) == str:
 				if attr_type != 'str':

@@ -60,14 +60,21 @@ class BaseModule:
 	def __initilise(self):
 		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
+			# [DOC] Check method query_args attr, set it or update it if required.
 			if 'query_args' not in self.methods[method].keys():
-				self.methods[method]['query_args'] = []
+				self.methods[method]['query_args'] = False
+			elif type(self.methods[method]['query_args']) == dict:
+				self.methods[method]['query_args'] = [self.methods[method]['query_args']]
+			# [DOC] Check method doc_args attr, set it or update it if required.
 			if 'doc_args' not in self.methods[method].keys():
-				self.methods[method]['doc_args'] = []
+				self.methods[method]['doc_args'] = False
+			elif type(self.methods[method]['doc_args']) == dict:
+				self.methods[method]['doc_args'] = [self.methods[method]['doc_args']]
+			# [DOC] Check method get_method attr, set it or update it if required.
 			if 'get_method' not in self.methods[method].keys() or self.methods[method]['get_method'] == False:
 				self.methods[method]['get_method'] = False
 				self.methods[method]['get_args'] = False
-			if self.methods[method]['get_method'] == True:
+			elif self.methods[method]['get_method'] == True:
 				if 'get_args' not in self.methods[method].keys():
 					if method == 'retrieve_file':
 						self.methods[method]['get_args'] = [
@@ -78,6 +85,7 @@ class BaseModule:
 						self.methods[method]['get_args'] = [{'_id':'id', 'var':'str'}]
 				elif type(self.methods[method]['get_args']) == dict:
 					self.methods[method]['get_args'] = [self.methods[method]['get_args']]
+			# [DOC] Initlise method as BaseMethod
 			self.methods[method] = BaseMethod(
 				module=self,
 				method=method,
@@ -87,11 +95,6 @@ class BaseModule:
 				get_method=self.methods[method]['get_method'],
 				get_args=self.methods[method]['get_args']
 			)
-		# [DOC] Replace attrs with type locale with standard locale dict
-		locales = {locale:'str' for locale in Config.locales}
-		for attr in self.attrs.keys():
-			if self.attrs[attr] == 'locale':
-				self.attrs[attr] = locales
 		logger.debug('Initialised module %s', self.module_name)
 
 	def update_modules(self, modules):

@@ -1,4 +1,4 @@
-from utils import DictObj, Query, NONE_VALUE, JSONEncoder
+from utils import DictObj, Query, NONE_VALUE, JSONEncoder, validate_attr, InvalidAttrException, ConvertAttrException
 from event import Event
 from config import Config
 from base_model import BaseModel
@@ -17,41 +17,46 @@ class BaseMethod:
 		self.get_method = get_method
 		self.get_args = get_args
 	
-	def test_args(self, args_list, args):
-		arg_list_label = args_list
-		if args_list == 'query':
-			args_list = self.query_args
-		elif args_list == 'doc':
-			args_list = self.doc_args
+	def validate_args(self, args, args_list):
+		args_list_label = args_list
+		args_list = getattr(self, f'{args_list}_args')
 
-		logger.debug('testing args, list: %s, args: %s', arg_list_label, str(args)[:256])
+		sets_check = []
 
-		for arg in args_list:
+		for args_set in args_list:
+			set_status = True
+			set_check = len(sets_check)
+			sets_check.append({arg:True for arg in args_set.keys()})
 
-			if type(arg) == str:
-				if (arg_list_label == 'doc' and arg not in args.keys()) or \
-				(arg_list_label == 'query' and arg not in args):
-					return DictObj({
-						'status':400,
-						'msg':'Missing {} attr \'{}\' from request on module \'{}_{}\'.'.format(arg_list_label, arg, self.module.package_name.upper(), self.module.module_name.upper()),
-						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.package_name.upper(), self.module.module_name.upper())})
-					})
+			if args_list_label == 'query':
+				args_check = args
+			elif args_list_label == 'doc':
+				args_check = args.keys()
+
+			for arg in args_set.keys():
+				if arg not in args_check:
+					set_status = False
+					sets_check[set_check][arg] = 'missing'
+				else:
+					try:
+						if args_list_label == 'query' and arg[0] != '$':
+							for i in range(0, len(args[arg])):
+								args[arg][i] = validate_attr(arg, args_set[arg], args[arg][i])
+						elif args_list_label == 'query' and arg[0] == '$':
+							args[arg] = validate_attr(arg, args_set[arg], args[arg])
+						elif args_list_label == 'doc':
+							args[arg] = validate_attr(arg, args_set[arg], args[arg])
+					except InvalidAttrException:
+						set_status = False
+						sets_check[set_check][arg] = 'invalid'
+					except ConvertAttrException:
+						set_status = False
+						sets_check[set_check][arg] = 'convert'
 			
-			elif type(arg) == tuple:
-				optinal_arg_test = False
-				for optional_arg in arg:
-					if (arg_list_label == 'doc' and optional_arg in args.keys()) or \
-					(arg_list_label == 'query' and optional_arg in args):
-						optinal_arg_test = True
-						break
-				if optinal_arg_test == False:
-					return DictObj({
-						'status':400,
-						'msg':'Missing at least one {} attr from [\'{}\'] from request on module \'{}_{}\'.'.format(arg_list_label, '\', \''.join(arg), self.module.package_name.upper(), self.module.module_name.upper()),
-						'args':DictObj({'code':'{}_{}_MISSING_ATTR'.format(self.module.package_name.upper(), self.module.module_name.upper())})
-					})
+			if set_status:
+				return True
 		
-		return True
+		return sets_check
 
 	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
 		# [DEPRECATED] Return error for obsolete dict query
@@ -132,16 +137,29 @@ class BaseMethod:
 					del permissions_check['doc'][attr]
 				# [DOC] Update doc with doc permissions args
 				doc.update(permissions_check['doc'])
-				
-				# query.append(copy.deepcopy(permissions_check['query']))
-				# doc.update(copy.deepcopy(permissions_check['doc']))
 	
 		if Event.__ARGS__ not in skip_events:
-			test_query = self.test_args('query', query)
-			if test_query != True: return test_query
-		
-			test_doc = self.test_args('doc', doc)
-			if test_doc != True: return test_doc
+			if self.query_args:
+				test_query = self.validate_args(query, 'query')
+				if test_query != True:
+					for i in range(0, len(test_query)):
+						test_query[i] = '[' + ', '.join([f'\'{arg}\': {val.capitalize()}' for arg, val in test_query[i].items() if val != True]) + ']'
+					return DictObj({
+						'status':400,
+						'msg':'Could not match query with any of the required query_args. Failed sets:' + ', '.join(test_query),
+						'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+					})
+			
+			if self.doc_args:
+				test_doc = self.validate_args(doc, 'doc')
+				if test_doc != True:
+					for i in range(0, len(test_doc)):
+						test_doc[i] = '[' + ', '.join([f'\'{arg}\': {val.capitalize()}' for arg, val in test_doc[i].items() if val != True]) + ']'
+					return DictObj({
+						'status':400,
+						'msg':'Could not match doc with any of the required doc_args. Failed sets:' + ', '.join(test_doc),
+						'args':DictObj({'code':'{}_{}_INVALID_DOC'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+					})
 
 		for arg in doc.keys():
 			if type(doc[arg]) == BaseModel:
