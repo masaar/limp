@@ -1,4 +1,4 @@
-from utils import DictObj, Query, NONE_VALUE
+from utils import DictObj, Query, NONE_VALUE, JSONEncoder
 from event import Event
 from config import Config
 from base_model import BaseModel
@@ -95,7 +95,7 @@ class BaseMethod:
 			else:
 				query.append({'realm':env['realm']})
 				doc['realm'] = env['realm']
-				logger.debug('Appended realm attrs to query, doc: %s, %s', str(query)[:250], doc.keys())
+				logger.debug('Appended realm attrs to query, doc: %s, %s', JSONEncoder().encode(query), doc.keys())
 
 		if Event.__PERM__ not in skip_events and session:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
@@ -191,7 +191,7 @@ class BaseMethod:
 				while curr is not None:
 					prev = curr
 					curr = curr.tb_next
-				logger.error('Scope variables: %s', prev.tb_frame.f_locals)
+				logger.error('Scope variables: %s', JSONEncoder().encode(prev.tb_frame.f_locals))
 			query = Query([])
 			if Config.debug:
 				return DictObj({

@@ -19,7 +19,10 @@ class JSONEncoder(json.JSONEncoder):
 			return o.isoformat()
 		elif type(o) == bytes:
 			return True
-		return json.JSONEncoder.default(self, o)
+		try:
+			return json.JSONEncoder.default(self, o)
+		except TypeError:
+			return str(o)
 
 class DictObj:
 	__attrs = {}
