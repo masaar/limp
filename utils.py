@@ -378,6 +378,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 				else:
 					return attr_val
 		elif type(attr_type) == str and attr_type.startswith('int'):
+			if type(attr_val) == str and re.match(r'^[0-9]+$', attr_val):
+				attr_val = int(attr_val)
+
 			if type(attr_val) == int:
 				if attr_type != 'int':
 					vals_range = range(*[int(val) for val in attr_type[4:-1].split(':')])
@@ -386,6 +389,11 @@ def validate_attr(attr_name, attr_type, attr_val):
 				else:
 					return attr_val
 		elif type(attr_type) == str and attr_type.startswith('float'):
+			if type(attr_val) == str and re.match(r'^[0-9]+(\.[0-9]+)?$', attr_val):
+				attr_val = float(attr_val)
+			elif type(attr_val) == int:
+				attr_val = float(attr_val)
+
 			if type(attr_val) == float:
 				if attr_type != 'float':
 					vals_range = range(*[int(val) for val in attr_type[6:-1].split(':')])
@@ -403,21 +411,21 @@ def validate_attr(attr_name, attr_type, attr_val):
 			if re.match(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$', attr_val):
 				return attr_val
 		elif type(attr_type) == str and attr_type == 'email':
-			if re.match(r'[^@]+@[^@]+\.[^@]+', attr_val):
+			if re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
 				return attr_val
 		elif type(attr_type) == str and attr_type.startswith('phone'):
 			if attr_type != 'phone':
 				for phone_code in attr_type[6:-1].split(','):
-					if re.match(fr'\+{phone_code}[0-9]+', attr_val):
+					if re.match(fr'^\+{phone_code}[0-9]+$', attr_val):
 						return attr_val
 			else:
-				if re.match(r'\+[0-9]+', attr_val):
+				if re.match(r'^\+[0-9]+$', attr_val):
 					return attr_val
 		elif type(attr_type) == str and attr_type == 'uri:web':
-			if re.match(r'https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr_val):
+			if re.match(r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr_val):
 				return attr_val
 		elif type(attr_type) == str and attr_type == 'datetime':
-			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{6})?$', attr_val):
+			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
 				return attr_val
 		elif type(attr_type) == str and attr_type == 'date':
 			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr_val):
