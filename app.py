@@ -25,10 +25,14 @@ def run_app(packages, port):
 		for method in module.methods.values():
 			if method.get_method:
 				for get_args_set in method.get_args:
-					if Config.realm:
-						routes.append(f'/{{realm}}/{module.module_name}/{method.method}/{{{"}/{".join(list(get_args_set.keys()))}}}')
+					if get_args_set:
+						get_args = f'/{{{"}/{".join(list(get_args_set.keys()))}}}'
 					else:
-						routes.append(f'/{module.module_name}/{method.method}/{{{"}/{".join(list(get_args_set.keys()))}}}')
+						get_args = ''
+					if Config.realm:
+						routes.append(f'/{{realm}}/{module.module_name}/{method.method}{get_args}')
+					else:
+						routes.append(f'/{module.module_name}/{method.method}{get_args}')
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
@@ -106,18 +110,77 @@ def run_app(packages, port):
 				break
 
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
-		env = {'conn':conn}
+		try:
+			env = {
+				'conn':conn,
+				'REMOTE_ADDR':request.remote,
+				'HTTP_USER_AGENT':request.headers['user-agent']
+			}
+		except:
+			env = {
+				'conn':conn,
+				'REMOTE_ADDR':request.remote,
+				'HTTP_USER_AGENT':''
+			}
 		if Config.realm:
 			env['realm'] = realm
-		anon_user = Config.compile_anon_user()
-		anon_session = Config.compile_anon_session()
-		anon_session['user'] = DictObj(anon_user)
-		session = DictObj(anon_session)
+		
+		if 'x-auth-bearer' in request.headers or 'x-auth-token' in request.headers:
+			if 'x-auth-bearer' not in request.headers or 'x-auth-token' not in request.headers:
+				headers.append(('Content-Type', 'application/json; charset=utf-8'))
+				return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
+					'status':400,
+					'msg':'One \'X-Auth\' headers was set but not the other.'
+				}).encode('utf-8'))
+			try:
+				session_results = modules['session'].read(skip_events=[Event.__PERM__], env=env, query=[{
+					'user':request.headers['x-auth-bearer'],
+					'token':request.headers['x-auth-token']
+				}, {'$limit':1}])
+			except:
+				headers.append(('Content-Type', 'application/json; charset=utf-8'))
+				if Config.debug:
+					return aiohttp.web.Response(status=500, headers=headers, body=JSONEncoder().encode({
+						'status':500,
+						'msg':'Unexpected error has occured [{}].'.format(str(e)),
+						'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
+					}).encode('utf-8'))
+				else:
+					return aiohttp.web.Response(status=500, headers=headers, body=JSONEncoder().encode({
+						'status':500,
+						'msg':'Unexpected error has occured.',
+						'args':{'code':'CORE_SERVER_ERROR'}
+					}).encode('utf-8'))
+			
+			if not session_results.args.count:
+				headers.append(('Content-Type', 'application/json; charset=utf-8'))
+				return aiohttp.web.Response(status=403, headers=headers, body=JSONEncoder().encode({
+					'status':403,
+					'msg':'X-Auth headers could not be verified.',
+					'args':{'code':'CORE_SESSION_INVALID_XAUTH'}
+				}).encode('utf-8'))
+			else:
+				session = session_results.args.docs[0]
+				session_results = modules['session'].reauth(skip_events=[Event.__PERM__], env=env, query=[{
+					'_id':session._id,
+					'hash':jwt.encode({'token':session.token}, session.token).decode('utf-8').split('.')[1]
+				}])
+				if session_results.status != 200:
+					headers.append(('Content-Type', 'application/json; charset=utf-8'))
+					return aiohttp.web.Response(status=403, headers=headers, body=JSONEncoder().encode(session_results).encode('utf-8'))
+				else:
+					session = session_results.args.docs[0]
+		else:
+			anon_user = Config.compile_anon_user()
+			anon_session = Config.compile_anon_session()
+			anon_session['user'] = DictObj(anon_user)
+			session = DictObj(anon_session)
 
-		results = modules[module].methods[method](skip_events=[Event.__PERM__], env=env, session=session, query=[get_args])
+		results = modules[module].methods[method](env=env, session=session, query=[get_args])
 
-		if results.args['return'] == 'json':
-			del results.args['return']
+		if 'return' not in results.args or results.args['return'] == 'json':
+			if 'return' in results.args:
+				del results.args['return']
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
 			if results.status == 404:
 				return aiohttp.web.Response(status=results.status, headers=headers, body=JSONEncoder().encode({
@@ -148,7 +211,7 @@ def run_app(packages, port):
 			env = {
 				'conn':conn,
 				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['User-Agent']
+				'HTTP_USER_AGENT':request.headers['user-agent']
 			}
 		except:
 			env = {
