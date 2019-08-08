@@ -360,18 +360,50 @@ def run_app(packages, port):
 			try:
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
 				logger.debug('Time to check for jobs!')
-				logger.debug('Checking %s, %s', Config.jobs, current_time)
 				for job in Config.jobs:
+					logger.debug('Checking: %s', job)
+					if 'disabled' in job.keys() and job['disabled']:
+						logger.debug('-Job is disabled. Skipping..')
+						continue
 					# [DOC] Check if job is scheduled for current_time
 					if current_time == job['next_time']:
+						logger.debug('-Job is due, running!')
 						# [DOC] Update job next_time
 						job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16] # pylint: disable=no-member
-						# Run the job
-						logger.debug('Running job!')
 						if job['type'] == 'job':
-							print(job['job'](modules))
+							logger.debug('-Type of job: job.')
+							job['job'](modules=modules, env=Config._sys_env, session=Config._jobs_session)
 						elif job['type'] == 'call':
-							pass
+							logger.debug('-Type of job: call.')
+							if 'auth' in job.keys():
+								logger.debug('-Detected job auth: %s', job['auth'])
+								session_results = modules['session'].auth(env=Config._sys_env, query=[{
+									job['auth']['var']:job['auth']['val'],
+									'hash':job['auth']['hash']
+								}])
+								if session_results.status != 200:
+									logger.warning('-Job auth failed. Skipping..')
+									continue
+								session = session_results.args.docs[0]
+							else:
+								session = Config._jobs_session
+							job_resuls = modules[job['module']].methods[job['method']](env=Config._sys_env, session=session, query=job['query'], doc=job['doc'])
+							results_accepted = True
+							for measure in job['acceptance'].keys():
+								if job_resuls[measure] != job['acceptance'][measure]:
+									# [DOC] Job results are not accepted
+									results_accepted = False
+									break
+							if not results_accepted:
+								logger.warning('Job has failed: %s.', job)
+								logger.warning('-Job results: %s.', job_resuls)
+								if 'prevent_disable' not in job.keys() or job['prevent_disable'] != True:
+									logger.warning('-Disabling job.')
+									job['disabled'] = True
+								else:
+									logger.warning('-Detected job prevent_disable. Skipping disabling job..')
+					else:
+						logger.debug('-Not yet due.')
 			except Exception:
 				logger.error('An error occured. Details: %s.', traceback.format_exc())				
 	
