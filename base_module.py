@@ -146,9 +146,9 @@ class BaseModule:
 
 	def pre_read(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_read(self, results, skip_events, env, session, query, doc):
+	def on_read(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def read(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def read(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -229,11 +229,11 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_create(self, skip_events, env, session, query, doc):
+	def pre_create(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_create(self, results, skip_events, env, session, query, doc):
+	def on_create(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def create(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def create(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -317,11 +317,11 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_update(self, skip_events, env, session, query, doc):
+	def pre_update(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_update(self, results, skip_events, env, session, query, doc):
+	def on_update(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def update(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
+	def update(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -433,11 +433,11 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_delete(self, skip_events, env, session, query, doc):
+	def pre_delete(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_delete(self, results, skip_events, env, session, query, doc):
+	def on_delete(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def delete(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
+	def delete(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		# [TODO] refactor for template use
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
@@ -477,11 +477,11 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_create_file(self, skip_events, env, session, query, doc):
+	def pre_create_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_create_file(self, results, skip_events, env, session, query, doc):
+	def on_create_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def create_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def create_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			pre_create_file = self.pre_create_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_create_file) in [DictObj, dict]: return pre_create_file
@@ -503,11 +503,11 @@ class BaseModule:
 		
 		return results
 	
-	def pre_delete_file(self, skip_events, env, session, query, doc):
+	def pre_delete_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_delete_file(self, results, skip_events, env, session, query, doc):
+	def on_delete_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def delete_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			pre_delete_file = self.pre_delete_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_delete_file) in [DictObj, dict]: return pre_delete_file
@@ -566,11 +566,11 @@ class BaseModule:
 
 		return results
 
-	def pre_retrieve_file(self, skip_events, env, session, query, doc):
+	def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (skip_events, env, session, query, doc)
-	def on_retrieve_file(self, results, skip_events, env, session, query, doc):
+	def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
 		return (results, skip_events, env, session, query, doc)
-	def retrieve_file(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			pre_retrieve_file = self.pre_retrieve_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
 			if type(pre_retrieve_file) in [DictObj, dict]: return pre_retrieve_file
@@ -658,7 +658,7 @@ class BaseModule:
 				}
 			}
 	
-	def delete_cache(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def delete_cache(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if self.cache:
 			for cache_set in self.cache:
 				cache_set['queries'] = {}

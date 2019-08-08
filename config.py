@@ -1,8 +1,11 @@
-from bson import ObjectId
 from event import Event
 from test import Test
 
+from typing import List, Dict, Callable, Any
+
 from croniter import croniter
+from pymongo import database
+from bson import ObjectId
 
 import os, jwt, logging, datetime, time
 
@@ -10,84 +13,66 @@ logger = logging.getLogger('limp')
 
 
 class Config:
-	debug = False
-	env = None
+	debug: bool = False
+	env: str = None
 	
-	_sys_docs = {}
-	_realms = {}
-	_cache = {}
-	_jobs_base = None
+	_sys_conn: database
+	_sys_env: Dict[str, Any]
+	_sys_docs: Dict[str, Dict[str, str]] = {}
+	_realms: Dict[str, 'BaseModel'] = {}
+	_jobs_session: 'BaseModel'
+	_jobs_base: datetime
 
-	_limp_version = None
-	version = None
+	_limp_version: float = None
+	version: float = None
 
-	test = False
-	test_flush = False
-	test_force = False
-	test_env = False
-	test_breakpoint = False
-	tests = {}
+	test: str = False
+	test_flush: bool = False
+	test_force: bool = False
+	test_env: bool = False
+	test_breakpoint: bool = False
+	tests: Dict[str, List[Dict[str, Any]]] = {}
 
-	emulate_test = False
+	emulate_test: bool = False
 
-	realm = False
+	realm: bool = False
 
-	data_driver = 'mongodb'
-	data_server = 'mongodb://localhost'
-	data_name = 'limp_data'
-	data_ssl = False
-	data_ca_name = None
-	data_ca = None
+	data_driver: str = 'mongodb'
+	data_server: str = 'mongodb://localhost'
+	data_name: str = 'limp_data'
+	data_ssl: bool = False
+	data_ca_name: str = None
+	data_ca: str = None
 
-	data_azure_mongo = False
+	data_azure_mongo: bool = False
 
-	sms_auth = {}
+	sms_auth: Dict[str, str] = {}
 
-	email_auth = {}
+	email_auth: Dict[str, str] = {}
 
-	locales = ['ar_AE', 'en_AE']
-	locale = 'ar_AE'
+	locales: List[str] = ['ar_AE', 'en_AE']
+	locale: str = 'ar_AE'
 
-	admin_username = '__ADMIN'
-	admin_email = 'ADMIN@LIMP.MASAAR.COM'
-	admin_phone = '+971500000000'
-	admin_password = '__ADMIN'
+	admin_username: str = '__ADMIN'
+	admin_email: str = 'ADMIN@LIMP.MASAAR.COM'
+	admin_phone: str = '+971500000000'
+	admin_password: str = '__ADMIN'
 
-	anon_token = '__ANON_TOKEN_f00000000000000000000012'
-	anon_privileges = {}
+	anon_token: str = '__ANON_TOKEN_f00000000000000000000012'
+	anon_privileges: Dict[str, List[str]] = {}
 
-	groups = []
-	default_privileges = {}
+	groups: List[Dict[str, Any]] = []
+	default_privileges: Dict[str, List[str]] = {}
 
-	data_indexes = []
+	data_indexes: List[Dict[str, Any]] = []
 
-	docs = []
+	docs: List[Dict[str, Any]] = []
 
-	l10n = {}
+	l10n: Dict[str, Dict[str, Any]] = {}
 
-	types = {}
+	types: Dict[str, Callable] = {}
 
-	jobs = [
-		# {
-		# 	'schedule':'*/2 * * * *',
-		# 	'type':'call',
-		# 	'module':'user',
-		# 	'method':'read',
-		# 	'query':[],
-		# 	'doc':{},
-		# 	# 'auth':{'var', 'val', 'hash'}
-		# 	'acceptance': {
-		# 		'status':200
-		# 	},
-		# 	'failure_repeat':True,
-		# 	'prevent_disable':True
-		# },
-		# {
-		# 	'schedule':'*/3 * * * *',
-		# 	'type':'job',
-		# 	'job': lambda modules: print('I am a working job')
-		# }
-	]
+	jobs: List[Dict[str, Any]] = []
 
 	@classmethod
 	def config_data(self, modules):
@@ -100,15 +85,20 @@ class Config:
 				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
 				exit()
 		
-		# [DOC] Check jobs schedule validity
-		self._jobs_base = datetime.datetime.utcnow()
-		for job in self.jobs:
-			if not croniter.is_valid(job['schedule']):
-				logger.error('Job with schedule \'%s\' is invalid. Exiting.', job['schedule'])
-				exit()
-			else:
-				job['schedule'] = croniter(job['schedule'], self._jobs_base)
-				job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
+		# [DOC] Check for jobs
+		if self.jobs:
+			from utils import DictObj
+			# [DOC] Create _jobs_env
+			self._jobs_session = DictObj({**Config.compile_anon_session(), 'user':DictObj(Config.compile_anon_user())})
+			# [DOC] Check jobs schedule validity
+			self._jobs_base = datetime.datetime.utcnow()
+			for job in self.jobs:
+				if not croniter.is_valid(job['schedule']):
+					logger.error('Job with schedule \'%s\' is invalid. Exiting.', job['schedule'])
+					exit()
+				else:
+					job['schedule'] = croniter(job['schedule'], self._jobs_base)
+					job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
 			
 
 		# [DOC] Check default values
@@ -158,15 +148,19 @@ class Config:
 			Data.driver = MongoDb
 
 		# [DOC] Create default env dict
-		conn = Data.create_conn()
-		env = {'conn':conn, 'REMOTE_ADDR':'127.0.0.1', 'HTTP_USER_AGENT':'LIMPd'}
+		self._sys_conn = Data.create_conn()
+		self._sys_env = {
+			'conn':self._sys_conn,
+			'REMOTE_ADDR':'127.0.0.1',
+			'HTTP_USER_AGENT':'LIMPd'
+		}
 
 		if self.data_azure_mongo:
 			for module in modules:
 				try:
 					if modules[module].collection:
 						logger.debug('Attempting to create shard collection: %s.', modules[module].collection)
-						conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+						self._sys_conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
 					else:
 						logger.debug('Skipping service module: %s.', module)
 				except Exception as err:
@@ -175,7 +169,7 @@ class Config:
 		logger.debug('Testing realm mode.')
 		if Config.realm:
 			# [DOC] Append realm to env dict
-			env['realm'] = '__global'
+			self._sys_env['realm'] = '__global'
 			# [DOC] Append realm attrs to all modules attrs and set at as required in query_args and doc_args
 			for module in modules.keys():
 				if module != 'realm':
@@ -185,7 +179,7 @@ class Config:
 						modules[module].methods[method].query_args.append('realm')
 						modules[module].methods[method].doc_args.append('realm')
 			# [DOC] Query all realms to provide access to available realms and to add realm docs to _sys_docs
-			realm_results = modules['realm'].read(skip_events=[Event.__PERM__, Event.__ARGS__], env=env)
+			realm_results = modules['realm'].read(skip_events=[Event.__PERM__, Event.__ARGS__], env=self._sys_env)
 			logger.debug('Found %s realms. Namely; %s', realm_results.args.count, ', '.join([doc.name for doc in realm_results.args.docs]))
 			for doc in realm_results.args.docs:
 				self._realms[doc.name] = doc
@@ -193,7 +187,7 @@ class Config:
 			# [DOC] Create __global realm
 			if '__global' not in self._realms:
 				logger.debug('GLOBAL realm not found, creating it.')
-				realm_results = modules['realm'].create(skip_events=[Event.__PERM__, Event.__PRE__], env=env, doc={
+				realm_results = modules['realm'].create(skip_events=[Event.__PERM__, Event.__PRE__], env=self._sys_env, doc={
 					'_id':ObjectId('f00000000000000000000014'),
 					'user':ObjectId('f00000000000000000000010'),
 					'name':'__global',
@@ -217,7 +211,7 @@ class Config:
 						modules[module].collection = 'test_{}'.format(modules[module].collection)
 						if self.test_flush:
 							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
-							Data.drop(env=env, session=None, collection=modules[module].collection)
+							Data.drop(env=self._sys_env, session=None, collection=modules[module].collection)
 					else:
 						logger.debug('Skipping service module %s', module)
 			else:
@@ -227,7 +221,7 @@ class Config:
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
-		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000010'}])
+		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=self._sys_env, query=[{'_id':'f00000000000000000000010'}])
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
 			admin_doc = {
@@ -256,7 +250,7 @@ class Config:
 			}
 			if Config.realm:
 				admin_doc['realm'] = '__global'
-			admin_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=admin_doc)
+			admin_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, doc=admin_doc)
 			logger.debug('ADMIN user creation results: %s', admin_results)
 			if admin_results.status != 200:
 				logger.error('Config step failed. Exiting.')
@@ -265,10 +259,11 @@ class Config:
 			'module':'user'
 		}
 
-		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000011'}])
+		# [DOC] Test if ANON user exists
+		user_results = modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=self._sys_env, query=[{'_id':'f00000000000000000000011'}])
 		if not user_results.args.count:
 			logger.debug('ANON user not found, creating it.')
-			anon_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_user())
+			anon_results = modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, doc=self.compile_anon_user())
 			logger.debug('ANON user creation results: %s', anon_results)
 			if anon_results.status != 200:
 				logger.error('Config step failed. Exiting.')
@@ -278,11 +273,11 @@ class Config:
 		}
 
 		logger.debug('Testing sessions collection.')
-		# [Doc] test if ANON session exists
-		session_results = modules['session'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000012'}])
+		# [DOC] Test if ANON session exists
+		session_results = modules['session'].read(skip_events=[Event.__PERM__, Event.__ON__], env=self._sys_env, query=[{'_id':'f00000000000000000000012'}])
 		if not session_results.args.count:
 			logger.debug('ANON session not found, creating it.')
-			anon_results = modules['session'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=self.compile_anon_session())
+			anon_results = modules['session'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, doc=self.compile_anon_session())
 			logger.debug('ANON session creation results: %s', anon_results)
 			if anon_results.status != 200:
 				logger.error('Config step failed. Exiting.')
@@ -292,8 +287,8 @@ class Config:
 		}
 
 		logger.debug('Testing groups collection.')
-		# [Doc] test if DEFAULT group exists
-		group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':'f00000000000000000000013'}])
+		# [DOC] Test if DEFAULT group exists
+		group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=self._sys_env, query=[{'_id':'f00000000000000000000013'}])
 		if not group_results.args.count:
 			logger.debug('DEFAULT group not found, creating it.')
 			group_doc = {
@@ -310,7 +305,7 @@ class Config:
 			}
 			if self.realm:
 				group_doc['realm'] = '__global'
-			group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group_doc)
+			group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, doc=group_doc)
 			logger.debug('DEFAULT group creation results: %s', group_results)
 			if group_results.status != 200:
 				logger.error('Config step failed. Exiting.')
@@ -319,15 +314,15 @@ class Config:
 			'module':'group'
 		}
 		
+		# [DOC] Test app-specific groups
 		logger.debug('Testing app-specific groups collection.')
-		# [DOC] test app-specific groups
 		for group in self.groups:
-			group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{'_id':group['_id']}])
+			group_results = modules['group'].read(skip_events=[Event.__PERM__, Event.__ON__], env=self._sys_env, query=[{'_id':group['_id']}])
 			if not group_results.args.count:
 				logger.debug('App-specific group with name %s not found, creating it.', group['name'])
 				if self.realm:
 					group['realm'] = '__global'
-				group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, doc=group)
+				group_results = modules['group'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, doc=group)
 				logger.debug('App-specific group with name %s creation results: %s', group['name'], group_results)
 				if group_results.status != 200:
 					logger.error('Config step failed. Exiting.')
@@ -336,32 +331,34 @@ class Config:
 				'module':'group'
 			}
 		
+		# [DOC] Test app-specific data indexes
 		logger.debug('Testing data indexes')
 		for index in self.data_indexes:
 			logger.debug('Attempting to create data index: %s', index)
-			conn[index['collection']].create_index(index['index'])
+			self._sys_conn[index['collection']].create_index(index['index'])
 		logger.debug('Creating \'__deleted\' data indexes for all collections.')
 		for module in modules:
 			if modules[module].collection:
 				logger.debug('Attempting to create \'__deleted\' data index for collection: %s', modules[module].collection)
-				conn[modules[module].collection].create_index([('__deleted', 1)])
+				self._sys_conn[modules[module].collection].create_index([('__deleted', 1)])
 		if self.realm:
 			logger.debug('Creating \'realm\' data indexes for all collections.')
 			for module in modules:
 				if module != 'realm' and modules[module].collection:
 					logger.debug('Attempting to create \'realm\' data index for collection: %s', modules[module].collection)
-					conn[modules[module].collection].create_index([('realm', 'text')])
+					self._sys_conn[modules[module].collection].create_index([('realm', 'text')])
 
+		# [DOC] Test app-specific docs
 		logger.debug('Testing docs.')
 		for doc in self.docs:
-			doc_results = modules[doc['module']].read(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=env, query=[{'_id':doc['doc']['_id']}])
+			doc_results = modules[doc['module']].read(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, query=[{'_id':doc['doc']['_id']}])
 			if not doc_results.args.count:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
 				skip_events = [Event.__PERM__]
 				if 'skip_args' in doc.keys() and doc['skip_args'] == True:
 					skip_events.append(Event.__ARGS__)
-				doc_results = modules[doc['module']].create(skip_events=skip_events, env=env, doc=doc['doc'])
+				doc_results = modules[doc['module']].create(skip_events=skip_events, env=self._sys_env, doc=doc['doc'])
 				logger.debug('App-specific doc with _id \'%s\' of module \'%s\' creation results: %s', doc['doc']['_id'], doc['module'], doc_results)
 				if doc_results.status != 200:
 					logger.error('Config step failed. Exiting.')
@@ -370,14 +367,16 @@ class Config:
 				'module':doc['module']
 			}
 		
+		# [DOC] Check for test mode
 		if self.test:
 			logger.debug('Running tests')
 			from utils import DictObj
 			anon_session = self.compile_anon_session()
 			anon_session['user'] = DictObj(self.compile_anon_user())
-			Test.run_test(test_name=self.test, steps=False, modules=modules, env=env, session=DictObj(anon_session))
+			Test.run_test(test_name=self.test, steps=False, modules=modules, env=self._sys_env, session=DictObj(anon_session))
 			exit()
 		
+		# [DOC] Check for emulate_test mode
 		if self.emulate_test:
 			self.test = True
 	
