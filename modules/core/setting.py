@@ -31,8 +31,7 @@ class Setting(BaseModule):
 		},
 		'retrieve_file':{
 			'permissions':[['*', {'type':'global'}, {}]],
-			'get_method':True,
-			'get_args':{'_id':'id', 'var':'str'}
+			'get_method':True
 		}
 	}
 
