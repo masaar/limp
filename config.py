@@ -173,11 +173,23 @@ class Config:
 			# [DOC] Append realm attrs to all modules attrs and set at as required in query_args and doc_args
 			for module in modules.keys():
 				if module != 'realm':
-					logger.debug('Updated module \'%s\' for realm mode.', module)
+					logger.debug('Updating module \'%s\' for realm mode.', module)
 					modules[module].attrs['realm'] = 'str'
 					for method in modules[module].methods.keys():
-						modules[module].methods[method].query_args.append('realm')
-						modules[module].methods[method].doc_args.append('realm')
+						# [DOC] Attempt required changes to query_args to add realm query_arg
+						if not modules[module].methods[method].query_args:
+							modules[module].methods[method].query_args = [{}]
+						elif type(modules[module].methods[method].query_args) == dict:
+							modules[module].methods[method].query_args = [modules[module].methods[method].query_args]
+						for query_args_set in modules[module].methods[method].query_args:
+							query_args_set['realm'] = 'str'
+						# [DOC] Attempt required changes to doc_args to add realm doc_arg
+						if not modules[module].methods[method].doc_args:
+							modules[module].methods[method].doc_args = [{}]
+						elif type(modules[module].methods[method].doc_args) == dict:
+							modules[module].methods[method].doc_args = [modules[module].methods[method].doc_args]
+						for doc_args_set in modules[module].methods[method].doc_args:
+							doc_args_set['realm'] = 'str'
 			# [DOC] Query all realms to provide access to available realms and to add realm docs to _sys_docs
 			realm_results = modules['realm'].read(skip_events=[Event.__PERM__, Event.__ARGS__], env=self._sys_env)
 			logger.debug('Found %s realms. Namely; %s', realm_results.args.count, ', '.join([doc.name for doc in realm_results.args.docs]))

@@ -633,6 +633,15 @@ class BaseModule:
 			}
 
 			if thumb_dims:
+				if file['type'].split('/')[0] != 'image':
+					return {
+						'status':400,
+						'msg':'File is not of type image to create thumbnail for.',
+						'args':{
+							'code':f'{self.package_name.upper()}_{self.module_name.upper()}_NOT_IMAGE',
+							'return':'json'
+						}
+					}
 				try:
 					image = Image.open(io.BytesIO(file['content']))
 					image.thumbnail(thumb_dims)
