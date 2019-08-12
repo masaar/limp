@@ -69,7 +69,7 @@ try:
 except:
 	port = os.getenv('PORT') or 8081
 	logger.warning('Port should be in integer format. Defaulting to %s.', port)
-if args.debug or args.test:
+if args.debug or args.test or os.getenv('DEBUG'):
 	Config.debug = True
 	logger.setLevel(logging.DEBUG)
 packages = args.packages

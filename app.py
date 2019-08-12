@@ -355,6 +355,8 @@ def run_app(packages, port):
 		return ws
 
 	async def jobs_loop():
+		if not Config.jobs:
+			return
 		while True:
 			await asyncio.sleep(60)
 			try:
