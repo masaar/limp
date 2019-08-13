@@ -57,7 +57,7 @@ if args.log:
 	logger.setLevel(logging.DEBUG)
 
 from config import Config
-Config._limp_version = float('.'.join(__version__.split('.')[0:2]))
+Config._limp_version = __version__
 Config.test = args.test
 Config.test_flush = args.test_flush
 Config.test_force = args.test_force

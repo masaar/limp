@@ -7,7 +7,7 @@ from croniter import croniter
 from pymongo import database
 from bson import ObjectId
 
-import os, jwt, logging, datetime, time
+import os, jwt, logging, datetime, time, requests
 
 logger = logging.getLogger('limp')
 
@@ -23,7 +23,7 @@ class Config:
 	_jobs_session: 'BaseModel'
 	_jobs_base: datetime
 
-	_limp_version: float = None
+	_limp_version: str = None
 	version: float = None
 
 	test: str = False
@@ -81,9 +81,26 @@ class Config:
 		if not self.version:
 			logger.warning('No version sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding version to eliminate specs mismatch.')
 		else:
-			if self._limp_version != self.version:
+			limp_version = float('.'.join(self._limp_version.split('.')[0:2]))
+			if limp_version != self.version:
 				logger.error('LIMPd is on version \'%s\', but the app requires version \'%s\'. Exiting.', self._limp_version, self.version)
 				exit()
+			try:
+				version_detected = False
+				versions = (requests.get('https://raw.githubusercontent.com/masaar/limp-versions/master/versions.txt').content).decode('utf-8').split('\n')
+				for version in versions:
+					if float('.'.join(version.split('.')[0:2])) == limp_version:
+						version_detected = version
+					elif float('.'.join(version.split('.')[0:2])) > 5.4:
+						break
+					else:
+						if version_detected != False:
+							if '5.4.9' != version_detected:
+								break
+				if version_detected and version_detected != self._limp_version:
+					logger.warning('Your app is using LIMPs version \'%s\' while newer version \'%s\' of the same API is available. Please, update.', self._limp_version, version_detected)
+			except:
+				logger.warning('An error occured while attempting to check for latest update to LIMPs. Please, check for updates on your own.')
 		
 		# [DOC] Check for jobs
 		if self.jobs:

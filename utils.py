@@ -40,7 +40,7 @@ class DictObj:
 		return self.__attrs[attr]
 	def __setattr__(self, attr, val):
 		if not attr.endswith('__attrs'):
-			raise AttributeError
+			raise AttributeError(f'Can\'t assign to DictObj attr \'{attr}\' using __setattr__. Use __setitem__ instead.')
 		object.__setattr__(self, attr, val)
 	def __getitem__(self, attr):
 		try:
