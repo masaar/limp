@@ -269,9 +269,29 @@ def run_app(packages, port):
 						}}))
 						continue
 
-					if 'query' not in res.keys(): res['query'] = {}
+					if 'endpoint' not in res.keys():
+						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_REQ_NO_ENDPOINT'
+						}}))
+						continue
+					
+					res['endpoint'] = res['endpoint'].lower()
+					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(session._id) != 'f00000000000000000000012':
+						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'You are already authed.', 'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_SESSION_ALREADY_AUTHED'
+						}}))
+						continue
+					elif res['endpoint'] == 'session/signout' and str(session._id) == 'f00000000000000000000012':
+						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Singout is not allowed for \'__ANON\' user.', 'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_SESSION_ANON_SIGNOUT'
+						}}))
+						continue
+
+					if 'query' not in res.keys(): res['query'] = []
 					if 'doc' not in res.keys(): res['doc'] = {}
-					if 'endpoint' not in res.keys(): res['endpoint'] = ''
 					if 'call_id' not in res.keys(): res['call_id'] = ''
 
 					request = {'call_id':res['call_id'], 'sid':res['sid'] or False, 'query':res['query'], 'doc':res['doc'], 'path':res['endpoint'].split('/')}
@@ -329,10 +349,14 @@ def run_app(packages, port):
 							}
 						}))
 					else:
-						if '/'.join(request['path']) in ['session/auth', 'session/reauth'] and results.status == 200:
-							session = results.args.docs[0]
-						if '/'.join(request['path']) == 'session/signout' and results.status == 200:
-							session = None
+						# [DOC] Check for __session in results
+						if '__session' in results.args:
+							if results.args.__session._id == 'f00000000000000000000012':
+								# [DOC] Updating session to __ANON
+								session = None
+							else:
+								# [DOC] Updating session to user
+								session = results.args.__session
 						results.args['call_id'] = request['call_id']
 						await ws.send_str(JSONEncoder().encode(results))
 

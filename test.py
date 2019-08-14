@@ -51,6 +51,11 @@ class Test():
 			if step['step'] == 'call':
 				logger.debug('Starting to test \'call\' step: %s', step)
 				call_results = self.run_call(modules=modules, env=env, session=session, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
+				
+				if 'session' in call_results.keys():
+					logger.debug('Updating session after detecting \'__session\' in call results.')
+					session = call_results['session']
+
 				results['steps'].append(call_results)
 			elif step['step'] == 'test':
 				logger.debug('Starting to test \'test\' step: %s', step)
@@ -83,7 +88,7 @@ class Test():
 					auth_results = self.run_auth(modules=modules, env=env, session=session, results=results, var=step['var'], val=step['val'], hash=step['hash'])
 					if auth_results['status']:
 						logger.debug('Changing session after successful auth step.')
-						session = auth_results['results'].args.docs[0]
+						session = auth_results['results'].args.__session
 				results['steps'].append(auth_results)
 			elif step['step'] == 'signout':
 				logger.debug('Starting to test \'signout\' step: %s', step)
@@ -174,6 +179,8 @@ class Test():
 			})
 			call_results['status'] = False
 			call_results['measure'] = measure
+		if call_results['status'] == True and '__session' in call_results['results'].args:
+			call_results['session'] = call_results['results'].args.docs[0]
 		return call_results
 	
 	@classmethod

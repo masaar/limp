@@ -1,6 +1,6 @@
 from base_module import BaseModule, BaseModel
 from event import Event
-# from utils import NONE_VALUE
+from utils import DictObj
 
 from bson import ObjectId
 
@@ -93,7 +93,7 @@ class Session(BaseModule):
 		return {
 			'status':200,
 			'msg':'You were succefully authed.',
-			'args':results.args
+			'args':{'__session':results.args.docs[0]}
 		}
 	
 	def reauth(self, skip_events=[], env={}, session=None, query=[], doc={}):
@@ -130,10 +130,11 @@ class Session(BaseModule):
 		# [DOC] read user privileges and return them
 		user_results = self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':results.args.docs[0].user._id}])
 		results.args.docs[0]['user'] = user_results.args.docs[0]
+
 		return {
 			'status':200,
 			'msg':'You were succefully reauthed.',
-			'args':results.args
+			'args':{'__session':results.args.docs[0]}
 		}
 
 	def signout(self, skip_events=[], env={}, session=None, query=[], doc={}):
@@ -156,7 +157,7 @@ class Session(BaseModule):
 		return {
 			'status':200,
 			'msg':'You are succefully signed-out.',
-			'args':results.args #pylint: disable=no-member
+			'args':{'__session':DictObj({'_id':'f00000000000000000000012'})}
 		}
 	
 	def check_permissions(self, session, module, permissions):
