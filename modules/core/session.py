@@ -1,6 +1,6 @@
 from base_module import BaseModule, BaseModel
 from event import Event
-from utils import DictObj
+from utils import DictObj, extract_attr
 
 from bson import ObjectId
 
@@ -93,7 +93,7 @@ class Session(BaseModule):
 		return {
 			'status':200,
 			'msg':'You were succefully authed.',
-			'args':{'__session':results.args.docs[0]}
+			'args':{'session':results.args.docs[0]}
 		}
 	
 	def reauth(self, skip_events=[], env={}, session=None, query=[], doc={}):
@@ -134,7 +134,7 @@ class Session(BaseModule):
 		return {
 			'status':200,
 			'msg':'You were succefully reauthed.',
-			'args':{'__session':results.args.docs[0]}
+			'args':{'session':results.args.docs[0]}
 		}
 
 	def signout(self, skip_events=[], env={}, session=None, query=[], doc={}):
@@ -157,7 +157,7 @@ class Session(BaseModule):
 		return {
 			'status':200,
 			'msg':'You are succefully signed-out.',
-			'args':{'__session':DictObj({'_id':'f00000000000000000000012'})}
+			'args':{'session':DictObj({'_id':'f00000000000000000000012'})}
 		}
 	
 	def check_permissions(self, session, module, permissions):
@@ -235,6 +235,8 @@ class Session(BaseModule):
 				# [DOC] Check for variables
 				if permission_args[j] == '$__user':
 					permission_args[j] = user._id
+				elif permission_args[j].startswith('$__user.'):
+					permission_args[j] = extract_attr(scope=user, attr_path=permission_args[j].replace('$__user.', '$__'))
 				elif permission_args[j] == '$__access':
 					permission_args[j] = {
 						'$__user':user._id,

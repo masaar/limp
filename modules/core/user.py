@@ -50,7 +50,7 @@ class User(BaseModule):
 		'add_group':{
 			'permissions':[['admin', {}, {}]],
 			'query_args':{'_id':'id'},
-			'doc_args':{'group':'id'}
+			'doc_args':[{'group':'id'}, {'group':['id']}]
 		},
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],

@@ -292,6 +292,21 @@ def signal_handler(signum, frame):
 		logger.info(' Have a great {}!'.format(msg))
 		exit()
 
+def extract_attr(scope, attr_path):
+	attr_path = attr_path[3:].split('.')
+	attr = scope
+	for child_attr in attr_path:
+		try:
+			if ':' in child_attr:
+				child_attr = child_attr.split(':')
+				attr = attr[child_attr[0]][int(child_attr[1])]
+			else:
+				attr = attr[child_attr]
+		except Exception as e:
+			logger.error('Failed to extract %s from %s. Exiting.', child_attr, attr)
+			raise e
+	return attr
+
 class MissingAttrException(Exception):
 	def __init__(self, attr_name):
 		self.attr_name = attr_name
@@ -404,6 +419,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 		elif type(attr_type) == tuple:
 			if attr_val in attr_type:
 				return attr_val
+		# elif type(attr_type) == set:
+		# 	if attr_val in attr_type:
+		# 		return attr_val
 		elif attr_type == 'bool':
 			if type(attr_val) == bool:
 				return attr_val
@@ -455,6 +473,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 		elif type(attr_type) == str and attr_type == 'geo':
 			if type(attr_val) == dict and 'type' in attr_val.keys() and 'coordinates' in attr_val.keys() and attr_val['type'] in ['Point'] and type(attr_val['coordinates']) == list and attr_val['coordinates'].__len__() == 2 and type(attr_val['coordinates'][0]) in [int, float] and type(attr_val['coordinates'][1]) in [int, float]:
 				return attr_val
+		elif type(attr_type) == str and attr_type == 'locales':
+			if attr_val in Config.locales:
+				return attr_val
 		elif attr_type == 'privileges':
 			if type(attr_val) == dict:
 				return attr_val
@@ -484,9 +505,13 @@ def validate_attr(attr_name, attr_type, attr_val):
 					if not child_attr_check:
 						raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 				return attr_val
-		elif type(attr_type) == str and attr_type == 'locales':
-			if attr_val in Config.locales:
-				return attr_val
+		# elif type(attr_type) == tuple:
+		# 	for child_attr in attr_type:
+		# 		try:
+		# 			validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
+		# 		except:
+		# 			continue
+		# 		return attr_val
 		elif attr_type in Config.types.keys():
 			return Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
 		

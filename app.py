@@ -349,14 +349,14 @@ def run_app(packages, port):
 							}
 						}))
 					else:
-						# [DOC] Check for __session in results
-						if '__session' in results.args:
-							if results.args.__session._id == 'f00000000000000000000012':
+						# [DOC] Check for session in results
+						if 'session' in results.args:
+							if results.args.session._id == 'f00000000000000000000012':
 								# [DOC] Updating session to __ANON
 								session = None
 							else:
 								# [DOC] Updating session to user
-								session = results.args.__session
+								session = results.args.session
 						results.args['call_id'] = request['call_id']
 						await ws.send_str(JSONEncoder().encode(results))
 
