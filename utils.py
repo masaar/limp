@@ -336,7 +336,14 @@ def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
 				if attr not in defaults.keys():
 					raise MissingAttrException(attr)
 				else:
-					doc[attr] = defaults[attr]
+					if defaults[attr] == '$__datetime':
+						doc[attr] = datetime.datetime.utcnow().isoformat()
+					elif defaults[attr] == '$__date':
+						doc[attr] = datetime.date.today().isoformat()
+					elif defaults[attr] == '$__time':
+						doc[attr] = datetime.datetime.now().time().isoformat()
+					else:
+						doc[attr] = defaults[attr]
 					continue
 		else:
 			try:
