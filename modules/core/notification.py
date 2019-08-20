@@ -11,7 +11,7 @@ class Notification(BaseModule):
 		'notify_time':'datetime',
 		'title':'str',
 		'content':'id',
-		'status':('new', 'snooze', 'done')
+		'status':{'new', 'snooze', 'done'}
 	}
 	methods = {
 		'read':{
