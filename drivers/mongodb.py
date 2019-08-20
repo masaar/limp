@@ -141,9 +141,15 @@ class MongoDb():
 							step[attr] = ObjectId(step[attr])
 					elif step_attr == '_id':
 						if type(step[attr]) == str:
-							step[attr] = ObjectId(step[attr])
+							try:
+								step[attr] = ObjectId(step[attr])
+							except:
+								pass
 						elif type(step[attr]) == list:
-							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+							try:
+								step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+							except:
+								pass
 					# [DOC] Check for access sepcial attrs
 					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == 'access':
 						access_query = [

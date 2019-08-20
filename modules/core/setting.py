@@ -23,7 +23,7 @@ class Setting(BaseModule):
 		'update':{
 			'permissions':[['admin', {'$limit':1}, {}], ['update', {'type':'user', 'user':'$__user', '$limit':1}, {'type':None, 'user':None}]],
 			'query_args':{'var':'str'},
-			'doc_args':{'val':'str'}
+			'doc_args':{'val':'any'}
 		},
 		'delete':{
 			'permissions':[['admin', {'$limit':1}, {}]],
