@@ -7,7 +7,7 @@ class Setting(BaseModule):
 		'user':'id',
 		'var':'str',
 		'val':'any',
-		'type':('global', 'user')
+		'type':{'global', 'user'}
 	}
 	extns = {
 		'user':['user', ['name', 'email']]

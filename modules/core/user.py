@@ -23,7 +23,7 @@ class User(BaseModule):
 		'username_hash':'str',
 		'email_hash':'str',
 		'phone_hash':'str',
-		'status':('active', 'banned', 'deleted', 'disabled_password'),
+		'status':{'active', 'banned', 'deleted', 'disabled_password'},
 		'attrs':'attrs'
 	}
 	defaults = {'bio':{locale:'' for locale in Config.locales}, 'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
@@ -50,7 +50,7 @@ class User(BaseModule):
 		'add_group':{
 			'permissions':[['admin', {}, {}]],
 			'query_args':{'_id':'id'},
-			'doc_args':[{'group':'id'}, {'group':['id']}]
+			'doc_args':[{'group':('id', ['id'])}]
 		},
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],
