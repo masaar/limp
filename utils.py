@@ -430,12 +430,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 						return attr_val
 				else:
 					return attr_val
-		elif type(attr_type) == tuple:
+		elif type(attr_type) == set:
 			if attr_val in attr_type:
 				return attr_val
-		# elif type(attr_type) == set:
-		# 	if attr_val in attr_type:
-		# 		return attr_val
 		elif attr_type == 'bool':
 			if type(attr_val) == bool:
 				return attr_val
@@ -525,13 +522,13 @@ def validate_attr(attr_name, attr_type, attr_val):
 					if not child_attr_check:
 						raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 				return attr_val
-		# elif type(attr_type) == tuple:
-		# 	for child_attr in attr_type:
-		# 		try:
-		# 			validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
-		# 		except:
-		# 			continue
-		# 		return attr_val
+		elif type(attr_type) == tuple:
+			for child_attr in attr_type:
+				try:
+					validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
+				except:
+					continue
+				return attr_val
 		elif attr_type in Config.types.keys():
 			return Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
 		
