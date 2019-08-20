@@ -498,10 +498,16 @@ def validate_attr(attr_name, attr_type, attr_val):
 				return attr_val
 		elif type(attr_type) == dict:
 			if type(attr_val) == dict:
-				for child_attr_type in attr_type.keys():
-					if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-					attr_val[child_attr_type] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_type), attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
-				return attr_val
+				if '__key' in attr_type.keys():
+					shadow_attr_val = {}
+					for child_attr_val in attr_val.keys():
+						shadow_attr_val[validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
+					return shadow_attr_val
+				else:
+					for child_attr_type in attr_type.keys():
+						if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+						attr_val[child_attr_type] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_type), attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
+					return attr_val
 		elif type(attr_type) == str and attr_type == 'access':
 			if type(attr_val) == dict and 'anon' in attr_val.keys() and type(attr_val['anon']) == bool and 'users' in attr_val.keys() and type(attr_val['users']) == list and 'groups' in attr_val.keys() and type(attr_val['groups']) == list:
 				return attr_val
