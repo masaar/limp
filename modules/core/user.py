@@ -59,7 +59,7 @@ class User(BaseModule):
 		}
 	}
 
-	def on_read(self, results, skip_events, env, session, query, doc):
+	def on_read(self, results, skip_events, env, query, doc):
 		for i in range(0, results['docs'].__len__()):
 			user = results['docs'][i]
 			del user['username_hash']
@@ -82,24 +82,24 @@ class User(BaseModule):
 							extn_query = [{'_id':extn[1]}]
 						if extn[2] != ['*']:
 							extn_query.append({'$attrs':extn[2]})
-						extn_results = self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=extn_query)
+						extn_results = self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=extn_query)
 						if not extn_results.args.count:
 							user.attrs[attr] = None
 						else:
 							user.attrs[attr] = extn_results.args.docs[0]
-		return (results, skip_events, env, session, query, doc)
+		return (results, skip_events, env, query, doc)
 	
-	def pre_create(self, skip_events, env, session, query, doc):
+	def pre_create(self, skip_events, env, query, doc):
 		if Event.__ARGS__ not in skip_events:
 			if Config.realm:
-				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env, session=session)
+				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env)
 				realm = realm_results.args.docs[0]
 				doc['groups'] = [realm.default]
 			else:
 				doc['groups'] = [ObjectId('f00000000000000000000013')]
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)
 	
-	def pre_update(self, skip_events, env, session, query, doc):
+	def pre_update(self, skip_events, env, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
 			attrs = {}
@@ -108,11 +108,11 @@ class User(BaseModule):
 					attrs[attr] = doc['attrs'][attr]
 				else:
 					attrs[f'attrs.{attr}'] = doc['attrs'][attr]
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)
 
-	def read_privileges(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def read_privileges(self, skip_events=[], env={}, query=[], doc={}):
 		# [DOC] Confirm _id is valid
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
+		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -121,7 +121,7 @@ class User(BaseModule):
 			}
 		user = results.args.docs[0]
 		for group in user.groups:
-			group_results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':group}])
+			group_results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, query=[{'_id':group}])
 			group = group_results.args.docs[0]
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
@@ -130,16 +130,16 @@ class User(BaseModule):
 						user.privileges[privilege].append(group.privileges[privilege][i])
 		return results
 	
-	def add_group(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def add_group(self, skip_events=[], env={}, query=[], doc={}):
 		# [DOC] Check for list group attr
 		if type(doc['group']) == list:
 			for i in range(0, doc['group'].__len__()-1):
-				self.add_group(skip_events=skip_events, env=env, session=session, query=query, doc={'group':doc['group'][i]})
+				self.add_group(skip_events=skip_events, env=env, query=query, doc={'group':doc['group'][i]})
 			doc['group'] = doc['group'][-1]
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc['group']}])
+		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, query=[{'_id':doc['group']}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -147,7 +147,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+		results = self.read(skip_events=[Event.__PERM__], env=env, query=query)
 		if not results.args.count:
 			return {
 				'status':400,
@@ -164,14 +164,14 @@ class User(BaseModule):
 			}
 		user.groups.append(doc['group'])
 		# [DOC] Update the user
-		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={'groups':user.groups})
+		results = self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={'groups':user.groups})
 		return results
 	
-	def delete_group(self, skip_events=[], env={}, session=None, query=[], doc={}):
+	def delete_group(self, skip_events=[], env={}, query=[], doc={}):
 		# [DOC] Confirm all basic args are provided
 		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':doc['group']}])
+		results = self.modules['group'].read(skip_events=[Event.__PERM__], env=env, query=[{'_id':doc['group']}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -179,7 +179,7 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+		results = self.read(skip_events=[Event.__PERM__], env=env, query=query)
 		if not results.args.count:
 			return {
 				'status':400,
@@ -196,7 +196,7 @@ class User(BaseModule):
 			}
 		user.groups = [group for group in user.groups if str(group) != str(doc['group'])]
 		# [DOC] Update the user
-		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={'groups':user.groups})
+		results = self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={'groups':user.groups})
 		return results
 
 class Group(BaseModule):
@@ -226,13 +226,13 @@ class Group(BaseModule):
 		}
 	}
 
-	def pre_create(self, skip_events, env, session, query, doc):
-		return (skip_events, env, session, query, doc)
+	def pre_create(self, skip_events, env, query, doc):
+		return (skip_events, env, query, doc)
 
-	def pre_update(self, skip_events, env, session, query, doc):
+	def pre_update(self, skip_events, env, query, doc):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
-			results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=query)
+			results = self.read(skip_events=[Event.__PERM__], env=env, query=query)
 			if not results.args.count:
 				return {
 					'status':400,
@@ -249,4 +249,4 @@ class Group(BaseModule):
 				{attr:doc['attrs'][attr] for attr in doc['attrs'].keys() if doc['attrs'][attr] != None and doc['attrs'][attr] != ''}
 			)
 			doc['attrs'] = results.args.docs[0]['attrs']
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)

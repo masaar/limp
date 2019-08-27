@@ -3,7 +3,7 @@ from event import Event
 from config import Config
 from base_model import BaseModel
 
-import logging, copy, traceback, sys
+import logging, copy, traceback, sys, asyncio
 
 logger = logging.getLogger('limp')
 
@@ -58,7 +58,7 @@ class BaseMethod:
 		
 		return sets_check
 
-	def __call__(self, skip_events=[], env={}, session=None, query=[], doc={}) -> DictObj:
+	def __call__(self, skip_events=[], env={}, query=[], doc={}, call_id=None) -> DictObj:
 		# [DEPRECATED] Return error for obsolete dict query
 		if type(query) == dict:
 			logger.debug('Detected obsolete dict query. Returning error: %s')
@@ -89,9 +89,9 @@ class BaseMethod:
 				doc['realm'] = env['realm']
 				logger.debug('Appended realm attrs to query, doc: %s, %s', JSONEncoder().encode(query), doc.keys())
 
-		if Event.__PERM__ not in skip_events and session:
+		if Event.__PERM__ not in skip_events and env['session']:
 			#logger.debug('checking permission, module: %s, permission: %s, sid:%s.', self.module, self.permissions, sid)
-			permissions_check = self.module.modules['session'].check_permissions(session, self.module, self.permissions)
+			permissions_check = self.module.modules['session'].check_permissions(env['session'], self.module, self.permissions)
 			logger.debug('permissions_check: %s.', permissions_check)
 			if permissions_check == False:
 				return DictObj({
@@ -185,7 +185,7 @@ class BaseMethod:
 			else:
 				method = getattr(self.module, '_method_{}'.format(self.method))
 			# [DOC] Call method function
-			results = method(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			results = method(skip_events=skip_events, env=env, query=query, doc=doc)
 			query = Query([])
 		except Exception as e:
 			logger.error('An error occured. Details: %s.', traceback.format_exc())
@@ -216,4 +216,26 @@ class BaseMethod:
 			results['args'] = DictObj(results.args)
 		except Exception:
 			results['args'] = DictObj({})
-		return results
+		
+		if call_id:
+			logger.debug('Call results: %s', JSONEncoder().encode(results))
+			if results.status == 204:
+				asyncio.get_event_loop().sync_wait(env['ws'].send_str(JSONEncoder().encode({
+					'status':204,
+					'args':{
+						'call_id':call_id
+					}
+				})))
+			else:
+				# [DOC] Check for session in results
+				if 'session' in results.args:
+					if results.args.session._id == 'f00000000000000000000012':
+						# [DOC] Updating session to __ANON
+						env['session'] = None
+					else:
+						# [DOC] Updating session to user
+						env['session'] = results.args.session
+				results.args['call_id'] = call_id
+				asyncio.get_event_loop().sync_wait(env['ws'].send_str(JSONEncoder().encode(results)))
+		else:
+			return results

@@ -65,25 +65,11 @@ def run_app(packages, port):
 		logger.debug('Received new GET request: %s', request.match_info)
 
 		if Config.realm:
-			try:
-				realm = request.match_info['realm'].lower()
-				if realm not in Config._realms.keys():
-					headers.append(('Content-Type', 'application/json; charset=utf-8'))
-					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
-						'status':400,
-						'msg':'Unknown realm.',
-						'args':{'code':'CORE_CONN_INVALID_REALM'}
-					}).encode('utf-8'))
-			except Exception:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
-					'status':400,
-					'msg':'Realm mode is enabled. You have to access API via realm.',
-					'args':{'code':'CORE_CONN_REALM'}
-				}).encode('utf-8'))
-
-		module = request.url.parts[1].lower()
-		method = request.url.parts[2].lower()
+			module = request.url.parts[2].lower()
+			method = request.url.parts[3].lower()
+		else:
+			module = request.url.parts[1].lower()
+			method = request.url.parts[2].lower()
 		get_args = dict(request.match_info.items())
 		
 		# [DOC] Attempt to validate query as doc
@@ -123,7 +109,7 @@ def run_app(packages, port):
 				'HTTP_USER_AGENT':''
 			}
 		if Config.realm:
-			env['realm'] = realm
+			env['realm'] = request.url.parts[1].lower()
 		
 		if 'x-auth-bearer' in request.headers or 'x-auth-token' in request.headers:
 			if 'x-auth-bearer' not in request.headers or 'x-auth-token' not in request.headers:
@@ -192,10 +178,11 @@ def run_app(packages, port):
 		elif results.args['return'] == 'file':
 			del results.args['return']
 			expiry_time = datetime.datetime.utcnow() + datetime.timedelta(days=30)
-			headers.append(('Content-Type', results.args.type))
+			headers.append(('lastModified', str(results.args.docs[0].lastModified)))
+			headers.append(('Content-Type', results.args.docs[0].type))
 			headers.append(('Cache-Control', 'public, max-age=31536000'))
 			headers.append(('Expires', expiry_time.strftime('%a, %d %b %Y %H:%M:%S GMT')))
-			return aiohttp.web.Response(status=results.status, headers=headers, body=results.msg)
+			return aiohttp.web.Response(status=results.status, headers=headers, body=results.args.docs[0].content)
 		elif results.args['return'] == 'msg':
 			del results.args['return']
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
@@ -207,40 +194,29 @@ def run_app(packages, port):
 	async def websocket_handler(request):
 		files = {}
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
+		logger.debug('Websocket connection starting with client at \'%s\'', request.remote)
+		ws = aiohttp.web.WebSocketResponse()
+		await ws.prepare(request)
+
 		try:
 			env = {
 				'conn':conn,
 				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['user-agent']
+				'HTTP_USER_AGENT':request.headers['user-agent'],
+				'ws':ws,
+				'session':None
 			}
 		except:
 			env = {
 				'conn':conn,
 				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':''
+				'HTTP_USER_AGENT':'',
+				'ws':ws,
+				'session':None
 			}
-		logger.debug('Websocket connection starting with client at \'%s\'', env['REMOTE_ADDR'])
-		ws = aiohttp.web.WebSocketResponse()
-		await ws.prepare(request)
-		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
-
+		
 		if Config.realm:
-			try:
-				env['realm'] = request.match_info['realm'].lower()
-				if env['realm'] not in Config._realms.keys():
-					await ws.send_str(JSONEncoder().encode({
-						'status':400,
-						'msg':'Unknown realm.',
-						'args':{'code':'CORE_CONN_INVALID_REALM'}
-					}))
-					return ws
-			except Exception:
-				await ws.send_str(JSONEncoder().encode({
-					'status':400,
-					'msg':'Realm mode is enabled. You have to access API via realm.',
-					'args':{'code':'CORE_CONN_REALM'}
-				}))
-				return ws
+			env['realm'] = request.match_info['realm'].lower()
 
 		await ws.send_str(JSONEncoder().encode({
 			'status':200,
@@ -248,20 +224,22 @@ def run_app(packages, port):
 			'args':{'code':'CORE_CONN_OK'}
 		}))
 
+		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
+
 		async for msg in ws:
 			logger.debug('Received new message from client at \'%s\': %s', env['REMOTE_ADDR'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
 				try:
 					try:
-						session.token
+						env['session'].token
 					except Exception:
 						anon_user = Config.compile_anon_user()
 						anon_session = Config.compile_anon_session()
 						anon_session['user'] = DictObj(anon_user)
-						session = DictObj(anon_session)
+						env['session'] = DictObj(anon_session)
 					res = json.loads(msg.data)
 					try:
-						res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
+						res = jwt.decode(res['token'], env['session'].token, algorithms=['HS256'])
 					except Exception:
 						await ws.send_str(JSONEncoder().encode({'status':403, 'msg':'Request token is not accepted.', 'args':{
 							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
@@ -277,13 +255,13 @@ def run_app(packages, port):
 						continue
 					
 					res['endpoint'] = res['endpoint'].lower()
-					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(session._id) != 'f00000000000000000000012':
+					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(env['session']._id) != 'f00000000000000000000012':
 						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'You are already authed.', 'args':{
 							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
 							'code':'CORE_SESSION_ALREADY_AUTHED'
 						}}))
 						continue
-					elif res['endpoint'] == 'session/signout' and str(session._id) == 'f00000000000000000000012':
+					elif res['endpoint'] == 'session/signout' and str(env['session']._id) == 'f00000000000000000000012':
 						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Singout is not allowed for \'__ANON\' user.', 'args':{
 							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
 							'code':'CORE_SESSION_ANON_SIGNOUT'
@@ -338,27 +316,27 @@ def run_app(packages, port):
 					method = modules[module].methods[request['path'][1].lower()]
 					query = request['query']
 					doc = parse_file_obj(request['doc'], files)
-					results = method(skip_events=[], env=env, session=session, query=query, doc=doc)
+					method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
 
-					logger.debug('Call results: %s', str(results)[:512])
-					if results.status == 204:
-						await ws.send_str(JSONEncoder().encode({
-							'status':204,
-							'args':{
-								'call_id':request['call_id']
-							}
-						}))
-					else:
-						# [DOC] Check for session in results
-						if 'session' in results.args:
-							if results.args.session._id == 'f00000000000000000000012':
-								# [DOC] Updating session to __ANON
-								session = None
-							else:
-								# [DOC] Updating session to user
-								session = results.args.session
-						results.args['call_id'] = request['call_id']
-						await ws.send_str(JSONEncoder().encode(results))
+					# logger.debug('Call results: %s', str(results)[:512])
+					# if results.status == 204:
+					# 	await ws.send_str(JSONEncoder().encode({
+					# 		'status':204,
+					# 		'args':{
+					# 			'call_id':request['call_id']
+					# 		}
+					# 	}))
+					# else:
+					# 	# [DOC] Check for session in results
+					# 	if 'session' in results.args:
+					# 		if results.args.session._id == 'f00000000000000000000012':
+					# 			# [DOC] Updating session to __ANON
+					# 			env['session'] = None
+					# 		else:
+					# 			# [DOC] Updating session to user
+					# 			env['session'] = results.args.session
+					# 	results.args['call_id'] = request['call_id']
+					# 	await ws.send_str(JSONEncoder().encode(results))
 
 				except Exception as e:
 					logger.error('An error occured. Details: %s.', traceback.format_exc())
