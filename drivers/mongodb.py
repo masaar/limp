@@ -193,7 +193,7 @@ class MongoDb():
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
-	def read(self, env, session, collection, attrs, extns, modules, query):
+	def read(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		
 		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
@@ -274,7 +274,7 @@ class MongoDb():
 					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
-					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, session=session, query=[
+					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, query=[
 						{'_id':doc[extn]}
 					])
 					# [TODO] Consider a fallback for extn no-match cases
@@ -297,7 +297,7 @@ class MongoDb():
 					for i in range(0, doc[extn].__len__()):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
-						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, session=session, query=[
+						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
 							{'_id':doc[extn][i]}
 						])
 						if extn_results['args']['count']:
@@ -322,7 +322,7 @@ class MongoDb():
 		}
 
 	@classmethod
-	def create(self, env, session, collection, attrs, extns, modules, doc):
+	def create(self, env, collection, attrs, extns, modules, doc):
 		conn = env['conn']
 		collection = conn[collection]
 		_id = collection.insert_one(doc).inserted_id
@@ -332,7 +332,7 @@ class MongoDb():
 		}
 	
 	@classmethod
-	def update(self, env, session, collection, attrs, extns, modules, docs, doc):
+	def update(self, env, collection, attrs, extns, modules, docs, doc):
 		conn = env['conn']
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
@@ -387,7 +387,7 @@ class MongoDb():
 		}
 	
 	@classmethod
-	def delete(self, env, session, collection, attrs, extns, modules, docs, strategy):
+	def delete(self, env, collection, attrs, extns, modules, docs, strategy):
 		conn = env['conn']
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
@@ -440,7 +440,7 @@ class MongoDb():
 			return False
 	
 	@classmethod
-	def drop(self, env, session, collection):
+	def drop(self, env, collection):
 		conn = env['conn']
 		collection = conn[collection]
 		collection.drop()
