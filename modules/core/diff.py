@@ -27,7 +27,7 @@ class Diff(BaseModule):
 		}
 	}
 
-	def pre_create(self, skip_events, env, query, doc):
+	async def pre_create(self, skip_events, env, query, doc):
 		# [DOC] Detect non-_id update query:
 		if '_id' not in query:
 			results = self.modules[doc['module']].read(skip_events=[Event.__PERM__], env=env, query=query)

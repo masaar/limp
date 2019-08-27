@@ -76,6 +76,7 @@ packages = args.packages
 if packages:
 	packages = args.packages.split(',') + ['core']
 
+import asyncio
 from app import run_app
 
-run_app(packages, port)
+asyncio.run(run_app(packages, port))
