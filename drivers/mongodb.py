@@ -193,7 +193,7 @@ class MongoDb():
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
-	def read(self, env, collection, attrs, extns, modules, query):
+	async def read(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		
 		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
@@ -274,7 +274,7 @@ class MongoDb():
 					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 						skip_events.append(Event.__EXTN__)
-					extn_results = extn_module.methods['read'](skip_events=skip_events, env=env, query=[
+					extn_results = await extn_module.methods['read'](skip_events=skip_events, env=env, query=[
 						{'_id':doc[extn]}
 					])
 					# [TODO] Consider a fallback for extn no-match cases
@@ -297,7 +297,7 @@ class MongoDb():
 					for i in range(0, doc[extn].__len__()):
 						# [DOC] In case value is null, do not attempt to extend doc
 						if not doc[extn][i]: continue
-						extn_results = extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
+						extn_results = await extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
 							{'_id':doc[extn][i]}
 						])
 						if extn_results['args']['count']:

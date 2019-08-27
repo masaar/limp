@@ -53,11 +53,11 @@ class Session(BaseModule):
 		}
 	}
 
-	def auth(self, skip_events=[], env={}, query=[], doc={}):
+	async def auth(self, skip_events=[], env={}, query=[], doc={}):
 		if 'username' in doc.keys(): key = 'username'
 		elif 'phone' in doc.keys(): key = 'phone'
 		elif 'email' in doc.keys(): key = 'email'
-		user_results = self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], '{}_hash'.format(key):doc['hash'], '$limit':1}])
+		user_results = await self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], '{}_hash'.format(key):doc['hash'], '$limit':1}])
 		if not user_results.args.count:
 			return {
 				'status':403,
@@ -76,7 +76,7 @@ class Session(BaseModule):
 			'token':token
 		}
 		# logger.debug('creating session:%s', session)
-		results = self.create(skip_events=[Event.__PERM__], env=env, doc=session)
+		results = await self.create(skip_events=[Event.__PERM__], env=env, doc=session)
 		if results.status != 200:
 			return results
 
@@ -85,7 +85,7 @@ class Session(BaseModule):
 		results.args.docs[0] = BaseModel(session)
 		
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':user._id}])
+		user_results = await self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':user._id}])
 		if user_results.status != 200:
 			return user_results
 		results.args.docs[0]['user'] = user_results.args.docs[0]
@@ -96,14 +96,14 @@ class Session(BaseModule):
 			'args':{'session':results.args.docs[0]}
 		}
 	
-	def reauth(self, skip_events=[], env={}, query=[], doc={}):
+	async def reauth(self, skip_events=[], env={}, query=[], doc={}):
 		if str(query['_id'][0]) == 'f00000000000000000000012':
 			return {
 				'status':400,
 				'msg':'Reauth is not required for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_REAUTH'}
 			}
-		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count:
 			return {
 				'status':403,
@@ -118,17 +118,17 @@ class Session(BaseModule):
 				'args':{'code':'CORE_SESSION_INVALID_REAUTH_HASH'}
 			}
 		if results.args.docs[0].expiry < datetime.datetime.utcnow().isoformat():
-			results = self.delete(skip_events=[Event.__PERM__, Event.__SOFT__], env=env, query=[{'_id':env['session']._id}])
+			results = await self.delete(skip_events=[Event.__PERM__, Event.__SOFT__], env=env, query=[{'_id':env['session']._id}])
 			return {
 				'status':403,
 				'msg':'Session had expired.',
 				'args':{'code':'CORE_SESSION_SESSION_EXPIRED'}
 			}
 		# [DOC] update user's last_login timestamp
-		self.modules['user'].update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow().isoformat()})
-		self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()})
+		await self.modules['user'].update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow().isoformat()})
+		await self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()})
 		# [DOC] read user privileges and return them
-		user_results = self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user._id}])
+		user_results = await self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user._id}])
 		results.args.docs[0]['user'] = user_results.args.docs[0]
 
 		return {
@@ -137,14 +137,14 @@ class Session(BaseModule):
 			'args':{'session':results.args.docs[0]}
 		}
 
-	def signout(self, skip_events=[], env={}, query=[], doc={}):
+	async def signout(self, skip_events=[], env={}, query=[], doc={}):
 		if str(query['_id'][0]) == 'f00000000000000000000012':
 			return {
 				'status':400,
 				'msg':'Singout is not allowed for \'__ANON\' user.',
 				'args':{'code':'CORE_SESSION_ANON_SIGNOUT'}
 			}
-		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 
 		if not results.args.count:
 			return {
@@ -152,7 +152,7 @@ class Session(BaseModule):
 				'msg':'Session is invalid.',
 				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
 			}
-		results = self.delete(skip_events=[Event.__PERM__], env=env, query=[{'_id':env['session']._id}])
+		results = await self.delete(skip_events=[Event.__PERM__], env=env, query=[{'_id':env['session']._id}])
 
 		return {
 			'status':200,

@@ -1,4 +1,4 @@
-def run_app(packages, port):
+async def run_app(packages, port):
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
 	from base_module import Event
 	from config import Config
@@ -18,7 +18,7 @@ def run_app(packages, port):
 	# [DOC] If realm mode is not enabled drop realm module.
 	if not Config.realm:
 		del modules['realm']
-	Config.config_data(modules=modules)
+	await Config.config_data(modules=modules)
 	# [DOC] Populate GET routes:
 	routes = []
 	for module in modules.values():
@@ -316,7 +316,7 @@ def run_app(packages, port):
 					method = modules[module].methods[request['path'][1].lower()]
 					query = request['query']
 					doc = parse_file_obj(request['doc'], files)
-					method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
+					await method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
 
 					# logger.debug('Call results: %s', str(results)[:512])
 					# if results.status == 204:

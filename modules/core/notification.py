@@ -29,7 +29,7 @@ class Notification(BaseModule):
 		}
 	}
 
-	def pre_create(self, skip_events, env, query, doc):
+	async def pre_create(self, skip_events, env, query, doc):
 		if 'notify_time'not in doc.keys():
 			doc['notify_time'] = datetime.datetime.utcnow().isoformat()
 		return (skip_events, env, query, doc)
