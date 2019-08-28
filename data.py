@@ -340,13 +340,23 @@ class Data():
 		collection = conn[collection]
 		
 		logger.debug('Preparing generator at Data')
-		async with collection.watch(aggregate_query) as stream:
+		async with collection.watch(pipeline=aggregate_query, full_document='updateLookup') as stream:
 			async for change in stream:
 				logger.debug('Detected change at Data: %s', change)
-				doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=change['fullDocument'])
+
+				oper = change['operationType']
+				if oper in ['insert', 'replace', 'update']:
+					if oper == 'insert': oper = 'create'
+					elif oper == 'replace': oper = 'update'
+					doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=change['fullDocument'])
+					model = BaseModel(doc)
+				elif oper == 'delete':
+					model = BaseModel({'_id':change['documentKey']['_id']})
+
 				yield {
 					'count':1,
-					'docs':[BaseModel(doc)]
+					'oper':oper,
+					'docs':[model]
 				}
 
 	@classmethod
