@@ -188,8 +188,8 @@ class BaseMethod:
 			if self.watch_method:
 				await env['ws'].send_str(JSONEncoder().encode({
 					'status':200,
-					'msg':'Create watch task.',
-					'args':{'code':'CORE_WATCH_OK', 'watch':call_id}
+					'msg':'Created watch task.',
+					'args':{'code':'CORE_WATCH_OK', 'watch':call_id, 'call_id':call_id}
 				}))
 				env['watch_tasks'][call_id] = {
 					'stream':self.watch_loop(ws=env['ws'], stream=method(skip_events=skip_events, env=env, query=query, doc=doc), call_id=call_id)
