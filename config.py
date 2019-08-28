@@ -37,7 +37,6 @@ class Config:
 
 	realm: bool = False
 
-	data_driver: str = 'mongodb'
 	data_server: str = 'mongodb://localhost'
 	data_name: str = 'limp_data'
 	data_ssl: bool = False
@@ -159,10 +158,6 @@ class Config:
 				f.write(self.data_ca)
 		
 		from data import Data
-
-		if self.data_driver == 'mongodb':
-			from drivers.mongodb import MongoDb
-			Data.driver = MongoDb
 
 		# [DOC] Create default env dict
 		anon_user = self.compile_anon_user()
