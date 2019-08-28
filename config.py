@@ -165,11 +165,15 @@ class Config:
 			Data.driver = MongoDb
 
 		# [DOC] Create default env dict
+		anon_user = self.compile_anon_user()
+		anon_session = self.compile_anon_session()
+		anon_session['user'] = DictObj(anon_user)
 		self._sys_conn = Data.create_conn()
 		self._sys_env = {
 			'conn':self._sys_conn,
 			'REMOTE_ADDR':'127.0.0.1',
-			'HTTP_USER_AGENT':'LIMPd'
+			'HTTP_USER_AGENT':'LIMPd',
+			'session':DictObj(anon_session)
 		}
 
 		if self.data_azure_mongo:
