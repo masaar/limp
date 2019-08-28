@@ -299,7 +299,8 @@ async def run_app(packages, port):
 						try:
 							if request['query'][0]['watch'] == '__all':
 								for watch_task in env['watch_tasks'].values():
-									watch_task.cancel()
+									watch_task['stream'].close()
+									watch_task['task'].cancel()
 								await ws.send_str(JSONEncoder().encode({
 									'status':200,
 									'msg':'All watch tasks deleted.',
@@ -309,7 +310,8 @@ async def run_app(packages, port):
 								}))
 								env['watch_tasks'] = {}
 							else:
-								env['watch_tasks'][request['query'][0]['watch']].cancel()
+								env['watch_tasks'][request['query'][0]['watch']]['stream'].close()
+								env['watch_tasks'][request['query'][0]['watch']]['task'].cancel()
 								await ws.send_str(JSONEncoder().encode({
 									'status':200,
 									'msg':'Watch task deleted.',
