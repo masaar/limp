@@ -378,6 +378,11 @@ async def run_app(packages, port):
 							'msg':'Unexpected error has occured.',
 							'args':{'code':'CORE_SERVER_ERROR'}
 						}))
+		
+		logger.debug('Cleaning up watch tasks before connection close.')
+		for watch_task in env['watch_tasks'].values():
+			watch_task['stream'].close()
+			watch_task['task'].cancel()
 
 		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
 		return ws
