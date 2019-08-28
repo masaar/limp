@@ -76,6 +76,7 @@ class Config:
 
 	@classmethod
 	async def config_data(self, modules):
+		from utils import DictObj
 
 		# [DOC] Check API version
 		if not self.version:
@@ -104,7 +105,6 @@ class Config:
 		
 		# [DOC] Check for jobs
 		if self.jobs:
-			from utils import DictObj
 			# [DOC] Create _jobs_env
 			self._jobs_session = DictObj({**Config.compile_anon_session(), 'user':DictObj(Config.compile_anon_user())})
 			# [DOC] Check jobs schedule validity
