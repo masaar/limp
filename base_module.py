@@ -70,6 +70,9 @@ class BaseModule:
 				self.methods[method]['doc_args'] = False
 			elif type(self.methods[method]['doc_args']) == dict:
 				self.methods[method]['doc_args'] = [self.methods[method]['doc_args']]
+			# [DOC] Check method watch_method attr, set it or update it if required.
+			if 'watch_method' not in self.methods[method].keys() or self.methods[method]['watch_method'] == False:
+				self.methods[method]['watch_method'] = False
 			# [DOC] Check method get_method attr, set it or update it if required.
 			if 'get_method' not in self.methods[method].keys() or self.methods[method]['get_method'] == False:
 				self.methods[method]['get_method'] = False
@@ -92,6 +95,7 @@ class BaseModule:
 				permissions=self.methods[method]['permissions'],
 				query_args=self.methods[method]['query_args'],
 				doc_args=self.methods[method]['doc_args'],
+				watch_method=self.methods[method]['watch_method'],
 				get_method=self.methods[method]['get_method'],
 				get_args=self.methods[method]['get_args']
 			)
@@ -229,11 +233,49 @@ class BaseModule:
 			'args':results
 		}
 	
+	async def pre_watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_watch(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
 	async def watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_watch
+				pre_watch = await self.modules[self.proxy].pre_watch(skip_events=skip_events, env=env, query=query, doc=doc)
+				if type(pre_watch) in [DictObj, dict]: yield pre_watch
+				skip_events, env, query, doc = pre_watch
+			pre_watch = await self.pre_watch(skip_events=skip_events, env=env, query=query, doc=doc)
+			if type(pre_watch) in [DictObj, dict]: yield pre_watch
+			skip_events, env, query, doc = pre_watch
+		if Event.__EXTN__ in skip_events:
+			extns = {}
+		elif '$extn' in query and type(query['$extn']) == list:
+			extns = {
+				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
+			}
+		else:
+			extns = self.extns
+
 		logger.debug('Preparing async loop at BaseModule')
-		# await Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
-		async for results in Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query):
+		async for results in Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=extns, modules=self.modules, query=query):
 			logger.debug('Received watch results at BaseModule: %s', results)
+
+			if Event.__ON__ not in skip_events:
+				# [DOC] Check proxy module
+				if self.proxy:
+					# [DOC] Call original module on_watch
+					on_watch = await self.modules[self.proxy].on_watch(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+					if type(on_watch) in [DictObj, dict]: yield on_watch
+					results, skip_events, env, query, doc = on_watch
+				on_watch = await self.on_watch(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+				if type(on_watch) in [DictObj, dict]: yield on_watch
+				results, skip_events, env, query, doc = on_watch
+				# [DOC] if $attrs query arg is present return only required keys.
+				if '$attrs' in query:
+					query['$attrs'].insert(0, '_id')
+					for i in range(0, results['docs'].__len__()):
+						results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 			yield {
 				'status':200,
 				'msg':'Detected {} docs.'.format(results['count']),
@@ -320,7 +362,7 @@ class BaseModule:
 			results = results['args']
 
 		# [DOC] Module collection is updated, delete_cache
-		self.delete_cache()
+		await self.delete_cache()
 
 		return {
 			'status':200,
@@ -436,7 +478,7 @@ class BaseModule:
 			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
 
 		# [DOC] Module collection is updated, delete_cache
-		self.delete_cache()
+		await self.delete_cache()
 
 		return {
 			'status':200,
@@ -482,6 +524,10 @@ class BaseModule:
 			on_delete = await self.on_delete(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(on_delete) in [DictObj, dict]: return on_delete
 			results, skip_events, env, query, doc = on_delete
+		
+		# [DOC] Module collection is updated, delete_cache
+		await self.delete_cache()
+
 		return {
 			'status':200,
 			'msg':'Deleted {} docs.'.format(results['count']),

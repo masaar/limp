@@ -30,7 +30,7 @@ class Realm(BaseModule):
 	}
 
 	async def pre_create(self, skip_events, env, query, doc):
-		user_results = self.modules['user'].create(skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, doc={
+		user_results = await self.modules['user'].create(skip_events=[Event.__PERM__, Event.__ARGS__, Event.__PRE__], env=env, doc={
 			'username':doc['user']['username'],
 			'email':doc['user']['email'],
 			'name':doc['user']['name'],
@@ -53,7 +53,7 @@ class Realm(BaseModule):
 			return user_results
 		user = user_results.args.docs[0]
 
-		group_results = self.modules['group'].create(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, doc={
+		group_results = await self.modules['group'].create(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, doc={
 			'user':user._id,
 			'name':{
 				locale:'__DEFAULT' for locale in Config.locales
@@ -76,7 +76,7 @@ class Realm(BaseModule):
 	
 	async def on_create(self, results, skip_events, env, query, doc):
 		for doc in results['docs']:
-			realm_results = self.read(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, query=[{'_id':doc._id}])
+			realm_results = await self.read(skip_events=[Event.__PERM__, Event.__ARGS__], env=env, query=[{'_id':doc._id}])
 			realm = realm_results.args.docs[0]
 			Config._realms[realm.name] = realm
 			Config._sys_docs[realm._id] = {'module':'realm'}

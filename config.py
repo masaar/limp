@@ -173,7 +173,9 @@ class Config:
 			'conn':self._sys_conn,
 			'REMOTE_ADDR':'127.0.0.1',
 			'HTTP_USER_AGENT':'LIMPd',
-			'session':DictObj(anon_session)
+			'session':DictObj(anon_session),
+			'ws':None,
+			'watch_tasks':{}
 		}
 
 		if self.data_azure_mongo:
@@ -384,14 +386,14 @@ class Config:
 		# [DOC] Test app-specific docs
 		logger.debug('Testing docs.')
 		for doc in self.docs:
-			doc_results = modules[doc['module']].read(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, query=[{'_id':doc['doc']['_id']}])
+			doc_results = await modules[doc['module']].read(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=self._sys_env, query=[{'_id':doc['doc']['_id']}])
 			if not doc_results.args.count:
 				if self.realm:
 					doc['doc']['realm'] = '__global'
 				skip_events = [Event.__PERM__]
 				if 'skip_args' in doc.keys() and doc['skip_args'] == True:
 					skip_events.append(Event.__ARGS__)
-				doc_results = modules[doc['module']].create(skip_events=skip_events, env=self._sys_env, doc=doc['doc'])
+				doc_results = await modules[doc['module']].create(skip_events=skip_events, env=self._sys_env, doc=doc['doc'])
 				logger.debug('App-specific doc with _id \'%s\' of module \'%s\' creation results: %s', doc['doc']['_id'], doc['module'], doc_results)
 				if doc_results.status != 200:
 					logger.error('Config step failed. Exiting.')

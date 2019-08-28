@@ -82,7 +82,7 @@ class User(BaseModule):
 							extn_query = [{'_id':extn[1]}]
 						if extn[2] != ['*']:
 							extn_query.append({'$attrs':extn[2]})
-						extn_results = self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=extn_query)
+						extn_results = await self.modules[extn[0]].read(skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=extn_query)
 						if not extn_results.args.count:
 							user.attrs[attr] = None
 						else:
@@ -92,7 +92,7 @@ class User(BaseModule):
 	async def pre_create(self, skip_events, env, query, doc):
 		if Event.__ARGS__ not in skip_events:
 			if Config.realm:
-				realm_results = self.modules['realm'].read(skip_events=[Event.__PERM__], env=env)
+				realm_results = await self.modules['realm'].read(skip_events=[Event.__PERM__], env=env)
 				realm = realm_results.args.docs[0]
 				doc['groups'] = [realm.default]
 			else:
