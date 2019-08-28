@@ -297,8 +297,27 @@ async def run_app(packages, port):
 					if module == 'watch' and request['path'][1].lower() == 'delete':
 						logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
 						try:
-							env['watch_tasks'][request['query'][0]['watch']].cancel()
-							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Watch task deleted.', 'args':{'call_id':request['call_id']}}))
+							if request['query'][0]['watch'] == '__all':
+								for watch_task in env['watch_tasks'].values():
+									watch_task.cancel()
+								await ws.send_str(JSONEncoder().encode({
+									'status':200,
+									'msg':'All watch tasks deleted.',
+									'args':{
+										'call_id':request['call_id'], 'watch':list(env['watch_tasks'].keys())
+									}
+								}))
+								env['watch_tasks'] = {}
+							else:
+								env['watch_tasks'][request['query'][0]['watch']].cancel()
+								await ws.send_str(JSONEncoder().encode({
+									'status':200,
+									'msg':'Watch task deleted.',
+									'args':{
+										'call_id':request['call_id'], 'watch':[request['query'][0]['watch']]
+									}
+								}))
+								del env['watch_tasks'][request['query'][0]['watch']]
 						except:
 							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
 						continue
