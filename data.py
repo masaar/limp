@@ -22,6 +22,10 @@ class Data():
 		return self.driver.read(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
 	
 	@classmethod
+	def watch(self, env, collection, attrs, extns, modules, query):
+		return self.driver.watch(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+	
+	@classmethod
 	def create(self, env, collection, attrs, extns, modules, doc):
 		doc = self.sanitise_attrs(doc)
 		return self.driver.create(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, doc=doc)

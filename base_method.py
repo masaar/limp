@@ -94,11 +94,19 @@ class BaseMethod:
 			permissions_check = self.module.modules['session'].check_permissions(env['session'], self.module, self.permissions)
 			logger.debug('permissions_check: %s.', permissions_check)
 			if permissions_check == False:
-				return DictObj({
-					'status':403,
-					'msg':'You don\'t have permissions to access this endpoint.',
-					'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
-				})
+				if call_id:
+					await env['ws'].send_str(JSONEncoder().encode({
+						'status':403,
+						'msg':'You don\'t have permissions to access this endpoint.',
+						'args':{'code':'CORE_SESSION_FORBIDDEN', 'call_id':call_id}
+					}))
+					return
+				else:
+					return DictObj({
+						'status':403,
+						'msg':'You don\'t have permissions to access this endpoint.',
+						'args':DictObj({'code':'CORE_SESSION_FORBIDDEN'})
+					})
 			else:
 				# [TODO] Implement NONE_VALUE handler
 				if type(permissions_check['query']) == dict:
@@ -144,22 +152,38 @@ class BaseMethod:
 				if test_query != True:
 					for i in range(0, len(test_query)):
 						test_query[i] = '[' + ', '.join([f'\'{arg}\': {val.capitalize()}' for arg, val in test_query[i].items() if val != True]) + ']'
-					return DictObj({
-						'status':400,
-						'msg':'Could not match query with any of the required query_args. Failed sets:' + ', '.join(test_query),
-						'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.package_name.upper(), self.module.module_name.upper())})
-					})
+					if call_id:
+						await env['ws'].send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Could not match query with any of the required query_args. Failed sets:' + ', '.join(test_query),
+							'args':{'code':'{}_{}_INVALID_QUERY'.format(self.module.package_name.upper(), self.module.module_name.upper()), 'call_id':call_id}
+						}))
+						return
+					else:
+						return DictObj({
+							'status':400,
+							'msg':'Could not match query with any of the required query_args. Failed sets:' + ', '.join(test_query),
+							'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+						})
 			
 			if self.doc_args:
 				test_doc = self.validate_args(doc, 'doc')
 				if test_doc != True:
 					for i in range(0, len(test_doc)):
 						test_doc[i] = '[' + ', '.join([f'\'{arg}\': {val.capitalize()}' for arg, val in test_doc[i].items() if val != True]) + ']'
-					return DictObj({
-						'status':400,
-						'msg':'Could not match doc with any of the required doc_args. Failed sets:' + ', '.join(test_doc),
-						'args':DictObj({'code':'{}_{}_INVALID_DOC'.format(self.module.package_name.upper(), self.module.module_name.upper())})
-					})
+					if call_id:
+						await env['ws'].send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Could not match doc with any of the required doc_args. Failed sets:' + ', '.join(test_doc),
+							'args':{'code':'{}_{}_INVALID_DOC'.format(self.module.package_name.upper(), self.module.module_name.upper()), 'call_id':call_id}
+						}))
+						return
+					else:
+						return DictObj({
+							'status':400,
+							'msg':'Could not match doc with any of the required doc_args. Failed sets:' + ', '.join(test_doc),
+							'args':DictObj({'code':'{}_{}_INVALID_DOC'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+						})
 
 		for arg in doc.keys():
 			if type(doc[arg]) == BaseModel:
@@ -185,7 +209,12 @@ class BaseMethod:
 			else:
 				method = getattr(self.module, '_method_{}'.format(self.method))
 			# [DOC] Call method function
-			results = await method(skip_events=skip_events, env=env, query=query, doc=doc)
+			if self.method == 'watch':
+				# await method(skip_events=skip_events, env=env, query=query, doc=doc)
+				asyncio.create_task(self.watch_loop(ws=env['ws'], stream=method(skip_events=skip_events, env=env, query=query, doc=doc), call_id=call_id))
+				return
+			else:
+				results = await method(skip_events=skip_events, env=env, query=query, doc=doc)
 			query = Query([])
 		except Exception as e:
 			logger.error('An error occured. Details: %s.', traceback.format_exc())
@@ -199,17 +228,31 @@ class BaseMethod:
 				logger.error('Scope variables: %s', JSONEncoder().encode(prev.tb_frame.f_locals))
 			query = Query([])
 			if Config.debug:
-				return DictObj({
-					'status':500,
-					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),
-					'args':DictObj({'code':'CORE_SERVER_ERROR', 'method':'{}.{}'.format(self.module.module_name, self.method), 'err':str(e)})
-				})
+				if call_id:
+					await env['ws'].send_str(JSONEncoder().encode({
+						'status':500,
+						'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),
+						'args':{'code':'CORE_SERVER_ERROR', 'method':'{}.{}'.format(self.module.module_name, self.method), 'err':str(e), 'call_id':call_id}
+					}))
+				else:
+					return DictObj({
+						'status':500,
+						'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),
+						'args':DictObj({'code':'CORE_SERVER_ERROR', 'method':'{}.{}'.format(self.module.module_name, self.method), 'err':str(e)})
+					})
 			else:
-				return DictObj({
-					'status':500,
-					'msg':'Unexpected error has occured.',
-					'args':DictObj({'code':'CORE_SERVER_ERROR'})
-				})
+				if call_id:
+					await env['ws'].send_str(JSONEncoder().encode({
+						'status':500,
+						'msg':'Unexpected error has occured.',
+						'args':{'code':'CORE_SERVER_ERROR', 'call_id':call_id}
+					}))
+				else:
+					return DictObj({
+						'status':500,
+						'msg':'Unexpected error has occured.',
+						'args':DictObj({'code':'CORE_SERVER_ERROR'})
+					})
 		
 		results = DictObj(results)
 		try:
@@ -219,23 +262,28 @@ class BaseMethod:
 		
 		if call_id:
 			logger.debug('Call results: %s', JSONEncoder().encode(results))
-			if results.status == 204:
-				await env['ws'].send_str(JSONEncoder().encode({
-					'status':204,
-					'args':{
-						'call_id':call_id
-					}
-				}))
-			else:
-				# [DOC] Check for session in results
-				if 'session' in results.args:
-					if results.args.session._id == 'f00000000000000000000012':
-						# [DOC] Updating session to __ANON
-						env['session'] = None
-					else:
-						# [DOC] Updating session to user
-						env['session'] = results.args.session
-				results.args['call_id'] = call_id
-				await env['ws'].send_str(JSONEncoder().encode(results))
+			# [DOC] Check for session in results
+			if 'session' in results.args:
+				if results.args.session._id == 'f00000000000000000000012':
+					# [DOC] Updating session to __ANON
+					env['session'] = None
+				else:
+					# [DOC] Updating session to user
+					env['session'] = results.args.session
+			results.args['call_id'] = call_id
+			await env['ws'].send_str(JSONEncoder().encode(results))
 		else:
 			return results
+
+	async def watch_loop(self, ws, stream, call_id):
+		logger.debug('Preparing async loop at BaseMethod')
+		async for results in stream:
+			logger.debug('Received watch results at BaseMethod: %s', results)
+			results = DictObj(results)
+			try:
+				results['args'] = DictObj(results.args)
+			except Exception:
+				results['args'] = DictObj({})
+			
+			results.args['call_id'] = call_id
+			await ws.send_str(JSONEncoder().encode(results))

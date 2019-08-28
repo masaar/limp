@@ -4,7 +4,7 @@ from utils import DictObj, Query
 from base_model import BaseModel
 from data import DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS
 
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
 import os, logging, re, datetime
@@ -23,7 +23,7 @@ class MongoDb():
 		# [DOC] Check for multiple servers
 		if type(Config.data_server) == list:
 			for data_server in Config.data_server:
-				conn = MongoClient(data_server, **connection_config, connect=True)
+				conn = AsyncIOMotorClient(data_server, **connection_config, connect=True)
 				try:
 					logger.debug('Check if data_server: %s isMaster.', data_server)
 					results = conn.admin.command('ismaster')
@@ -36,7 +36,7 @@ class MongoDb():
 					pass
 		elif type(Config.data_server) == str:
 			# [DOC] If it's single server just connect directly
-			conn = MongoClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
+			conn = AsyncIOMotorClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
 		return conn
 	
 	@classmethod
@@ -202,10 +202,12 @@ class MongoDb():
 		logger.debug('skip, limit, sort, group: %s, %s, %s, %s:', skip, limit, sort, group)
 
 		collection = conn[collection]
-		docs_total = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
+		docs_total_results = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
 		try:
-			docs_total = docs_total.next()['__docs_total']
-		except StopIteration:
+			async for doc in docs_total_results:
+				docs_total = doc['__docs_total']
+			docs_total
+		except:
 			return {
 				'total':0,
 				'count':0,
@@ -239,10 +241,12 @@ class MongoDb():
 		
 		logger.debug('final query: %s, %s.', collection, aggregate_query)
 
-		docs_count = collection.aggregate(aggregate_query + [{'$count':'__docs_count'}])
+		docs_count_results = collection.aggregate(aggregate_query + [{'$count':'__docs_count'}])
 		try:
-			docs_count = docs_count.next()['__docs_count']
-		except StopIteration:
+			async for doc in docs_count_results:
+				docs_count = doc['__docs_count']
+			docs_count
+		except:
 			return {
 				'total':docs_total,
 				'count':0,
@@ -251,7 +255,7 @@ class MongoDb():
 			}
 		docs = collection.aggregate(aggregate_query)
 		models = []
-		for doc in docs:
+		async for doc in docs:
 			for extn in extns.keys():
 				# [DOC] Check if extn module is dynamic value
 				if extns[extn][0].startswith('$__doc.'):
@@ -320,19 +324,33 @@ class MongoDb():
 			'docs':models,
 			'groups': {} if not group else groups
 		}
-
+	
 	@classmethod
-	def create(self, env, collection, attrs, extns, modules, doc):
+	async def watch(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		collection = conn[collection]
-		_id = collection.insert_one(doc).inserted_id
+		logger.debug('Preparing generator at Data')
+		async with collection.watch() as stream:
+			async for change in stream:
+				logger.debug('Detected change at Data: %s', change)
+				yield {
+					'count':1,
+					'docs':[BaseModel(change['fullDocument'])]
+				}
+
+	@classmethod
+	async def create(self, env, collection, attrs, extns, modules, doc):
+		conn = env['conn']
+		collection = conn[collection]
+		results = await collection.insert_one(doc)
+		_id = results.inserted_id
 		return {
 			'count':1,
 			'docs':[BaseModel({'_id':_id})]
 		}
 	
 	@classmethod
-	def update(self, env, collection, attrs, extns, modules, docs, doc):
+	async def update(self, env, collection, attrs, extns, modules, docs, doc):
 		conn = env['conn']
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
@@ -376,10 +394,10 @@ class MongoDb():
 		if Config.data_azure_mongo:
 			update_count = 0
 			for _id in docs:
-				results = collection.update_one({'_id':_id}, update_doc)
+				results = await collection.update_one({'_id':_id}, update_doc)
 				update_count += results.modified_count
 		else:
-			results = collection.update_many({'_id':{'$in':docs}}, update_doc)
+			results = await collection.update_many({'_id':{'$in':docs}}, update_doc)
 			update_count = results.modified_count
 		return {
 			'count':update_count,
@@ -387,7 +405,7 @@ class MongoDb():
 		}
 	
 	@classmethod
-	def delete(self, env, collection, attrs, extns, modules, docs, strategy):
+	async def delete(self, env, collection, attrs, extns, modules, docs, strategy):
 		conn = env['conn']
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
@@ -405,10 +423,10 @@ class MongoDb():
 			if Config.data_azure_mongo:
 				update_count = 0
 				for _id in docs:
-					results = collection.update_one({'_id':_id}, update_doc)
+					results = await collection.update_one({'_id':_id}, update_doc)
 					update_count += results.modified_count
 			else:
-				results = collection.update_many({'_id':{'$in':docs}}, update_doc)
+				results = await collection.update_many({'_id':{'$in':docs}}, update_doc)
 				update_count = results.modified_count
 			return {
 				'count':update_count,
@@ -427,10 +445,10 @@ class MongoDb():
 			if Config.data_azure_mongo:
 				delete_count = 0
 				for _id in del_docs:
-					results = collection.delete_one({'_id':_id})
+					results = await collection.delete_one({'_id':_id})
 					delete_count += results.deleted_count
 			else:
-				results = collection.delete_many({'_id':{'$in':del_docs}})
+				results = await collection.delete_many({'_id':{'$in':del_docs}})
 				delete_count = results.deleted_count
 			return {
 				'count':delete_count,
@@ -440,8 +458,8 @@ class MongoDb():
 			return False
 	
 	@classmethod
-	def drop(self, env, collection):
+	async def drop(self, env, collection):
 		conn = env['conn']
 		collection = conn[collection]
-		collection.drop()
+		await collection.drop()
 		return True
