@@ -40,7 +40,7 @@ class MongoDb():
 		return conn
 	
 	@classmethod
-	def _compile_query(self, collection, attrs, extns, modules, query):
+	def _compile_query(self, collection, attrs, extns, modules, query, watch_mode):
 		aggregate_prefix = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		aggregate_suffix = []
 		aggregate_query = [{'$match':{'$and':[]}}]
@@ -84,7 +84,7 @@ class MongoDb():
 			del query['$geo_near']
 
 		for step in query:
-			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step)
+			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step, watch_mode=watch_mode)
 		
 		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
 		if aggregate_match.__len__() == 1:
@@ -96,13 +96,13 @@ class MongoDb():
 		return (skip, limit, sort, group, aggregate_query)
 	
 	@classmethod
-	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step):
+	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step, watch_mode):
 		if type(step) == dict and step.keys().__len__():
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
 				if attr.startswith('__or'):
 					child_child_aggregate_query = {'$or':[]}
-					self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr])
+					self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr], watch_mode=watch_mode)
 					if child_child_aggregate_query['$or'].__len__() == 1:
 						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'][0])
 					elif child_child_aggregate_query['$or'].__len__() > 1:
@@ -178,7 +178,10 @@ class MongoDb():
 					if type(step[attr]) == dict and '$match' in step[attr].keys():
 						child_aggregate_query['$and'].append(step[attr]['$match'])
 					else:
-						child_aggregate_query['$and'].append({attr:step[attr]})
+						if watch_mode:
+							child_aggregate_query['$and'].append({f'fullDocument.{attr}':step[attr]})
+						else:
+							child_aggregate_query['$and'].append({attr:step[attr]})
 			if child_aggregate_query['$and'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$and'][0])
 			elif child_aggregate_query['$and'].__len__() > 1:
@@ -186,7 +189,7 @@ class MongoDb():
 		elif type(step) == list and step.__len__():
 			child_aggregate_query = {'$or':[]}
 			for child_step in step:
-				self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step)
+				self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, watch_mode=watch_mode)
 			if child_aggregate_query['$or'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$or'][0])
 			elif child_aggregate_query['$or'].__len__() > 1:
@@ -196,7 +199,7 @@ class MongoDb():
 	async def read(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		
-		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query)
+		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
 		logger.debug('skip, limit, sort, group: %s, %s, %s, %s:', skip, limit, sort, group)
@@ -328,9 +331,13 @@ class MongoDb():
 	@classmethod
 	async def watch(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
+
+		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)
+
 		collection = conn[collection]
+		
 		logger.debug('Preparing generator at Data')
-		async with collection.watch() as stream:
+		async with collection.watch(aggregate_query) as stream:
 			async for change in stream:
 				logger.debug('Detected change at Data: %s', change)
 				yield {
