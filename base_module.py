@@ -229,6 +229,17 @@ class BaseModule:
 			'args':results
 		}
 	
+	async def watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		logger.debug('Preparing async loop at BaseModule')
+		# await Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+		async for results in Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query):
+			logger.debug('Received watch results at BaseModule: %s', results)
+			yield {
+				'status':200,
+				'msg':'Detected {} docs.'.format(results['count']),
+				'args':results
+			}
+	
 	async def pre_create(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
 		return (skip_events, env, query, doc)
 	async def on_create(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
@@ -292,7 +303,7 @@ class BaseModule:
 						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 		# [DOC] Execute Data driver create
-		results = Data.create(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
+		results = await Data.create(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -391,7 +402,7 @@ class BaseModule:
 						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
 						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
 					}
-		results = Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
+		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -460,7 +471,7 @@ class BaseModule:
 			strategy = DELETE_FORCE_SYS
 		
 		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
-		results = Data.delete(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
+		results = await Data.delete(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
