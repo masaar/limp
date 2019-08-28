@@ -248,6 +248,9 @@ def import_modules(packages=None):
 			module = __import__(modname, fromlist='*')
 			for clsname in dir(module):
 				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
+					if clsname.lower() in ['file', 'watch']:
+						logger.error('Module with LIMPd-reserved name \'%s\' was found. Exiting.', clsname.lower())
+						exit()
 					cls = getattr(module, clsname)
 					module_name = re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()
 					if module_name in modules.keys():

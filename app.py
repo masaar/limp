@@ -162,7 +162,8 @@ async def run_app(packages, port):
 			anon_session['user'] = DictObj(anon_user)
 			session = DictObj(anon_session)
 
-		results = modules[module].methods[method](env=env, session=session, query=[get_args])
+		env['session'] = session
+		results = await modules[module].methods[method](env=env, query=[get_args])
 
 		if 'return' not in results.args or results.args['return'] == 'json':
 			if 'return' in results.args:
@@ -198,22 +199,17 @@ async def run_app(packages, port):
 		ws = aiohttp.web.WebSocketResponse()
 		await ws.prepare(request)
 
+		env = {
+			'conn':conn,
+			'REMOTE_ADDR':request.remote,
+			'ws':ws,
+			'session':None,
+			'watch_tasks':{}
+		}
 		try:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['user-agent'],
-				'ws':ws,
-				'session':None
-			}
+			env['HTTP_USER_AGENT'] = request.headers['user-agent']
 		except:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':'',
-				'ws':ws,
-				'session':None
-			}
+			env['HTTP_USER_AGENT'] = ''
 		
 		if Config.realm:
 			env['realm'] = request.match_info['realm'].lower()
@@ -296,6 +292,15 @@ async def run_app(packages, port):
 						else:
 							# [DOC] More chunks expeceted, update the client
 							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
+						continue
+					
+					if module == 'watch' and request['path'][1].lower() == 'delete':
+						logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
+						try:
+							env['watch_tasks'][request['query'][0]['watch']].cancel()
+							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Watch task deleted.', 'args':{'call_id':request['call_id']}}))
+						except:
+							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
 						continue
 
 					if module not in modules.keys():

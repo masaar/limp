@@ -196,6 +196,70 @@ class MongoDb():
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
+	async def _process_results_doc(self, env, collection, attrs, extns, modules, query, doc):
+		for extn in extns.keys():
+			# [DOC] Check if extn module is dynamic value
+			if extns[extn][0].startswith('$__doc.'):
+				extn_module = modules[doc[extns[extn][0].replace('$__doc.', '')]]
+			else:
+				extn_module = modules[extns[extn][0]]
+			# [DOC] Check if extn attr set to fetch all or specific attrs
+			if extns[extn][1][0] == '*':
+				extn_attrs = {attr:extn_module.attrs[attr] for attr in extn_module.attrs.keys()}
+			else:
+				extn_attrs = {attr:extn_module.attrs[attr] for attr in extns[extn][1]}
+			# [DOC] Implicitly add _id key to extn attrs so that we don't delete it in process
+			extn_attrs['_id'] = 'id'
+			if attrs[extn] == 'id':
+				# [DOC] In case value is null, do not attempt to extend doc
+				if not doc or not doc[extn]: continue
+				# [DOC] Stage skip events
+				skip_events = [Event.__PERM__]
+				# [DOC] Call read method on extn module, without second-step extn
+				# [DOC] Check if extn rule is explicitly requires second-dimension extn.
+				if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
+					skip_events.append(Event.__EXTN__)
+				extn_results = await extn_module.methods['read'](skip_events=skip_events, env=env, query=[
+					{'_id':doc[extn]}
+				])
+				# [TODO] Consider a fallback for extn no-match cases
+				if extn_results['args']['count']:
+					doc[extn] = extn_results['args']['docs'][0]
+					# [DOC] delete all unneeded keys from the resulted doc
+					del_attrs = []
+					for attr in doc[extn]._attrs().keys():
+						if attr not in extn_attrs.keys():
+							del_attrs.append(attr)
+					# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
+					for attr in del_attrs:
+						del doc[extn][attr]
+				else:
+					doc[extn] = None
+			elif attrs[extn] == ['id']:
+				# [DOC] In case value is null, do not attempt to extend doc
+				if not doc[extn]: continue
+				# [DOC] Loop over every _id in the extn array
+				for i in range(0, doc[extn].__len__()):
+					# [DOC] In case value is null, do not attempt to extend doc
+					if not doc[extn][i]: continue
+					extn_results = await extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
+						{'_id':doc[extn][i]}
+					])
+					if extn_results['args']['count']:
+						doc[extn][i] = extn_results['args']['docs'][0]
+						# [DOC] delete all unneeded keys from the resulted doc
+						del_attrs = []
+						for attr in doc[extn][i]._attrs().keys():
+							if attr not in extn_attrs.keys():
+								del_attrs.append(attr)
+						# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
+						for attr in del_attrs:
+							del doc[extn][i][attr]
+					else:
+						doc[extn][i] = None
+		return doc
+
+	@classmethod
 	async def read(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 		
@@ -259,66 +323,7 @@ class MongoDb():
 		docs = collection.aggregate(aggregate_query)
 		models = []
 		async for doc in docs:
-			for extn in extns.keys():
-				# [DOC] Check if extn module is dynamic value
-				if extns[extn][0].startswith('$__doc.'):
-					extn_module = modules[doc[extns[extn][0].replace('$__doc.', '')]]
-				else:
-					extn_module = modules[extns[extn][0]]
-				# [DOC] Check if extn attr set to fetch all or specific attrs
-				if extns[extn][1][0] == '*':
-					extn_attrs = {attr:extn_module.attrs[attr] for attr in extn_module.attrs.keys()}
-				else:
-					extn_attrs = {attr:extn_module.attrs[attr] for attr in extns[extn][1]}
-				# [DOC] Implicitly add _id key to extn attrs so that we don't delete it in process
-				extn_attrs['_id'] = 'id'
-				if attrs[extn] == 'id':
-					# [DOC] In case value is null, do not attempt to extend doc
-					if not doc or not doc[extn]: continue
-					# [DOC] Stage skip events
-					skip_events = [Event.__PERM__]
-					# [DOC] Call read method on extn module, without second-step extn
-					# [DOC] Check if extn rule is explicitly requires second-dimension extn.
-					if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
-						skip_events.append(Event.__EXTN__)
-					extn_results = await extn_module.methods['read'](skip_events=skip_events, env=env, query=[
-						{'_id':doc[extn]}
-					])
-					# [TODO] Consider a fallback for extn no-match cases
-					if extn_results['args']['count']:
-						doc[extn] = extn_results['args']['docs'][0]
-						# [DOC] delete all unneeded keys from the resulted doc
-						del_attrs = []
-						for attr in doc[extn]._attrs().keys():
-							if attr not in extn_attrs.keys():
-								del_attrs.append(attr)
-						# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
-						for attr in del_attrs:
-							del doc[extn][attr]
-					else:
-						doc[extn] = None
-				elif attrs[extn] == ['id']:
-					# [DOC] In case value is null, do not attempt to extend doc
-					if not doc[extn]: continue
-					# [DOC] Loop over every _id in the extn array
-					for i in range(0, doc[extn].__len__()):
-						# [DOC] In case value is null, do not attempt to extend doc
-						if not doc[extn][i]: continue
-						extn_results = await extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
-							{'_id':doc[extn][i]}
-						])
-						if extn_results['args']['count']:
-							doc[extn][i] = extn_results['args']['docs'][0]
-							# [DOC] delete all unneeded keys from the resulted doc
-							del_attrs = []
-							for attr in doc[extn][i]._attrs().keys():
-								if attr not in extn_attrs.keys():
-									del_attrs.append(attr)
-							# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
-							for attr in del_attrs:
-								del doc[extn][i][attr]
-						else:
-							doc[extn][i] = None
+			doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
 			if doc:
 				models.append(BaseModel(doc))
 		return {
@@ -332,7 +337,7 @@ class MongoDb():
 	async def watch(self, env, collection, attrs, extns, modules, query):
 		conn = env['conn']
 
-		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)
+		aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
 
 		collection = conn[collection]
 		
@@ -340,9 +345,10 @@ class MongoDb():
 		async with collection.watch(aggregate_query) as stream:
 			async for change in stream:
 				logger.debug('Detected change at Data: %s', change)
+				doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=change['fullDocument'])
 				yield {
 					'count':1,
-					'docs':[BaseModel(change['fullDocument'])]
+					'docs':[BaseModel(doc)]
 				}
 
 	@classmethod
