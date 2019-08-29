@@ -385,7 +385,7 @@ async def run_app(packages, port):
 			watch_task['task'].cancel()
 		
 		logger.debug('Closing data connection')
-		conn.close()
+		env['conn'].close()
 
 		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
 		return ws
