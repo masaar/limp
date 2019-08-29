@@ -1,6 +1,6 @@
 aiohttp==3.5.4
 Pillow==6.1.0
-pymongo==3.7.2
+pymongo==3.9.0
 motor==2.0.0
 PyJWT==1.7.1
 twilio==6.25.1
