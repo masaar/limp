@@ -33,14 +33,14 @@ class Data():
 					results = conn.admin.command('ismaster')
 					logger.debug('-Check results: %s', results)
 					if results['ismaster']:
-						conn = conn[Config.data_name]
+						# conn = conn[Config.data_name]
 						break
 				except Exception as err:
 					logger.debug('Not master. Error: %s', err)
 					pass
 		elif type(Config.data_server) == str:
 			# [DOC] If it's single server just connect directly
-			conn = AsyncIOMotorClient(Config.data_server, **connection_config, connect=True)[Config.data_name]
+			conn = AsyncIOMotorClient(Config.data_server, **connection_config, connect=True) #[Config.data_name]
 		return conn
 	
 	@classmethod
@@ -259,14 +259,14 @@ class Data():
 
 	@classmethod
 	async def read(self, env, collection, attrs, extns, modules, query):
-		conn = env['conn']
+		# conn = env['conn']
 		
 		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
 		logger.debug('skip, limit, sort, group: %s, %s, %s, %s:', skip, limit, sort, group)
 
-		collection = conn[collection]
+		collection = env['conn'][Config.data_name][collection]
 		docs_total_results = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
 		try:
 			async for doc in docs_total_results:
@@ -333,11 +333,11 @@ class Data():
 	
 	@classmethod
 	async def watch(self, env, collection, attrs, extns, modules, query):
-		conn = env['conn']
+		# conn = env['conn']
 
 		aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
 
-		collection = conn[collection]
+		collection = env['conn'][Config.data_name][collection]
 		
 		logger.debug('Preparing generator at Data')
 		async with collection.watch(pipeline=aggregate_query, full_document='updateLookup') as stream:
@@ -361,8 +361,8 @@ class Data():
 
 	@classmethod
 	async def create(self, env, collection, attrs, extns, modules, doc):
-		conn = env['conn']
-		collection = conn[collection]
+		# conn = env['conn']
+		collection = env['conn'][Config.data_name][collection]
 		results = await collection.insert_one(doc)
 		_id = results.inserted_id
 		return {
@@ -372,11 +372,11 @@ class Data():
 	
 	@classmethod
 	async def update(self, env, collection, attrs, extns, modules, docs, doc):
-		conn = env['conn']
+		# conn = env['conn']
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
 		# [DOC] Perform update query on matching docs
-		collection = conn[collection]
+		collection = env['conn'][Config.data_name][collection]
 		results = None
 		update_doc = {'$set':doc}
 		# [DOC] Check for increament oper
@@ -427,7 +427,7 @@ class Data():
 	
 	@classmethod
 	async def delete(self, env, collection, attrs, extns, modules, docs, strategy):
-		conn = env['conn']
+		# conn = env['conn']
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
 			if strategy == DELETE_SOFT_SKIP_SYS:
@@ -438,7 +438,7 @@ class Data():
 				logger.warning('Detected \'DELETE_SOFT_SYS\' strategy for delete call.')
 				del_docs = [ObjectId(doc) for doc in docs]
 			# [DOC] Perform update call on matching docs
-			collection = conn[collection]
+			collection = env['conn'][Config.data_name][collection]
 			update_doc = {'$set':{'__deleted':True}}
 			# [DOC] If using Azure Mongo service update docs one by one
 			if Config.data_azure_mongo:
@@ -462,7 +462,7 @@ class Data():
 				logger.warning('Detected \'DELETE_FORCE_SYS\' strategy for delete call.')
 				del_docs = [ObjectId(doc) for doc in docs]
 			# [DOC] Perform delete query on matching docs
-			collection = conn[collection]
+			collection = env['conn'][Config.data_name][collection]
 			if Config.data_azure_mongo:
 				delete_count = 0
 				for _id in del_docs:
@@ -480,7 +480,7 @@ class Data():
 	
 	@classmethod
 	async def drop(self, env, collection):
-		conn = env['conn']
-		collection = conn[collection]
+		# conn = env['conn']
+		collection = env['conn'][Config.data_name][collection]
 		await collection.drop()
 		return True

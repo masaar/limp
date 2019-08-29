@@ -178,7 +178,7 @@ class Config:
 				try:
 					if modules[module].collection:
 						logger.debug('Attempting to create shard collection: %s.', modules[module].collection)
-						self._sys_conn.command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+						self._sys_conn[self.data_name].command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
 					else:
 						logger.debug('Skipping service module: %s.', module)
 				except Exception as err:
@@ -365,18 +365,18 @@ class Config:
 		logger.debug('Testing data indexes')
 		for index in self.data_indexes:
 			logger.debug('Attempting to create data index: %s', index)
-			self._sys_conn[index['collection']].create_index(index['index'])
+			self._sys_conn[self.data_name][index['collection']].create_index(index['index'])
 		logger.debug('Creating \'__deleted\' data indexes for all collections.')
 		for module in modules:
 			if modules[module].collection:
 				logger.debug('Attempting to create \'__deleted\' data index for collection: %s', modules[module].collection)
-				self._sys_conn[modules[module].collection].create_index([('__deleted', 1)])
+				self._sys_conn[self.data_name][modules[module].collection].create_index([('__deleted', 1)])
 		if self.realm:
 			logger.debug('Creating \'realm\' data indexes for all collections.')
 			for module in modules:
 				if module != 'realm' and modules[module].collection:
 					logger.debug('Attempting to create \'realm\' data index for collection: %s', modules[module].collection)
-					self._sys_conn[modules[module].collection].create_index([('realm', 'text')])
+					self._sys_conn[self.data_name][modules[module].collection].create_index([('realm', 'text')])
 
 		# [DOC] Test app-specific docs
 		logger.debug('Testing docs.')
