@@ -259,4 +259,5 @@ class BaseMethod:
 				results['args'] = DictObj({})
 			
 			results.args['call_id'] = call_id
+			results.args['watch'] = call_id
 			await ws.send_str(JSONEncoder().encode(results))
