@@ -204,7 +204,8 @@ async def run_app(packages, port):
 			'REMOTE_ADDR':request.remote,
 			'ws':ws,
 			'session':None,
-			'watch_tasks':{}
+			'watch_tasks':{},
+			'init':False
 		}
 		try:
 			env['HTTP_USER_AGENT'] = request.headers['user-agent']
@@ -214,13 +215,13 @@ async def run_app(packages, port):
 		if Config.realm:
 			env['realm'] = request.match_info['realm'].lower()
 
+		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
+
 		await ws.send_str(JSONEncoder().encode({
 			'status':200,
-			'msg':'Connection establised',
-			'args':{'code':'CORE_CONN_OK'}
+			'msg':'Connection ready',
+			'args':{'code':'CORE_CONN_READY'}
 		}))
-
-		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
 
 		async for msg in ws:
 			logger.debug('Received new message from client at \'%s\': %s', env['REMOTE_ADDR'], msg.data[:256])
@@ -241,7 +242,10 @@ async def run_app(packages, port):
 							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
 							'code':'CORE_REQ_INVALID_TOKEN'
 						}}))
-						continue
+						if env['init'] == False:
+							break
+						else:
+							continue
 
 					if 'endpoint' not in res.keys():
 						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
@@ -249,6 +253,31 @@ async def run_app(packages, port):
 							'code':'CORE_REQ_NO_ENDPOINT'
 						}}))
 						continue
+					
+					if env['init'] == False:
+						if res['endpoint'] != 'conn/verify':
+							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
+								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+								'code':'CORE_REQ_NO_ENDPOINT'
+							}}))
+							break
+						else:
+							env['init'] = True
+							await ws.send_str(JSONEncoder().encode({
+								'status':200,
+								'msg':'Connection establised',
+								'args':{'code':'CORE_CONN_OK'}
+							}))
+							continue
+					
+					if res['endpoint'] == 'conn/close':
+						await ws.send_str(JSONEncoder().encode({
+							'status':200,
+							'msg':'Connection closed',
+							'args':{'code':'CORE_CONN_CLOSED'}
+						}))
+						break
+
 					
 					res['endpoint'] = res['endpoint'].lower()
 					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(env['session']._id) != 'f00000000000000000000012':
