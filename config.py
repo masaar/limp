@@ -37,6 +37,8 @@ class Config:
 
 	realm: bool = False
 
+	conn_timeout: int = 600
+
 	data_server: str = 'mongodb://localhost'
 	data_name: str = 'limp_data'
 	data_ssl: bool = False

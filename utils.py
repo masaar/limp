@@ -30,7 +30,7 @@ class DictObj:
 		if type(attrs) == DictObj:
 			attrs = attrs._attrs()
 		elif type(attrs) != dict:
-			raise TypeError
+			raise TypeError('DictObj can be initilised using DictObj or dict types only.')
 		self.__attrs = attrs
 	def __deepcopy__(self, memo):
 		return DictObj(copy.deepcopy(self.__attrs))

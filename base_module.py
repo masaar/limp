@@ -623,13 +623,13 @@ class BaseModule:
 
 		return results
 
-	def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
 		return (skip_events, env, query, doc)
-	def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
 		return (results, skip_events, env, query, doc)
-	def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
-			pre_retrieve_file = self.pre_retrieve_file(skip_events=skip_events, env=env, query=query, doc=doc)
+			pre_retrieve_file = await self.pre_retrieve_file(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_retrieve_file) in [DictObj, dict]: return pre_retrieve_file
 			skip_events, env, query, doc = pre_retrieve_file
 
@@ -640,7 +640,7 @@ class BaseModule:
 		else:
 			thumb_dims = False
 
-		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status':404,
@@ -712,7 +712,7 @@ class BaseModule:
 					pass
 
 			if Event.__ON__ not in skip_events:
-				results, skip_events, env, query, doc = self.on_retrieve_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+				results, skip_events, env, query, doc = await self.on_retrieve_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 
 			results['return'] = 'file'
 			return {

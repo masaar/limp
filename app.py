@@ -38,6 +38,8 @@ async def run_app(packages, port):
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
 	logger.debug('Generated routes: %s', routes)
 
+	sessions = []
+
 	async def root_handler(request):
 		headers = [
 			('Server', 'limpd'),
@@ -96,18 +98,15 @@ async def run_app(packages, port):
 				break
 
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
+		env = {
+			'conn':conn,
+			'REMOTE_ADDR':request.remote,
+			'ws':None
+		}
 		try:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['user-agent']
-			}
+			env['HTTP_USER_AGENT'] = request.headers['user-agent']
 		except:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':''
-			}
+			env['HTTP_USER_AGENT'] = ''
 		if Config.realm:
 			env['realm'] = request.url.parts[1].lower()
 		
@@ -165,6 +164,9 @@ async def run_app(packages, port):
 		env['session'] = session
 		results = await modules[module].methods[method](env=env, query=[get_args])
 
+		logger.debug('Closing connection.')
+		env['conn'].close()
+
 		if 'return' not in results.args or results.args['return'] == 'json':
 			if 'return' in results.args:
 				del results.args['return']
@@ -200,13 +202,16 @@ async def run_app(packages, port):
 		await ws.prepare(request)
 
 		env = {
+			'id':len(sessions),
 			'conn':conn,
 			'REMOTE_ADDR':request.remote,
 			'ws':ws,
 			'session':None,
 			'watch_tasks':{},
-			'init':False
+			'init':False,
+			'last_call':datetime.datetime.utcnow()
 		}
+		sessions.append(env)
 		try:
 			env['HTTP_USER_AGENT'] = request.headers['user-agent']
 		except:
@@ -215,7 +220,7 @@ async def run_app(packages, port):
 		if Config.realm:
 			env['realm'] = request.match_info['realm'].lower()
 
-		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
+		logger.debug('Websocket connection #\'%s\' ready with client at \'%s\'', env['id'], env['REMOTE_ADDR'])
 
 		await ws.send_str(JSONEncoder().encode({
 			'status':200,
@@ -224,9 +229,12 @@ async def run_app(packages, port):
 		}))
 
 		async for msg in ws:
-			logger.debug('Received new message from client at \'%s\': %s', env['REMOTE_ADDR'], msg.data[:256])
+			if 'conn' not in env:
+				break
+			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
 				try:
+					env['last_call'] = datetime.datetime.utcnow()
 					try:
 						env['session'].token
 					except Exception:
@@ -373,26 +381,6 @@ async def run_app(packages, port):
 					doc = parse_file_obj(request['doc'], files)
 					await method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
 
-					# logger.debug('Call results: %s', str(results)[:512])
-					# if results.status == 204:
-					# 	await ws.send_str(JSONEncoder().encode({
-					# 		'status':204,
-					# 		'args':{
-					# 			'call_id':request['call_id']
-					# 		}
-					# 	}))
-					# else:
-					# 	# [DOC] Check for session in results
-					# 	if 'session' in results.args:
-					# 		if results.args.session._id == 'f00000000000000000000012':
-					# 			# [DOC] Updating session to __ANON
-					# 			env['session'] = None
-					# 		else:
-					# 			# [DOC] Updating session to user
-					# 			env['session'] = results.args.session
-					# 	results.args['call_id'] = request['call_id']
-					# 	await ws.send_str(JSONEncoder().encode(results))
-
 				except Exception as e:
 					logger.error('An error occured. Details: %s.', traceback.format_exc())
 					if Config.debug:
@@ -408,23 +396,40 @@ async def run_app(packages, port):
 							'args':{'code':'CORE_SERVER_ERROR'}
 						}))
 		
-		logger.debug('Cleaning up watch tasks before connection close.')
+		logger.debug('Cleaning up watch tasks before connection for session #\'%s\' close.', env['id'])
 		for watch_task in env['watch_tasks'].values():
 			watch_task['stream'].close()
 			watch_task['task'].cancel()
 		
-		logger.debug('Closing data connection')
+		logger.debug('Closing data connection for session #\'%s\'', env['id'])
 		env['conn'].close()
 
-		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
+		id = env['id']
+		sessions[env['id']] = {}
+		env = {}
+
+		logger.debug('Websocket connection for session #\'%s\' closed.', id)
 		return ws
 
 	async def jobs_loop():
-		if not Config.jobs:
-			return
 		while True:
 			await asyncio.sleep(60)
 			try:
+				logger.debug('Time to check for sessions!')
+				for i in range(0, len(sessions)):
+					session = sessions[i]
+					if 'last_call' not in session.keys():
+						continue
+					if datetime.datetime.utcnow() > (session['last_call'] + datetime.timedelta(seconds=Config.conn_timeout)):
+						logger.debug('Session #\'%s\' with REMOTE_ADDR \'%s\' HTTP_USER_AGENT: \'%s\' is idle. Closing.', session['id'], session['REMOTE_ADDR'], session['HTTP_USER_AGENT'])
+						for watch_task in session['watch_tasks'].values():
+							watch_task['stream'].close()
+							watch_task['task'].cancel()
+						session['conn'].close()
+						await session['ws'].close()
+						sessions[i] = {}
+				if not Config.jobs:
+					continue
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
 				logger.debug('Time to check for jobs!')
 				for job in Config.jobs:
