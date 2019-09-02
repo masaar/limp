@@ -3,6 +3,8 @@ from event import Event
 from config import Config
 from base_model import BaseModel
 
+from asyncio import coroutine
+
 import logging, copy, traceback, sys, asyncio
 
 logger = logging.getLogger('limp')
@@ -192,12 +194,15 @@ class BaseMethod:
 					'args':{'code':'CORE_WATCH_OK', 'watch':call_id, 'call_id':call_id}
 				}))
 				env['watch_tasks'][call_id] = {
-					'stream':self.watch_loop(ws=env['ws'], stream=method(skip_events=skip_events, env=env, query=query, doc=doc), call_id=call_id)
+					'stream':method(skip_events=skip_events, env=env, query=query, doc=doc)	
 				}
+				env['watch_tasks'][call_id]['stream'] = self.watch_loop(ws=env['ws'], stream=env['watch_tasks'][call_id]['stream'], call_id=call_id) # pylint: disable=assignment-from-no-return
 				env['watch_tasks'][call_id]['task'] = asyncio.create_task(env['watch_tasks'][call_id]['stream'])
 				return
 			else:
 				results = await method(skip_events=skip_events, env=env, query=query, doc=doc)
+				if type(results) == coroutine:
+					raise TypeError('Method returned coroutine rather than acceptable results format.')
 				results = DictObj(results)
 				try:
 					results['args'] = DictObj(results.args)
@@ -260,4 +265,5 @@ class BaseMethod:
 			
 			results.args['call_id'] = call_id
 			results.args['watch'] = call_id
+
 			await ws.send_str(JSONEncoder().encode(results))
