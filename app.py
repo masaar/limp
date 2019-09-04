@@ -220,6 +220,19 @@ async def run_app(packages, port):
 		if Config.realm:
 			env['realm'] = request.match_info['realm'].lower()
 
+			realm_detected = False
+			for realm in Config._realms.keys():
+				if Config._realms[realm].name == env['realm']:
+					realm_detected = True
+					break
+			if not realm_detected:
+				await ws.send_str(JSONEncoder().encode({
+					'status':1008,
+					'msg':'Connection closed',
+					'args':{'code':'CORE_CONN_CLOSED'}
+				}))
+				ws.close()
+
 		logger.debug('Websocket connection #\'%s\' ready with client at \'%s\'', env['id'], env['REMOTE_ADDR'])
 
 		await ws.send_str(JSONEncoder().encode({
