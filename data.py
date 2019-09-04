@@ -6,7 +6,7 @@ from base_model import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
-import os, logging, re, datetime
+import os, logging, re, datetime, copy
 logger = logging.getLogger('limp')
 
 DELETE_SOFT_SKIP_SYS = 'DELETE_SOFT_SKIP_SYS'
@@ -194,7 +194,7 @@ class Data():
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
-	async def _process_results_doc(self, env, collection, attrs, extns, modules, query, doc):
+	async def _process_results_doc(self, env, collection, attrs, extns, modules, query, doc, extn_models={}):
 		for extn in extns.keys():
 			# [DOC] Check if extn module is dynamic value
 			if extns[extn][0].startswith('$__doc.'):
@@ -217,22 +217,25 @@ class Data():
 				# [DOC] Check if extn rule is explicitly requires second-dimension extn.
 				if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
 					skip_events.append(Event.__EXTN__)
-				extn_results = await extn_module.methods['read'](skip_events=skip_events, env=env, query=[
-					{'_id':doc[extn]}
-				])
-				# [TODO] Consider a fallback for extn no-match cases
-				if extn_results['args']['count']:
-					doc[extn] = extn_results['args']['docs'][0]
+				# [DOC] Read doc if not in extn_models
+				if str(doc[extn]) not in extn_models.keys():
+					extn_results = await extn_module.methods['read'](skip_events=skip_events, env=env, query=[
+						{'_id':doc[extn]}
+					])
+					if extn_results['args']['count']:
+						extn_models[str(doc[extn])] = extn_results['args']['docs'][0]
+					else:
+						extn_models[str(doc[extn])] = None
+				# [DOC] Set attr to extn_models doc
+				doc[extn] = copy.deepcopy(extn_models[str(doc[extn])])
+				if doc[extn]:
 					# [DOC] delete all unneeded keys from the resulted doc
 					del_attrs = []
 					for attr in doc[extn]._attrs().keys():
 						if attr not in extn_attrs.keys():
 							del_attrs.append(attr)
-					# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
 					for attr in del_attrs:
 						del doc[extn][attr]
-				else:
-					doc[extn] = None
 			elif attrs[extn] == ['id']:
 				# [DOC] In case value is null, do not attempt to extend doc
 				if not doc[extn]: continue
@@ -240,11 +243,18 @@ class Data():
 				for i in range(0, doc[extn].__len__()):
 					# [DOC] In case value is null, do not attempt to extend doc
 					if not doc[extn][i]: continue
-					extn_results = await extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
-						{'_id':doc[extn][i]}
-					])
-					if extn_results['args']['count']:
-						doc[extn][i] = extn_results['args']['docs'][0]
+					# [DOC] Read doc if not in extn_models
+					if str(doc[extn][i]) not in extn_models.keys():
+						extn_results = await extn_module.methods['read'](skip_events=[Event.__PERM__, Event.__EXTN__], env=env, query=[
+							{'_id':doc[extn][i]}
+						])
+						if extn_results['args']['count']:
+							extn_models[str(doc[extn][i])] = extn_results['args']['docs'][0]
+						else:
+							extn_models[str(doc[extn][i])] = None
+					# [DOC] Set attr to extn_models doc
+					doc[extn][i] = copy.deepcopy(extn_models[str(doc[extn][i])])
+					if doc[extn][i]:
 						# [DOC] delete all unneeded keys from the resulted doc
 						del_attrs = []
 						for attr in doc[extn][i]._attrs().keys():
@@ -253,14 +263,10 @@ class Data():
 						# logger.debug('extn del_attrs: %s against: %s.', del_attrs, extn_attrs)
 						for attr in del_attrs:
 							del doc[extn][i][attr]
-					else:
-						doc[extn][i] = None
 		return doc
 
 	@classmethod
 	async def read(self, env, collection, attrs, extns, modules, query):
-		# conn = env['conn']
-		
 		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
@@ -320,8 +326,9 @@ class Data():
 			}
 		docs = collection.aggregate(aggregate_query)
 		models = []
+		extn_models = {}
 		async for doc in docs:
-			doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc)
+			doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc, extn_models=extn_models)
 			if doc:
 				models.append(BaseModel(doc))
 		return {
@@ -333,14 +340,15 @@ class Data():
 	
 	@classmethod
 	async def watch(self, env, collection, attrs, extns, modules, query):
-		# conn = env['conn']
-
 		aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
 
 		collection = env['conn'][Config.data_name][collection]
-		
+
 		logger.debug('Preparing generator at Data')
 		async with collection.watch(pipeline=aggregate_query, full_document='updateLookup') as stream:
+			yield {
+				'stream':stream
+			}
 			async for change in stream:
 				logger.debug('Detected change at Data: %s', change)
 
@@ -358,10 +366,11 @@ class Data():
 					'oper':oper,
 					'docs':[model]
 				}
+		
+		logger.debug('changeStream has been close. Generator ended at Data')
 
 	@classmethod
 	async def create(self, env, collection, attrs, extns, modules, doc):
-		# conn = env['conn']
 		collection = env['conn'][Config.data_name][collection]
 		results = await collection.insert_one(doc)
 		_id = results.inserted_id
@@ -372,7 +381,6 @@ class Data():
 	
 	@classmethod
 	async def update(self, env, collection, attrs, extns, modules, docs, doc):
-		# conn = env['conn']
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
 		# [DOC] Perform update query on matching docs
@@ -427,7 +435,6 @@ class Data():
 	
 	@classmethod
 	async def delete(self, env, collection, attrs, extns, modules, docs, strategy):
-		# conn = env['conn']
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
 			if strategy == DELETE_SOFT_SKIP_SYS:
@@ -480,7 +487,6 @@ class Data():
 	
 	@classmethod
 	async def drop(self, env, collection):
-		# conn = env['conn']
 		collection = env['conn'][Config.data_name][collection]
 		await collection.drop()
 		return True

@@ -261,6 +261,10 @@ class BaseModule:
 		async for results in Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=extns, modules=self.modules, query=query):
 			logger.debug('Received watch results at BaseModule: %s', results)
 
+			if 'stream' in results.keys():
+				yield results
+				continue
+
 			if Event.__ON__ not in skip_events:
 				# [DOC] Check proxy module
 				if self.proxy:
@@ -281,6 +285,8 @@ class BaseModule:
 				'msg':'Detected {} docs.'.format(results['count']),
 				'args':results
 			}
+		
+		logger.debug('Generator ended at BaseModule.')
 	
 	async def pre_create(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
 		return (skip_events, env, query, doc)
