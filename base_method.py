@@ -194,10 +194,10 @@ class BaseMethod:
 					'args':{'code':'CORE_WATCH_OK', 'watch':call_id, 'call_id':call_id}
 				}))
 				env['watch_tasks'][call_id] = {
-					'stream':method(skip_events=skip_events, env=env, query=query, doc=doc)	
+					'watch':method(skip_events=skip_events, env=env, query=query, doc=doc)
 				}
-				env['watch_tasks'][call_id]['stream'] = self.watch_loop(ws=env['ws'], stream=env['watch_tasks'][call_id]['stream'], call_id=call_id) # pylint: disable=assignment-from-no-return
-				env['watch_tasks'][call_id]['task'] = asyncio.create_task(env['watch_tasks'][call_id]['stream'])
+				env['watch_tasks'][call_id]['watch'] = self.watch_loop(ws=env['ws'], stream=env['watch_tasks'][call_id]['watch'], call_id=call_id, watch_task=env['watch_tasks'][call_id]) # pylint: disable=assignment-from-no-return
+				env['watch_tasks'][call_id]['task'] = asyncio.create_task(env['watch_tasks'][call_id]['watch'])
 				return
 			else:
 				results = await method(skip_events=skip_events, env=env, query=query, doc=doc)
@@ -253,10 +253,15 @@ class BaseMethod:
 		else:
 			return results
 
-	async def watch_loop(self, ws, stream, call_id):
+	async def watch_loop(self, ws, stream, call_id, watch_task):
 		logger.debug('Preparing async loop at BaseMethod')
 		async for results in stream:
 			logger.debug('Received watch results at BaseMethod: %s', results)
+			# [DOC] Update watch_task stream value with stream object
+			if 'stream' in results.keys():
+				watch_task['stream'] = results['stream']
+				continue
+				
 			results = DictObj(results)
 			try:
 				results['args'] = DictObj(results.args)
@@ -267,3 +272,5 @@ class BaseMethod:
 			results.args['watch'] = call_id
 
 			await ws.send_str(JSONEncoder().encode(results))
+		
+		logger.debug('Generator ended at BaseMethod.')
