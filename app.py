@@ -256,7 +256,7 @@ async def run_app(packages, port):
 							continue
 
 					if 'endpoint' not in res.keys():
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
+						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request missing endpoint.', 'args':{
 							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
 							'code':'CORE_REQ_NO_ENDPOINT'
 						}}))
@@ -264,7 +264,7 @@ async def run_app(packages, port):
 					
 					if env['init'] == False:
 						if res['endpoint'] != 'conn/verify':
-							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
+							await ws.send_str(JSONEncoder().encode({'status':1008, 'msg':'Request token is not accepted.', 'args':{
 								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
 								'code':'CORE_REQ_NO_ENDPOINT'
 							}}))
@@ -280,7 +280,7 @@ async def run_app(packages, port):
 					
 					if res['endpoint'] == 'conn/close':
 						await ws.send_str(JSONEncoder().encode({
-							'status':200,
+							'status':1000,
 							'msg':'Connection closed',
 							'args':{'code':'CORE_CONN_CLOSED'}
 						}))
@@ -398,9 +398,9 @@ async def run_app(packages, port):
 		
 		logger.debug('Cleaning up watch tasks before connection for session #\'%s\' close.', env['id'])
 		for watch_task in env['watch_tasks'].values():
-			watch_task['stream'].close()
+			await watch_task['stream'].close()
 			watch_task['task'].cancel()
-		
+
 		logger.debug('Closing data connection for session #\'%s\'', env['id'])
 		env['conn'].close()
 
@@ -416,18 +416,14 @@ async def run_app(packages, port):
 			await asyncio.sleep(60)
 			try:
 				logger.debug('Time to check for sessions!')
+				logger.debug('Current sessions: %s', sessions)
 				for i in range(0, len(sessions)):
 					session = sessions[i]
 					if 'last_call' not in session.keys():
 						continue
 					if datetime.datetime.utcnow() > (session['last_call'] + datetime.timedelta(seconds=Config.conn_timeout)):
 						logger.debug('Session #\'%s\' with REMOTE_ADDR \'%s\' HTTP_USER_AGENT: \'%s\' is idle. Closing.', session['id'], session['REMOTE_ADDR'], session['HTTP_USER_AGENT'])
-						for watch_task in session['watch_tasks'].values():
-							watch_task['stream'].close()
-							watch_task['task'].cancel()
-						session['conn'].close()
 						await session['ws'].close()
-						sessions[i] = {}
 				if not Config.jobs:
 					continue
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
