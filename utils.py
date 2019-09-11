@@ -454,7 +454,7 @@ def validate_attr(attr_name, attr_type, attr_val):
 				if re.match(r'^\+[0-9]+$', attr_val):
 					return attr_val
 		elif type(attr_type) == str and attr_type == 'uri:web':
-			if re.match(r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+$', attr_val):
+			if re.match(r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+([\?\/].*)?$', attr_val):
 				return attr_val
 		elif type(attr_type) == str and attr_type == 'datetime':
 			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
