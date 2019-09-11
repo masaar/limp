@@ -270,7 +270,7 @@ class Data():
 		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
-		logger.debug('skip, limit, sort, group: %s, %s, %s, %s:', skip, limit, sort, group)
+		logger.debug('skip, limit, sort, group: %s, %s, %s, %s.', skip, limit, sort, group)
 
 		collection = env['conn'][Config.data_name][collection]
 		docs_total_results = collection.aggregate(aggregate_query + [{'$count':'__docs_total'}])
