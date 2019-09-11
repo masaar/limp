@@ -231,7 +231,7 @@ async def run_app(packages, port):
 					'msg':'Connection closed',
 					'args':{'code':'CORE_CONN_CLOSED'}
 				}))
-				ws.close()
+				await ws.close()
 
 		logger.debug('Websocket connection #\'%s\' ready with client at \'%s\'', env['id'], env['REMOTE_ADDR'])
 
@@ -243,7 +243,7 @@ async def run_app(packages, port):
 
 		async for msg in ws:
 			if 'conn' not in env:
-				ws.close()
+				await ws.close()
 				break
 			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
@@ -269,7 +269,7 @@ async def run_app(packages, port):
 							}
 						}))
 						if env['init'] == False:
-							ws.close()
+							await ws.close()
 							break
 						else:
 							continue
@@ -297,7 +297,7 @@ async def run_app(packages, port):
 									'code':'CORE_REQ_NO_VERIFY'
 								}
 							}))
-							ws.close()
+							await ws.close()
 							break
 						else:
 							env['init'] = True
@@ -310,12 +310,12 @@ async def run_app(packages, port):
 							continue
 					
 					if res['endpoint'] == 'conn/close':
-						await ws.send_str(JSONEncoder().encode({
-							'status':1000,
-							'msg':'Connection closed',
-							'args':{'code':'CORE_CONN_CLOSED'}
-						}))
-						ws.close()
+						# await ws.send_str(JSONEncoder().encode({
+						# 	'status':1000,
+						# 	'msg':'Connection closed',
+						# 	'args':{'code':'CORE_CONN_CLOSED'}
+						# }))
+						await ws.close()
 						break
 
 					
@@ -472,17 +472,21 @@ async def run_app(packages, port):
 		return ws
 
 	async def close_session(id):
-		logger.debug('Cleaning up watch tasks before connection for session #\'%s\' close.', sessions[id]['id'])
-		for watch_task in sessions[id]['watch_tasks'].values():
-			await watch_task['stream'].close()
-			watch_task['task'].cancel()
+		if sessions[id].keys():
+			logger.debug('Cleaning up watch tasks before connection for session #\'%s\' close.', sessions[id]['id'])
+			for watch_task in sessions[id]['watch_tasks'].values():
+				await watch_task['stream'].close()
+				watch_task['task'].cancel()
 
-		logger.debug('Closing data connection for session #\'%s\'', sessions[id]['id'])
-		sessions[id]['conn'].close()
+			logger.debug('Closing data connection for session #\'%s\'', sessions[id]['id'])
+			sessions[id]['conn'].close()
 
-		sessions[id] = {}
+			await sessions[id]['ws'].close()
+			logger.debug('Websocket connection for session #\'%s\' closed.', id)
 
-		logger.debug('Websocket connection for session #\'%s\' closed.', id)
+			sessions[id] = {}
+		else:
+			logger.debug('Skipped closing session #\'%s\'.', id)
 
 	async def jobs_loop():
 		while True:
@@ -496,8 +500,6 @@ async def run_app(packages, port):
 						continue
 					if datetime.datetime.utcnow() > (session['last_call'] + datetime.timedelta(seconds=Config.conn_timeout)):
 						logger.debug('Session #\'%s\' with REMOTE_ADDR \'%s\' HTTP_USER_AGENT: \'%s\' is idle. Closing.', session['id'], session['REMOTE_ADDR'], session['HTTP_USER_AGENT'])
-						session_close = await session['ws'].close()
-						logger.debug('Session close status: %s', session_close)
 						await close_session(i)
 				if not Config.jobs:
 					continue
