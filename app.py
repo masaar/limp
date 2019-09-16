@@ -118,7 +118,7 @@ async def run_app(packages, port):
 					'msg':'One \'X-Auth\' headers was set but not the other.'
 				}).encode('utf-8'))
 			try:
-				session_results = modules['session'].read(skip_events=[Event.__PERM__], env=env, query=[{
+				session_results = await modules['session'].read(skip_events=[Event.__PERM__], env=env, query=[{
 					'user':request.headers['x-auth-bearer'],
 					'token':request.headers['x-auth-token']
 				}, {'$limit':1}])
@@ -146,7 +146,7 @@ async def run_app(packages, port):
 				}).encode('utf-8'))
 			else:
 				session = session_results.args.docs[0]
-				session_results = modules['session'].reauth(skip_events=[Event.__PERM__], env=env, query=[{
+				session_results = await modules['session'].reauth(skip_events=[Event.__PERM__], env=env, query=[{
 					'_id':session._id,
 					'hash':jwt.encode({'token':session.token}, session.token).decode('utf-8').split('.')[1]
 				}])
@@ -154,7 +154,7 @@ async def run_app(packages, port):
 					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(status=403, headers=headers, body=JSONEncoder().encode(session_results).encode('utf-8'))
 				else:
-					session = session_results.args.docs[0]
+					session = session_results.args.session
 		else:
 			anon_user = Config.compile_anon_user()
 			anon_session = Config.compile_anon_session()
