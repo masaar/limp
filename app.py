@@ -305,7 +305,10 @@ async def run_app(packages, port):
 							await ws.send_str(JSONEncoder().encode({
 								'status':200,
 								'msg':'Connection establised',
-								'args':{'code':'CORE_CONN_OK'}
+								'args':{
+									'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+									'code':'CORE_CONN_OK'
+								}
 							}))
 							continue
 					
