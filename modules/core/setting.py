@@ -7,7 +7,7 @@ class Setting(BaseModule):
 		'user':'id',
 		'var':'str',
 		'val':'any',
-		'type':('global', 'user')
+		'type':{'global', 'user'}
 	}
 	extns = {
 		'user':['user', ['name', 'email']]
@@ -35,12 +35,12 @@ class Setting(BaseModule):
 		}
 	}
 
-	def pre_create(self, skip_events, env, session, query, doc):
+	async def pre_create(self, skip_events, env, query, doc):
 		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)
 	
-	def pre_update(self, skip_events, env, session, query, doc):
+	async def pre_update(self, skip_events, env, query, doc):
 		if type(doc['val']) == list and doc['val'].__len__() == 1 and type(doc['val'][0]) == dict and 'content' in doc['val'][0].keys():
 			doc['val'] = doc['val'][0]
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)

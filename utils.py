@@ -30,7 +30,7 @@ class DictObj:
 		if type(attrs) == DictObj:
 			attrs = attrs._attrs()
 		elif type(attrs) != dict:
-			raise TypeError
+			raise TypeError('DictObj can be initilised using DictObj or dict types only.')
 		self.__attrs = attrs
 	def __deepcopy__(self, memo):
 		return DictObj(copy.deepcopy(self.__attrs))
@@ -248,6 +248,9 @@ def import_modules(packages=None):
 			module = __import__(modname, fromlist='*')
 			for clsname in dir(module):
 				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
+					if clsname.lower() in ['file', 'watch']:
+						logger.error('Module with LIMPd-reserved name \'%s\' was found. Exiting.', clsname.lower())
+						exit()
 					cls = getattr(module, clsname)
 					module_name = re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()
 					if module_name in modules.keys():
@@ -430,12 +433,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 						return attr_val
 				else:
 					return attr_val
-		elif type(attr_type) == tuple:
+		elif type(attr_type) == set:
 			if attr_val in attr_type:
 				return attr_val
-		# elif type(attr_type) == set:
-		# 	if attr_val in attr_type:
-		# 		return attr_val
 		elif attr_type == 'bool':
 			if type(attr_val) == bool:
 				return attr_val
@@ -498,10 +498,16 @@ def validate_attr(attr_name, attr_type, attr_val):
 				return attr_val
 		elif type(attr_type) == dict:
 			if type(attr_val) == dict:
-				for child_attr_type in attr_type.keys():
-					if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-					attr_val[child_attr_type] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_type), attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
-				return attr_val
+				if '__key' in attr_type.keys():
+					shadow_attr_val = {}
+					for child_attr_val in attr_val.keys():
+						shadow_attr_val[validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
+					return shadow_attr_val
+				else:
+					for child_attr_type in attr_type.keys():
+						if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+						attr_val[child_attr_type] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_type), attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
+					return attr_val
 		elif type(attr_type) == str and attr_type == 'access':
 			if type(attr_val) == dict and 'anon' in attr_val.keys() and type(attr_val['anon']) == bool and 'users' in attr_val.keys() and type(attr_val['users']) == list and 'groups' in attr_val.keys() and type(attr_val['groups']) == list:
 				return attr_val
@@ -519,13 +525,13 @@ def validate_attr(attr_name, attr_type, attr_val):
 					if not child_attr_check:
 						raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 				return attr_val
-		# elif type(attr_type) == tuple:
-		# 	for child_attr in attr_type:
-		# 		try:
-		# 			validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
-		# 		except:
-		# 			continue
-		# 		return attr_val
+		elif type(attr_type) == tuple:
+			for child_attr in attr_type:
+				try:
+					validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
+				except:
+					continue
+				return attr_val
 		elif attr_type in Config.types.keys():
 			return Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
 		

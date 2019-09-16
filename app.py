@@ -1,4 +1,4 @@
-def run_app(packages, port):
+async def run_app(packages, port):
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
 	from base_module import Event
 	from config import Config
@@ -18,7 +18,7 @@ def run_app(packages, port):
 	# [DOC] If realm mode is not enabled drop realm module.
 	if not Config.realm:
 		del modules['realm']
-	Config.config_data(modules=modules)
+	await Config.config_data(modules=modules)
 	# [DOC] Populate GET routes:
 	routes = []
 	for module in modules.values():
@@ -37,6 +37,8 @@ def run_app(packages, port):
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
 	logger.debug('Generated routes: %s', routes)
+
+	sessions = []
 
 	async def root_handler(request):
 		headers = [
@@ -65,25 +67,11 @@ def run_app(packages, port):
 		logger.debug('Received new GET request: %s', request.match_info)
 
 		if Config.realm:
-			try:
-				realm = request.match_info['realm'].lower()
-				if realm not in Config._realms.keys():
-					headers.append(('Content-Type', 'application/json; charset=utf-8'))
-					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
-						'status':400,
-						'msg':'Unknown realm.',
-						'args':{'code':'CORE_CONN_INVALID_REALM'}
-					}).encode('utf-8'))
-			except Exception:
-				headers.append(('Content-Type', 'application/json; charset=utf-8'))
-				return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
-					'status':400,
-					'msg':'Realm mode is enabled. You have to access API via realm.',
-					'args':{'code':'CORE_CONN_REALM'}
-				}).encode('utf-8'))
-
-		module = request.url.parts[1].lower()
-		method = request.url.parts[2].lower()
+			module = request.url.parts[2].lower()
+			method = request.url.parts[3].lower()
+		else:
+			module = request.url.parts[1].lower()
+			method = request.url.parts[2].lower()
 		get_args = dict(request.match_info.items())
 		
 		# [DOC] Attempt to validate query as doc
@@ -110,20 +98,17 @@ def run_app(packages, port):
 				break
 
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
+		env = {
+			'conn':conn,
+			'REMOTE_ADDR':request.remote,
+			'ws':None
+		}
 		try:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['user-agent']
-			}
+			env['HTTP_USER_AGENT'] = request.headers['user-agent']
 		except:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':''
-			}
+			env['HTTP_USER_AGENT'] = ''
 		if Config.realm:
-			env['realm'] = realm
+			env['realm'] = request.url.parts[1].lower()
 		
 		if 'x-auth-bearer' in request.headers or 'x-auth-token' in request.headers:
 			if 'x-auth-bearer' not in request.headers or 'x-auth-token' not in request.headers:
@@ -176,7 +161,11 @@ def run_app(packages, port):
 			anon_session['user'] = DictObj(anon_user)
 			session = DictObj(anon_session)
 
-		results = modules[module].methods[method](env=env, session=session, query=[get_args])
+		env['session'] = session
+		results = await modules[module].methods[method](env=env, query=[get_args])
+
+		logger.debug('Closing connection.')
+		env['conn'].close()
 
 		if 'return' not in results.args or results.args['return'] == 'json':
 			if 'return' in results.args:
@@ -192,10 +181,11 @@ def run_app(packages, port):
 		elif results.args['return'] == 'file':
 			del results.args['return']
 			expiry_time = datetime.datetime.utcnow() + datetime.timedelta(days=30)
-			headers.append(('Content-Type', results.args.type))
+			headers.append(('lastModified', str(results.args.docs[0].lastModified)))
+			headers.append(('Content-Type', results.args.docs[0].type))
 			headers.append(('Cache-Control', 'public, max-age=31536000'))
 			headers.append(('Expires', expiry_time.strftime('%a, %d %b %Y %H:%M:%S GMT')))
-			return aiohttp.web.Response(status=results.status, headers=headers, body=results.msg)
+			return aiohttp.web.Response(status=results.status, headers=headers, body=results.args.docs[0].content)
 		elif results.args['return'] == 'msg':
 			del results.args['return']
 			headers.append(('Content-Type', 'application/json; charset=utf-8'))
@@ -207,87 +197,147 @@ def run_app(packages, port):
 	async def websocket_handler(request):
 		files = {}
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
-		try:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':request.headers['user-agent']
-			}
-		except:
-			env = {
-				'conn':conn,
-				'REMOTE_ADDR':request.remote,
-				'HTTP_USER_AGENT':''
-			}
-		logger.debug('Websocket connection starting with client at \'%s\'', env['REMOTE_ADDR'])
+		logger.debug('Websocket connection starting with client at \'%s\'', request.remote)
 		ws = aiohttp.web.WebSocketResponse()
 		await ws.prepare(request)
-		logger.debug('Websocket connection ready with client at \'%s\'', env['REMOTE_ADDR'])
 
+		env = {
+			'id':len(sessions),
+			'conn':conn,
+			'REMOTE_ADDR':request.remote,
+			'ws':ws,
+			'session':None,
+			'watch_tasks':{},
+			'init':False,
+			'last_call':datetime.datetime.utcnow()
+		}
+		sessions.append(env)
+		try:
+			env['HTTP_USER_AGENT'] = request.headers['user-agent']
+		except:
+			env['HTTP_USER_AGENT'] = ''
+		
 		if Config.realm:
-			try:
-				env['realm'] = request.match_info['realm'].lower()
-				if env['realm'] not in Config._realms.keys():
-					await ws.send_str(JSONEncoder().encode({
-						'status':400,
-						'msg':'Unknown realm.',
-						'args':{'code':'CORE_CONN_INVALID_REALM'}
-					}))
-					return ws
-			except Exception:
+			env['realm'] = request.match_info['realm'].lower()
+
+			realm_detected = False
+			for realm in Config._realms.keys():
+				if Config._realms[realm].name == env['realm']:
+					realm_detected = True
+					break
+			if not realm_detected:
 				await ws.send_str(JSONEncoder().encode({
-					'status':400,
-					'msg':'Realm mode is enabled. You have to access API via realm.',
-					'args':{'code':'CORE_CONN_REALM'}
+					'status':1008,
+					'msg':'Connection closed',
+					'args':{'code':'CORE_CONN_CLOSED'}
 				}))
-				return ws
+				await ws.close()
+
+		logger.debug('Websocket connection #\'%s\' ready with client at \'%s\'', env['id'], env['REMOTE_ADDR'])
 
 		await ws.send_str(JSONEncoder().encode({
 			'status':200,
-			'msg':'Connection establised',
-			'args':{'code':'CORE_CONN_OK'}
+			'msg':'Connection ready',
+			'args':{'code':'CORE_CONN_READY'}
 		}))
 
 		async for msg in ws:
-			logger.debug('Received new message from client at \'%s\': %s', env['REMOTE_ADDR'], msg.data[:256])
+			if 'conn' not in env:
+				await ws.close()
+				break
+			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
 				try:
+					env['last_call'] = datetime.datetime.utcnow()
 					try:
-						session.token
+						env['session'].token
 					except Exception:
 						anon_user = Config.compile_anon_user()
 						anon_session = Config.compile_anon_session()
 						anon_session['user'] = DictObj(anon_user)
-						session = DictObj(anon_session)
+						env['session'] = DictObj(anon_session)
 					res = json.loads(msg.data)
 					try:
-						res = jwt.decode(res['token'], session.token, algorithms=['HS256'])
+						res = jwt.decode(res['token'], env['session'].token, algorithms=['HS256'])
 					except Exception:
-						await ws.send_str(JSONEncoder().encode({'status':403, 'msg':'Request token is not accepted.', 'args':{
-							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-							'code':'CORE_REQ_INVALID_TOKEN'
-						}}))
-						continue
+						await ws.send_str(JSONEncoder().encode({
+							'status':403,
+							'msg':'Request token is not accepted.',
+							'args':{
+								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+								'code':'CORE_REQ_INVALID_TOKEN'
+							}
+						}))
+						if env['init'] == False:
+							await ws.close()
+							break
+						else:
+							continue
+					
+					logger.debug('Decoded request: %s', JSONEncoder().encode(res))
 
 					if 'endpoint' not in res.keys():
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Request token is not accepted.', 'args':{
-							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-							'code':'CORE_REQ_NO_ENDPOINT'
-						}}))
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Request missing endpoint.',
+							'args':{
+								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+								'code':'CORE_REQ_NO_ENDPOINT'
+							}
+						}))
 						continue
 					
+					if env['init'] == False:
+						if res['endpoint'] != 'conn/verify':
+							await ws.send_str(JSONEncoder().encode({
+								'status':1008,
+								'msg':'Request token is not accepted.',
+								'args':{
+									'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+									'code':'CORE_REQ_NO_VERIFY'
+								}
+							}))
+							await ws.close()
+							break
+						else:
+							env['init'] = True
+							logger.debug('Connection on session #\'%s\' is verified.', env['id'])
+							await ws.send_str(JSONEncoder().encode({
+								'status':200,
+								'msg':'Connection establised',
+								'args':{
+									'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+									'code':'CORE_CONN_OK'
+								}
+							}))
+							continue
+					
+					if res['endpoint'] == 'conn/close':
+						logger.debug('Received connection close instructions on session #\'%s\'.', env['id'])
+						await ws.close()
+						break
+
+					
 					res['endpoint'] = res['endpoint'].lower()
-					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(session._id) != 'f00000000000000000000012':
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'You are already authed.', 'args':{
-							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-							'code':'CORE_SESSION_ALREADY_AUTHED'
-						}}))
+					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(env['session']._id) != 'f00000000000000000000012':
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'You are already authed.',
+							'args':{
+								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+								'code':'CORE_SESSION_ALREADY_AUTHED'
+							}
+						}))
 						continue
-					elif res['endpoint'] == 'session/signout' and str(session._id) == 'f00000000000000000000012':
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Singout is not allowed for \'__ANON\' user.', 'args':{
-							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-							'code':'CORE_SESSION_ANON_SIGNOUT'
-						}}))
+					elif res['endpoint'] == 'session/signout' and str(env['session']._id) == 'f00000000000000000000012':
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Singout is not allowed for \'__ANON\' user.',
+							'args':{
+								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+								'code':'CORE_SESSION_ANON_SIGNOUT'
+							}
+						}))
 						continue
 
 					if 'query' not in res.keys(): res['query'] = []
@@ -297,7 +347,14 @@ def run_app(packages, port):
 					request = {'call_id':res['call_id'], 'sid':res['sid'] or False, 'query':res['query'], 'doc':res['doc'], 'path':res['endpoint'].split('/')}
 
 					if request['path'].__len__() != 2:
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint path is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_PATH'}}))
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Endpoint path is invalid.',
+							'args':{
+								'call_id':request['call_id'],
+								'code':'CORE_REQ_INVALID_PATH'
+							}
+						}))
 						continue
 
 					module = request['path'][0].lower()
@@ -319,17 +376,70 @@ def run_app(packages, port):
 							# [DOC] More chunks expeceted, update the client
 							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
 						continue
+					
+					if module == 'watch' and request['path'][1].lower() == 'delete':
+						logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
+						try:
+							if request['query'][0]['watch'] == '__all':
+								for watch_task in env['watch_tasks'].values():
+									watch_task['stream'].close()
+									watch_task['task'].cancel()
+								await ws.send_str(JSONEncoder().encode({
+									'status':200,
+									'msg':'All watch tasks deleted.',
+									'args':{
+										'call_id':request['call_id'],
+										'watch':list(env['watch_tasks'].keys())
+									}
+								}))
+								env['watch_tasks'] = {}
+							else:
+								env['watch_tasks'][request['query'][0]['watch']]['stream'].close()
+								env['watch_tasks'][request['query'][0]['watch']]['task'].cancel()
+								await ws.send_str(JSONEncoder().encode({
+									'status':200,
+									'msg':'Watch task deleted.',
+									'args':{
+										'call_id':request['call_id'],
+										'watch':[request['query'][0]['watch']]
+									}
+								}))
+								del env['watch_tasks'][request['query'][0]['watch']]
+						except:
+							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
+						continue
 
 					if module not in modules.keys():
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint module is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_MODULE'}}))
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Endpoint module is invalid.',
+							'args':{
+								'call_id':request['call_id'],
+								'code':'CORE_REQ_INVALID_MODULE'
+							}
+						}))
 						continue
 
 					if request['path'][1].lower() not in modules[module].methods.keys():
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint method is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_INVALID_METHOD'}}))
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Endpoint method is invalid.',
+							'args':{
+								'call_id':request['call_id'],
+								'code':'CORE_REQ_INVALID_METHOD'
+							}
+						}))
 						continue
 
 					if modules[module].methods[request['path'][1].lower()].get_method:
-						await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Endpoint method is a GET method.', 'args':{'call_id':request['call_id'], 'code':'CORE_REQ_GET_METHOD'}}))
+						await ws.send_str(JSONEncoder().encode({
+							'status':400,
+							'msg':'Endpoint method is a GET method.',
+							'args':{
+								'call_id':request['call_id'],
+								'code':'CORE_REQ_GET_METHOD'
+							}
+						}))
 						continue
 
 					if not request['sid']:
@@ -338,27 +448,7 @@ def run_app(packages, port):
 					method = modules[module].methods[request['path'][1].lower()]
 					query = request['query']
 					doc = parse_file_obj(request['doc'], files)
-					results = method(skip_events=[], env=env, session=session, query=query, doc=doc)
-
-					logger.debug('Call results: %s', str(results)[:512])
-					if results.status == 204:
-						await ws.send_str(JSONEncoder().encode({
-							'status':204,
-							'args':{
-								'call_id':request['call_id']
-							}
-						}))
-					else:
-						# [DOC] Check for session in results
-						if 'session' in results.args:
-							if results.args.session._id == 'f00000000000000000000012':
-								# [DOC] Updating session to __ANON
-								session = None
-							else:
-								# [DOC] Updating session to user
-								session = results.args.session
-						results.args['call_id'] = request['call_id']
-						await ws.send_str(JSONEncoder().encode(results))
+					await method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
 
 				except Exception as e:
 					logger.error('An error occured. Details: %s.', traceback.format_exc())
@@ -375,15 +465,51 @@ def run_app(packages, port):
 							'args':{'code':'CORE_SERVER_ERROR'}
 						}))
 
-		logger.debug('Websocket connection closed with client at \'%s\'', env['REMOTE_ADDR'])
+		if 'id' in env.keys():
+			await close_session(env['id'])
+
 		return ws
 
+	async def close_session(id):
+		if sessions[id].keys():
+			logger.debug('Cleaning up watch tasks before connection for session #\'%s\' close.', sessions[id]['id'])
+			for watch_task in sessions[id]['watch_tasks'].values():
+				try:
+					await watch_task['stream'].close()
+				except Exception as e: logger.error('stream close error: %s', e)
+				try:
+					watch_task['task'].cancel()
+				except Exception as e: logger.error('task close error: %s',e)
+
+			logger.debug('Closing data connection for session #\'%s\'', sessions[id]['id'])
+			sessions[id]['conn'].close()
+
+			logger.debug('Done closing data connection.')
+			logger.debug('Websocket connection status: %s', not sessions[id]['ws'].closed)
+
+			if not sessions[id]['ws'].closed:
+				await sessions[id]['ws'].close()
+			logger.debug('Websocket connection for session #\'%s\' closed.', id)
+
+			sessions[id] = {}
+		else:
+			logger.debug('Skipped closing session #\'%s\'.', id)
+
 	async def jobs_loop():
-		if not Config.jobs:
-			return
 		while True:
 			await asyncio.sleep(60)
 			try:
+				logger.debug('Time to check for sessions!')
+				logger.debug('Current sessions: %s', sessions)
+				for i in range(0, len(sessions)):
+					session = sessions[i]
+					if 'last_call' not in session.keys():
+						continue
+					if datetime.datetime.utcnow() > (session['last_call'] + datetime.timedelta(seconds=Config.conn_timeout)):
+						logger.debug('Session #\'%s\' with REMOTE_ADDR \'%s\' HTTP_USER_AGENT: \'%s\' is idle. Closing.', session['id'], session['REMOTE_ADDR'], session['HTTP_USER_AGENT'])
+						await close_session(i)
+				if not Config.jobs:
+					continue
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
 				logger.debug('Time to check for jobs!')
 				for job in Config.jobs:

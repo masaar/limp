@@ -70,6 +70,9 @@ class BaseModule:
 				self.methods[method]['doc_args'] = False
 			elif type(self.methods[method]['doc_args']) == dict:
 				self.methods[method]['doc_args'] = [self.methods[method]['doc_args']]
+			# [DOC] Check method watch_method attr, set it or update it if required.
+			if 'watch_method' not in self.methods[method].keys() or self.methods[method]['watch_method'] == False:
+				self.methods[method]['watch_method'] = False
 			# [DOC] Check method get_method attr, set it or update it if required.
 			if 'get_method' not in self.methods[method].keys() or self.methods[method]['get_method'] == False:
 				self.methods[method]['get_method'] = False
@@ -92,6 +95,7 @@ class BaseModule:
 				permissions=self.methods[method]['permissions'],
 				query_args=self.methods[method]['query_args'],
 				doc_args=self.methods[method]['doc_args'],
+				watch_method=self.methods[method]['watch_method'],
 				get_method=self.methods[method]['get_method'],
 				get_args=self.methods[method]['get_args']
 			)
@@ -125,7 +129,7 @@ class BaseModule:
 						}
 				# [DOC] Create methods functions in proxy module if not present
 				if not getattr(self, method, None):
-					setattr(self, method, lambda self=self, skip_events=[], env={}, session=None, query=[], doc={}: getattr(self.modules[self.proxy], method)(skip_events=skip_events, env=env, session=session, query=query, doc=doc))
+					setattr(self, method, lambda self=self, skip_events=[], env={}, query=[], doc={}: getattr(self.modules[self.proxy], method)(skip_events=skip_events, env=env, query=query, doc=doc))
 		# [DOC] Initlise module
 		self.__initilise()
 			
@@ -144,25 +148,25 @@ class BaseModule:
 		else:
 			return object.__getattribute__(self, attr)
 
-	def pre_read(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_read(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def read(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def pre_read(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_read(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def read(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module pre_read
-				pre_read = self.modules[self.proxy].pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				pre_read = await self.modules[self.proxy].pre_read(skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(pre_read) in [DictObj, dict]: return pre_read
-				skip_events, env, session, query, doc = pre_read
-			pre_read = self.pre_read(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				skip_events, env, query, doc = pre_read
+			pre_read = await self.pre_read(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_read) in [DictObj, dict]: return pre_read
-			skip_events, env, session, query, doc = pre_read
+			skip_events, env, query, doc = pre_read
 		if Event.__EXTN__ in skip_events:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+			results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		elif '$extn' in query and type(query['$extn']) == list:
-			results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={
+			results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={
 				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
 			}, modules=self.modules, query=query)
 		else:
@@ -170,12 +174,12 @@ class BaseModule:
 			if self.cache:
 				results = False
 				for cache_set in self.cache:
-					if cache_set['condition'](skip_events=skip_events, env=env, session=session, query=query) == True:
+					if cache_set['condition'](skip_events=skip_events, env=env, query=query) == True:
 						cache_key = str(query._query) + str(query._special)
 						if 'queries' not in cache_set.keys():
 							cache_set['queries'] = {}
 							if not results:
-								results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+								results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 							cache_set['queries'][cache_key] = {
 								'results':results,
 								'query_time':datetime.datetime.utcnow()
@@ -185,7 +189,7 @@ class BaseModule:
 								if 'period' in cache_set.keys():
 									if (cache_set['queries'][cache_key]['query_time'] + datetime.timedelta(seconds=cache_set['period'])) < datetime.datetime.utcnow():
 										if not results:
-											results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+											results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 										cache_set['queries'][cache_key] = {
 											'results':results,
 											'query_time':datetime.datetime.utcnow()
@@ -198,25 +202,25 @@ class BaseModule:
 									results['cache'] = cache_set['queries'][cache_key]['query_time'].isoformat()
 							else:
 								if not results:
-									results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+									results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 								cache_set['queries'][cache_key] = {
 									'results':results,
 									'query_time':datetime.datetime.utcnow()
 								}
 				if not results:
-					results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+					results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 			else:
-				results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
+				results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module on_read
-				on_read = self.modules[self.proxy].on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				on_read = await self.modules[self.proxy].on_read(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(on_read) in [DictObj, dict]: return on_read
-				results, skip_events, env, session, query, doc = on_read
-			on_read = self.on_read(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				results, skip_events, env, query, doc = on_read
+			on_read = await self.on_read(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(on_read) in [DictObj, dict]: return on_read
-			results, skip_events, env, session, query, doc = on_read
+			results, skip_events, env, query, doc = on_read
 			# [DOC] if $attrs query arg is present return only required keys.
 			if '$attrs' in query:
 				query['$attrs'].insert(0, '_id')
@@ -229,21 +233,76 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_create(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_create(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def create(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def pre_watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_watch(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		if Event.__PRE__ not in skip_events:
+			# [DOC] Check proxy module
+			if self.proxy:
+				# [DOC] Call original module pre_watch
+				pre_watch = await self.modules[self.proxy].pre_watch(skip_events=skip_events, env=env, query=query, doc=doc)
+				if type(pre_watch) in [DictObj, dict]: yield pre_watch
+				skip_events, env, query, doc = pre_watch
+			pre_watch = await self.pre_watch(skip_events=skip_events, env=env, query=query, doc=doc)
+			if type(pre_watch) in [DictObj, dict]: yield pre_watch
+			skip_events, env, query, doc = pre_watch
+		if Event.__EXTN__ in skip_events:
+			extns = {}
+		elif '$extn' in query and type(query['$extn']) == list:
+			extns = {
+				extn:self.extns[extn] for extn in self.extns.keys() if extn in query['$extn']
+			}
+		else:
+			extns = self.extns
+
+		logger.debug('Preparing async loop at BaseModule')
+		async for results in Data.watch(env=env, collection=self.collection, attrs=self.attrs, extns=extns, modules=self.modules, query=query):
+			logger.debug('Received watch results at BaseModule: %s', results)
+
+			if 'stream' in results.keys():
+				yield results
+				continue
+
+			if Event.__ON__ not in skip_events:
+				# [DOC] Check proxy module
+				if self.proxy:
+					# [DOC] Call original module on_watch
+					on_watch = await self.modules[self.proxy].on_watch(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+					if type(on_watch) in [DictObj, dict]: yield on_watch
+					results, skip_events, env, query, doc = on_watch
+				on_watch = await self.on_watch(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+				if type(on_watch) in [DictObj, dict]: yield on_watch
+				results, skip_events, env, query, doc = on_watch
+				# [DOC] if $attrs query arg is present return only required keys.
+				if '$attrs' in query:
+					query['$attrs'].insert(0, '_id')
+					for i in range(0, results['docs'].__len__()):
+						results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
+			yield {
+				'status':200,
+				'msg':'Detected {} docs.'.format(results['count']),
+				'args':results
+			}
+		
+		logger.debug('Generator ended at BaseModule.')
+	
+	async def pre_create(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_create(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def create(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module pre_create
-				pre_create = self.modules[self.proxy].pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				pre_create = await self.modules[self.proxy].pre_create(skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(pre_create) in [DictObj, dict]: return pre_create
-				skip_events, env, session, query, doc = pre_create
-			pre_create = self.pre_create(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				skip_events, env, query, doc = pre_create
+			pre_create = await self.pre_create(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_create) in [DictObj, dict]: return pre_create
-			skip_events, env, session, query, doc = pre_create
+			skip_events, env, query, doc = pre_create
 		# [DOC] Deleted all extra doc args
 		del_args = []
 		for arg in doc.keys():
@@ -252,8 +311,8 @@ class BaseModule:
 		for arg in del_args:
 			del doc[arg]
 		# [DOC] Append host_add, user_agent, create_time, diff if it's present in attrs.
-		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and session and Event.__ARGS__ not in skip_events:
-			doc['user'] = session.user._id
+		if 'user' in self.attrs.keys() and 'host_add' not in doc.keys() and env['session'] and Event.__ARGS__ not in skip_events:
+			doc['user'] = env['session'].user._id
 		if 'create_time' in self.attrs.keys():
 			doc['create_time'] = datetime.datetime.utcnow().isoformat()
 		if 'host_add' in self.attrs.keys() and 'host_add' not in doc.keys():
@@ -284,7 +343,7 @@ class BaseModule:
 				}
 			# [DOC] Check unique_attrs
 			if self.unique_attrs:
-				unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
+				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
 				if unique_results.args.count: # pylint: disable=no-member
 					return {
 						'status':400,
@@ -292,24 +351,24 @@ class BaseModule:
 						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 		# [DOC] Execute Data driver create
-		results = Data.create(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
+		results = await Data.create(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module on_create
-				on_create = self.modules[self.proxy].on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				on_create = await self.modules[self.proxy].on_create(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(on_create) in [DictObj, dict]: return on_create
-				results, skip_events, env, session, query, doc = on_create
-			on_create = self.on_create(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				results, skip_events, env, query, doc = on_create
+			on_create = await self.on_create(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(on_create) in [DictObj, dict]: return on_create
-			results, skip_events, env, session, query, doc = on_create
+			results, skip_events, env, query, doc = on_create
 		# [DOC] create soft action is to only retrurn the new created doc _id.
 		if Event.__SOFT__ in skip_events:
-			results = self.methods['read'](skip_events=[Event.__PERM__], env=env, session=session, query=[[{'_id':results['docs'][0]}]])
+			results = await self.methods['read'](skip_events=[Event.__PERM__], env=env, query=[[{'_id':results['docs'][0]}]])
 			results = results['args']
 
 		# [DOC] Module collection is updated, delete_cache
-		self.delete_cache()
+		await self.delete_cache()
 
 		return {
 			'status':200,
@@ -317,21 +376,21 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_update(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_update(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def update(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def pre_update(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_update(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def update(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module pre_update
-				pre_update = self.modules[self.proxy].pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				pre_update = await self.modules[self.proxy].pre_update(skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(pre_update) in [DictObj, dict]: return pre_update
-				skip_events, env, session, query, doc = pre_update
-			pre_update = self.pre_update(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				skip_events, env, query, doc = pre_update
+			pre_update = await self.pre_update(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_update) in [DictObj, dict]: return pre_update
-			skip_events, env, session, query, doc = pre_update
+			skip_events, env, query, doc = pre_update
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
 			validate_doc(doc=doc, attrs=self.attrs, allow_opers=True, allow_none=True)
@@ -369,7 +428,7 @@ class BaseModule:
 				'args':{}
 			}
 		# [DOC] Find which docs are to be updated
-		docs_results = results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		# [DOC] Check unique_attrs
 		if self.unique_attrs and sum([1 if attr in doc.keys() else 0 for attr in self.unique_attrs]) > 0:
 			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
@@ -380,7 +439,7 @@ class BaseModule:
 					'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
 				}
 			else:
-				unique_results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[
+				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=[
 					[{attr:doc[attr]} for attr in self.unique_attrs if attr in doc.keys()],
 					{'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}},
 					{'$limit':1}
@@ -391,17 +450,17 @@ class BaseModule:
 						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
 						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
 					}
-		results = Data.update(env=env, session=session, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
+		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module on_update
-				on_update = self.modules[self.proxy].on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				on_update = await self.modules[self.proxy].on_update(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(on_update) in [DictObj, dict]: return on_update
-				results, skip_events, env, session, query, doc = on_update
-			on_update = self.on_update(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				results, skip_events, env, query, doc = on_update
+			on_update = await self.on_update(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(on_update) in [DictObj, dict]: return on_update
-			results, skip_events, env, session, query, doc = on_update
+			results, skip_events, env, query, doc = on_update
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.__DIFF__ not in skip_events:
 			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
@@ -409,14 +468,14 @@ class BaseModule:
 				for attr in doc.keys():
 					# [DOC] If at least on attr is not in the execluded list, create diff doc.
 					if attr not in self.diff:
-						diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
+						diff_results = await self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, query=query, doc={
 							'module':self.module_name,
 							'vars':doc
 						})
 						logger.debug('diff results: %s', diff_results)
 						break
 			else:
-				diff_results = self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, session=session, query=query, doc={
+				diff_results = await self.modules['diff'].methods['create'](skip_events=[Event.__PERM__], env=env, query=query, doc={
 					'module':self.module_name,
 					'vars':doc
 				})
@@ -425,7 +484,7 @@ class BaseModule:
 			logger.debug('diff skipped: %s, %s, %s', results['count'], self.diff, Event.__DIFF__ not in skip_events)
 
 		# [DOC] Module collection is updated, delete_cache
-		self.delete_cache()
+		await self.delete_cache()
 
 		return {
 			'status':200,
@@ -433,22 +492,22 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_delete(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_delete(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def delete(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def pre_delete(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_delete(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def delete(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		# [TODO] refactor for template use
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module pre_delete
-				pre_delete = self.modules[self.proxy].pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				pre_delete = await self.modules[self.proxy].pre_delete(skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(pre_delete) in [DictObj, dict]: return pre_delete
-				skip_events, env, session, query, doc = pre_delete
-			pre_delete = self.pre_delete(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				skip_events, env, query, doc = pre_delete
+			pre_delete = await self.pre_delete(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_delete) in [DictObj, dict]: return pre_delete
-			skip_events, env, session, query, doc = pre_delete
+			skip_events, env, query, doc = pre_delete
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] Pick delete strategy based on skip_events
 		strategy = DELETE_SOFT_SKIP_SYS
@@ -459,33 +518,37 @@ class BaseModule:
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
 			strategy = DELETE_FORCE_SYS
 		
-		docs_results = results = Data.read(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
-		results = Data.delete(env=env, session=session, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
+		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		results = await Data.delete(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
 				# [DOC] Call original module on_delete
-				on_delete = self.modules[self.proxy].on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				on_delete = await self.modules[self.proxy].on_delete(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 				if type(on_delete) in [DictObj, dict]: return on_delete
-				results, skip_events, env, session, query, doc = on_delete
-			on_delete = self.on_delete(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				results, skip_events, env, query, doc = on_delete
+			on_delete = await self.on_delete(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(on_delete) in [DictObj, dict]: return on_delete
-			results, skip_events, env, session, query, doc = on_delete
+			results, skip_events, env, query, doc = on_delete
+		
+		# [DOC] Module collection is updated, delete_cache
+		await self.delete_cache()
+
 		return {
 			'status':200,
 			'msg':'Deleted {} docs.'.format(results['count']),
 			'args':results
 		}
 	
-	def pre_create_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_create_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def create_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	def pre_create_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	def on_create_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	def create_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
-			pre_create_file = self.pre_create_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			pre_create_file = self.pre_create_file(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_create_file) in [DictObj, dict]: return pre_create_file
-			skip_events, env, session, query, doc = pre_create_file
+			skip_events, env, query, doc = pre_create_file
 		
 		if query['attr'][0] not in self.attrs.keys() or type(self.attrs[query['attr'][0]]) != list or not self.attrs[query['attr'][0]][0].startswith('file'):
 			return {
@@ -494,24 +557,24 @@ class BaseModule:
 				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
 			}
 		
-		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}], doc={
+		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
 			query['attr'][0]:{'$push':doc['file'][0]}
 		})
 
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, session, query, doc = self.on_create_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			results, skip_events, env, query, doc = self.on_create_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 		
 		return results
 	
-	def pre_delete_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_delete_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	def pre_delete_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	def on_delete_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
-			pre_delete_file = self.pre_delete_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			pre_delete_file = self.pre_delete_file(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_delete_file) in [DictObj, dict]: return pre_delete_file
-			skip_events, env, session, query, doc = pre_delete_file
+			skip_events, env, query, doc = pre_delete_file
 
 		if query['attr'][0] not in self.attrs.keys() or type(self.attrs[query['attr'][0]]) != list or not self.attrs[query['attr'][0]][0].startswith('file'):
 			return {
@@ -520,7 +583,7 @@ class BaseModule:
 				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
 			}
 
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
+		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status':400,
@@ -557,24 +620,24 @@ class BaseModule:
 				'args':{'code':'{}_{}_FILE_NAME_MISMATCH'.format(self.package_name, self.module_name.upper())}
 			}
 		
-		results = self.update(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}], doc={
+		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
 			query['attr'][0]:{'$pull':[doc[query['attr'][0]][query['index'][0]]]}
 		})
 
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, session, query, doc = self.on_delete_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			results, skip_events, env, query, doc = self.on_delete_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 
 		return results
 
-	def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (skip_events, env, session, query, doc)
-	def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], session: BaseModel, query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], BaseModel, Query, Dict[str, Any]):
-		return (results, skip_events, env, session, query, doc)
-	def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (skip_events, env, query, doc)
+	async def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+		return (results, skip_events, env, query, doc)
+	async def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
-			pre_retrieve_file = self.pre_retrieve_file(skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+			pre_retrieve_file = await self.pre_retrieve_file(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_retrieve_file) in [DictObj, dict]: return pre_retrieve_file
-			skip_events, env, session, query, doc = pre_retrieve_file
+			skip_events, env, query, doc = pre_retrieve_file
 
 		attr_name = query['attr'][0]
 		filename = query['filename'][0]
@@ -583,13 +646,13 @@ class BaseModule:
 		else:
 			thumb_dims = False
 
-		results = self.read(skip_events=[Event.__PERM__], env=env, session=session, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status':404,
 				'msg':'File not found.',
 				'args':{
-					'code':'404 NOT FOUND',
+					'code':f'{self.package_name.upper()}_{self.module_name.upper()}_NOT_FOUND',
 					'return':'json'
 				}
 			}
@@ -604,7 +667,7 @@ class BaseModule:
 				'status':404,
 				'msg':'File not found.',
 				'args':{
-					'code':'404 NOT FOUND',
+					'code':f'{self.package_name.upper()}_{self.module_name.upper()}_NOT_FOUND',
 					'return':'json'
 				}
 			}
@@ -622,14 +685,16 @@ class BaseModule:
 		
 		if file:
 			results = {
-				'status':200,
-				'msg':file['content'],
-				'args':{
-					'return':'file',
-					'name':file['name'],
-					'type':file['type'],
-					'size':file['size']
-				}
+				'docs':[
+					DictObj({
+						'_id':query['_id'][0],
+						'name':file['name'],
+						'type':file['type'],
+						'lastModified':file['lastModified'],
+						'size':file['size'],
+						'content':file['content']
+					})
+				]
 			}
 
 			if thumb_dims:
@@ -648,26 +713,31 @@ class BaseModule:
 					stream = io.BytesIO()
 					image.save(stream, format=image.format)
 					stream.seek(0)
-					results['msg'] = stream.read()
+					results['docs'][0]['content'] = stream.read()
 				except:
 					pass
 
 			if Event.__ON__ not in skip_events:
-				results, skip_events, env, session, query, doc = self.on_retrieve_file(results=results, skip_events=skip_events, env=env, session=session, query=query, doc=doc)
+				results, skip_events, env, query, doc = await self.on_retrieve_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 
-			return results
+			results['return'] = 'file'
+			return {
+				'status':200,
+				'msg':'File attached to response.',
+				'args':results
+			}
 		else:
 			# [DOC] No filename match
 			return {
 				'status':404,
 				'msg':'File not found.',
 				'args':{
-					'code':'404 NOT FOUND',
+					'code':f'{self.package_name.upper()}_{self.module_name.upper()}_NOT_FOUND',
 					'return':'json'
 				}
 			}
 	
-	def delete_cache(self, skip_events: List[str]=[], env: Dict[str, Any]={}, session: BaseModel=None, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
+	async def delete_cache(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if self.cache:
 			for cache_set in self.cache:
 				cache_set['queries'] = {}

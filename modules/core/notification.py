@@ -11,7 +11,7 @@ class Notification(BaseModule):
 		'notify_time':'datetime',
 		'title':'str',
 		'content':'id',
-		'status':('new', 'snooze', 'done')
+		'status':{'new', 'snooze', 'done'}
 	}
 	methods = {
 		'read':{
@@ -29,7 +29,7 @@ class Notification(BaseModule):
 		}
 	}
 
-	def pre_create(self, skip_events, env, session, query, doc):
+	async def pre_create(self, skip_events, env, query, doc):
 		if 'notify_time'not in doc.keys():
 			doc['notify_time'] = datetime.datetime.utcnow().isoformat()
-		return (skip_events, env, session, query, doc)
+		return (skip_events, env, query, doc)
