@@ -14,7 +14,7 @@ calc_opers = {
 class Test():
 	
 	@classmethod
-	def run_test(self, test_name, steps, modules, env, session):
+	async def run_test(self, test_name, steps, modules, env, session):
 		from config import Config
 		from utils import DictObj
 		if test_name not in Config.tests.keys():
@@ -78,7 +78,7 @@ class Test():
 
 			if step['step'] == 'call':
 				logger.debug('Starting to test \'call\' step: %s', step)
-				call_results = self.run_call(modules=modules, env=env, session=results['session'], results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
+				call_results = await self.run_call(modules=modules, env=env, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
 				
 				if 'session' in call_results.keys():
 					logger.debug('Updating session after detecting \'session\' in call results.')
@@ -94,7 +94,7 @@ class Test():
 					test_steps = step['steps']
 				else:
 					test_steps = False
-				test_results, results['session'] = self.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=results['session'])
+				test_results, results['session'] = await self.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=results['session'])
 				if test_results['status'] == 'PASSED':
 					test_results['status'] = True
 				else:
@@ -143,7 +143,7 @@ class Test():
 			return (results, results['session'])
 
 	@classmethod
-	def run_call(self, modules, env, session, results, module, method, query, doc, acceptance):
+	async def run_call(self, modules, env, results, module, method, query, doc, acceptance):
 		from utils import Query, extract_attr
 		call_results = {
 			'step':'call',
@@ -156,7 +156,7 @@ class Test():
 		query = Query(self.parse_obj(results=results, obj=query))
 		doc = self.parse_obj(results=results, obj=doc)
 		try:
-			call_results['results'] = modules[module].methods[method](env=env, session=session, query=query, doc=doc)
+			call_results['results'] = await modules[module].methods[method](env=env, query=query, doc=doc)
 			call_results['acceptance'] = self.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
@@ -249,8 +249,8 @@ class Test():
 			else:
 				attr_val = random.random() * 10000
 			return attr_val
-		elif type(attr_type) == tuple:
-			attr_val = random.choice(attr_type)
+		elif type(attr_type) == set:
+			attr_val = random.choice(list(attr_type))
 			return attr_val
 		elif attr_type == 'bool':
 			attr_val = random.choice([True, False])

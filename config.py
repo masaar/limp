@@ -405,7 +405,7 @@ class Config:
 			from utils import DictObj
 			anon_session = self.compile_anon_session()
 			anon_session['user'] = DictObj(self.compile_anon_user())
-			Test.run_test(test_name=self.test, steps=False, modules=modules, env=self._sys_env, session=DictObj(anon_session))
+			await Test.run_test(test_name=self.test, steps=False, modules=modules, env=self._sys_env, session=DictObj(anon_session))
 			exit()
 		
 		# [DOC] Check for emulate_test mode
