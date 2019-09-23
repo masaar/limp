@@ -194,9 +194,10 @@ class User(BaseModule):
 				'msg':'User is not a member of the group.',
 				'args':{'code':'CORE_USER_GROUP_NOT_ADDED'}
 			}
-		user.groups = [group for group in user.groups if str(group) != str(doc['group'])]
 		# [DOC] Update the user
-		results = await self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={'groups':user.groups})
+		results = await self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={
+			'groups':{'$pull':[doc['group']]}
+		})
 		return results
 
 class Group(BaseModule):

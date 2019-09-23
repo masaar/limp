@@ -137,23 +137,33 @@ class Data():
 
 					# [DOC] Convert strings and lists of strings to ObjectId when required
 					if step_attr in step_attrs.keys() and step_attrs[step_attr] == 'id':
-						step[attr] = ObjectId(step[attr])
-					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == ['id']:
-						if type(step[attr]) == list:
-							step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
-						elif type(step[attr]) == str:
-							step[attr] = ObjectId(step[attr])
-					elif step_attr == '_id':
-						if type(step[attr]) == str:
-							try:
+						try:
+							if type(step[attr]) == dict and '$in' in step[attr].keys():
+								step[attr] = {'$in':[ObjectId(child_attr) for child_attr in step[attr]['$in']]}
+							elif type(step[attr]) == str:
 								step[attr] = ObjectId(step[attr])
-							except:
-								pass
-						elif type(step[attr]) == list:
-							try:
+						except:
+							logger.warning('Failed to convert attr to id type: %s', step[attr])
+					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == ['id']:
+						try:
+							if type(step[attr]) == list:
 								step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
-							except:
-								pass
+							elif type(step[attr]) == dict and '$in' in step[attr].keys():
+								step[attr] = {'$in':[ObjectId(child_attr) for child_attr in step[attr]['$in']]}
+							elif type(step[attr]) == str:
+								step[attr] = ObjectId(step[attr])
+						except:
+							logger.warning('Failed to convert attr to id type: %s', step[attr])
+					elif step_attr == '_id':
+						try:
+							if type(step[attr]) == str:
+								step[attr] = ObjectId(step[attr])
+							elif type(step[attr]) == list:
+								step[attr] = [ObjectId(child_attr) for child_attr in step[attr]]
+							elif type(step[attr]) == dict and '$in' in step[attr].keys():
+								step[attr] = {'$in':[ObjectId(child_attr) for child_attr in step[attr]['$in']]}
+						except:
+							logger.warning('Failed to convert attr to id type: %s', step[attr])
 					# [DOC] Check for access sepcial attrs
 					elif step_attr in step_attrs.keys() and step_attrs[step_attr] == 'access':
 						access_query = [
