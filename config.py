@@ -243,7 +243,7 @@ class Config:
 						modules[module].collection = 'test_{}'.format(modules[module].collection)
 						if self.test_flush:
 							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
-							Data.drop(env=self._sys_env, collection=modules[module].collection)
+							await Data.drop(env=self._sys_env, collection=modules[module].collection)
 					else:
 						logger.debug('Skipping service module %s', module)
 			else:
