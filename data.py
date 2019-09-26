@@ -17,7 +17,7 @@ DELETE_FORCE_SYS = 'DELETE_FORCE_SYS'
 class Data():
 	
 	@classmethod
-	def create_conn(self):
+	def create_conn(cls):
 		connection_config = {
 			'ssl':Config.data_ssl
 		}
@@ -44,7 +44,7 @@ class Data():
 		return conn
 	
 	@classmethod
-	def _compile_query(self, collection, attrs, extns, modules, query, watch_mode):
+	def _compile_query(cls, collection, attrs, extns, modules, query, watch_mode):
 		aggregate_prefix = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		aggregate_suffix = []
 		aggregate_query = [{'$match':{'$and':[]}}]
@@ -88,7 +88,7 @@ class Data():
 			del query['$geo_near']
 
 		for step in query:
-			self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step, watch_mode=watch_mode)
+			cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step, watch_mode=watch_mode)
 		
 		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
 		if aggregate_match.__len__() == 1:
@@ -100,13 +100,13 @@ class Data():
 		return (skip, limit, sort, group, aggregate_query)
 	
 	@classmethod
-	def _compile_query_step(self, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step, watch_mode):
+	def _compile_query_step(cls, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step, watch_mode):
 		if type(step) == dict and step.keys().__len__():
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
 				if attr.startswith('__or'):
 					child_child_aggregate_query = {'$or':[]}
-					self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr], watch_mode=watch_mode)
+					cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr], watch_mode=watch_mode)
 					if child_child_aggregate_query['$or'].__len__() == 1:
 						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'][0])
 					elif child_child_aggregate_query['$or'].__len__() > 1:
@@ -197,14 +197,14 @@ class Data():
 		elif type(step) == list and step.__len__():
 			child_aggregate_query = {'$or':[]}
 			for child_step in step:
-				self._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, watch_mode=watch_mode)
+				cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, watch_mode=watch_mode)
 			if child_aggregate_query['$or'].__len__() == 1:
 				aggregate_match.append(child_aggregate_query['$or'][0])
 			elif child_aggregate_query['$or'].__len__() > 1:
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
-	async def _process_results_doc(self, env, collection, attrs, extns, modules, query, doc, extn_models={}):
+	async def _process_results_doc(cls, env, collection, attrs, extns, modules, query, doc, extn_models={}):
 		for extn in extns.keys():
 			# [DOC] Check if extn module is dynamic value
 			if extns[extn][0].startswith('$__doc.'):
@@ -276,8 +276,8 @@ class Data():
 		return doc
 
 	@classmethod
-	async def read(self, env, collection, attrs, extns, modules, query):
-		skip, limit, sort, group, aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
+	async def read(cls, env, collection, attrs, extns, modules, query):
+		skip, limit, sort, group, aggregate_query = cls._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
 		logger.debug('skip, limit, sort, group: %s, %s, %s, %s.', skip, limit, sort, group)
@@ -338,7 +338,7 @@ class Data():
 		models = []
 		extn_models = {}
 		async for doc in docs:
-			doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc, extn_models=extn_models)
+			doc = await cls._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc, extn_models=extn_models)
 			if doc:
 				models.append(BaseModel(doc))
 		return {
@@ -349,8 +349,8 @@ class Data():
 		}
 	
 	@classmethod
-	async def watch(self, env, collection, attrs, extns, modules, query):
-		aggregate_query = self._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
+	async def watch(cls, env, collection, attrs, extns, modules, query):
+		aggregate_query = cls._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
 
 		collection = env['conn'][Config.data_name][collection]
 
@@ -366,7 +366,7 @@ class Data():
 				if oper in ['insert', 'replace', 'update']:
 					if oper == 'insert': oper = 'create'
 					elif oper == 'replace': oper = 'update'
-					doc = await self._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=change['fullDocument'])
+					doc = await cls._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=change['fullDocument'])
 					model = BaseModel(doc)
 				elif oper == 'delete':
 					model = BaseModel({'_id':change['documentKey']['_id']})
@@ -380,7 +380,7 @@ class Data():
 		logger.debug('changeStream has been close. Generator ended at Data')
 
 	@classmethod
-	async def create(self, env, collection, attrs, extns, modules, doc):
+	async def create(cls, env, collection, attrs, extns, modules, doc):
 		collection = env['conn'][Config.data_name][collection]
 		results = await collection.insert_one(doc)
 		_id = results.inserted_id
@@ -390,7 +390,7 @@ class Data():
 		}
 	
 	@classmethod
-	async def update(self, env, collection, attrs, extns, modules, docs, doc):
+	async def update(cls, env, collection, attrs, extns, modules, docs, doc):
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
 		# [DOC] Perform update query on matching docs
@@ -444,7 +444,7 @@ class Data():
 		}
 	
 	@classmethod
-	async def delete(self, env, collection, attrs, extns, modules, docs, strategy):
+	async def delete(cls, env, collection, attrs, extns, modules, docs, strategy):
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
 			if strategy == DELETE_SOFT_SKIP_SYS:
@@ -496,7 +496,7 @@ class Data():
 			return False
 	
 	@classmethod
-	async def drop(self, env, collection):
+	async def drop(cls, env, collection):
 		collection = env['conn'][Config.data_name][collection]
 		await collection.drop()
 		return True

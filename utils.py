@@ -1,6 +1,3 @@
-from config import Config
-from event import Event
-
 from bson import ObjectId, binary
 
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
@@ -387,6 +384,7 @@ def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
 
 def validate_attr(attr_name, attr_type, attr_val):
 	from base_model import BaseModel
+	from config import Config
 	try:
 		if attr_type == 'any':
 			return attr_val

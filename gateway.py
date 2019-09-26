@@ -11,7 +11,7 @@ import smtplib
 class Gateway:
 
 	@classmethod
-	def send_sms(self, to, body):
+	def send_sms(cls, to, body):
 		account_sid = Config.sms_auth['sid']
 		auth_token = Config.sms_auth['token']
 		client = Client(account_sid, auth_token)
@@ -23,7 +23,7 @@ class Gateway:
 		return message
 	
 	@classmethod
-	def send_email(self, subject, addr_to, content, content_format='html', files=[]):
+	def send_email(cls, subject, addr_to, content, content_format='html', files=[]):
 		if type(addr_to) == str:
 			addr_to = [addr_to]
 		addr_to = COMMASPACE.join(addr_to)

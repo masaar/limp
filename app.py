@@ -195,7 +195,6 @@ async def run_app(packages, port):
 		return aiohttp.web.Response(status=405, headers=headers, body=JSONEncoder().encode({'status':405, 'msg':'METHOD NOT ALLOWED'}))
 	
 	async def websocket_handler(request):
-		files = {}
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
 		logger.debug('Websocket connection starting with client at \'%s\'', request.remote)
 		ws = aiohttp.web.WebSocketResponse()
@@ -209,7 +208,8 @@ async def run_app(packages, port):
 			'session':None,
 			'watch_tasks':{},
 			'init':False,
-			'last_call':datetime.datetime.utcnow()
+			'last_call':datetime.datetime.utcnow(),
+			'files':{}
 		}
 		sessions.append(env)
 		try:
@@ -247,228 +247,245 @@ async def run_app(packages, port):
 				break
 			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
-				try:
-					env['last_call'] = datetime.datetime.utcnow()
-					try:
-						env['session'].token
-					except Exception:
-						anon_user = Config.compile_anon_user()
-						anon_session = Config.compile_anon_session()
-						anon_session['user'] = DictObj(anon_user)
-						env['session'] = DictObj(anon_session)
-					res = json.loads(msg.data)
-					try:
-						res = jwt.decode(res['token'], env['session'].token, algorithms=['HS256'])
-					except Exception:
-						await ws.send_str(JSONEncoder().encode({
-							'status':403,
-							'msg':'Request token is not accepted.',
-							'args':{
-								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-								'code':'CORE_REQ_INVALID_TOKEN'
-							}
-						}))
-						if env['init'] == False:
-							await ws.close()
-							break
-						else:
-							continue
-					
-					logger.debug('Decoded request: %s', JSONEncoder().encode(res))
-
-					if 'endpoint' not in res.keys():
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Request missing endpoint.',
-							'args':{
-								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-								'code':'CORE_REQ_NO_ENDPOINT'
-							}
-						}))
-						continue
-					
-					if env['init'] == False:
-						if res['endpoint'] != 'conn/verify':
-							await ws.send_str(JSONEncoder().encode({
-								'status':1008,
-								'msg':'Request token is not accepted.',
-								'args':{
-									'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-									'code':'CORE_REQ_NO_VERIFY'
-								}
-							}))
-							await ws.close()
-							break
-						else:
-							env['init'] = True
-							logger.debug('Connection on session #\'%s\' is verified.', env['id'])
-							await ws.send_str(JSONEncoder().encode({
-								'status':200,
-								'msg':'Connection establised',
-								'args':{
-									'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-									'code':'CORE_CONN_OK'
-								}
-							}))
-							continue
-					
-					if res['endpoint'] == 'conn/close':
-						logger.debug('Received connection close instructions on session #\'%s\'.', env['id'])
-						await ws.close()
-						break
-
-					
-					res['endpoint'] = res['endpoint'].lower()
-					if res['endpoint'] in ['session/auth', 'session/reauth'] and str(env['session']._id) != 'f00000000000000000000012':
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'You are already authed.',
-							'args':{
-								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-								'code':'CORE_SESSION_ALREADY_AUTHED'
-							}
-						}))
-						continue
-					elif res['endpoint'] == 'session/signout' and str(env['session']._id) == 'f00000000000000000000012':
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Singout is not allowed for \'__ANON\' user.',
-							'args':{
-								'call_id':res['call_id'] if 'call_id' in res.keys() else None,
-								'code':'CORE_SESSION_ANON_SIGNOUT'
-							}
-						}))
-						continue
-
-					if 'query' not in res.keys(): res['query'] = []
-					if 'doc' not in res.keys(): res['doc'] = {}
-					if 'call_id' not in res.keys(): res['call_id'] = ''
-
-					request = {'call_id':res['call_id'], 'sid':res['sid'] or False, 'query':res['query'], 'doc':res['doc'], 'path':res['endpoint'].split('/')}
-
-					if request['path'].__len__() != 2:
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Endpoint path is invalid.',
-							'args':{
-								'call_id':request['call_id'],
-								'code':'CORE_REQ_INVALID_PATH'
-							}
-						}))
-						continue
-
-					module = request['path'][0].lower()
-					if module == 'file' and request['path'][1].lower() == 'upload':
-						logger.debug('Received file chunk for %s, index %s, %s out of %s', request['doc']['attr'], request['doc']['index'], request['doc']['chunk'], request['doc']['total'])
-						if request['doc']['attr'] not in files.keys():
-							# [DOC] File attr first file, prepare files dict.
-							files[request['doc']['attr']] = {}
-						if request['doc']['chunk'] == 1:
-							# [DOC] First Chunk received, prepare files dict to accept it.
-							files[request['doc']['attr']][request['doc']['index']] = request['doc']['file']
-						else:
-							# [DOC] Past-first chunk received, append more bytes to it.
-							files[request['doc']['attr']][request['doc']['index']]['content'] += ',' + request['doc']['file']['content']
-						if request['doc']['chunk'] == request['doc']['total']:
-							# [DOC] Last chunk received, convert file to bytes and update the client.
-							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Last chunk accepted', 'args':{'call_id':request['call_id']}}))
-						else:
-							# [DOC] More chunks expeceted, update the client
-							await ws.send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
-						continue
-					
-					if module == 'watch' and request['path'][1].lower() == 'delete':
-						logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
-						try:
-							if request['query'][0]['watch'] == '__all':
-								for watch_task in env['watch_tasks'].values():
-									watch_task['stream'].close()
-									watch_task['task'].cancel()
-								await ws.send_str(JSONEncoder().encode({
-									'status':200,
-									'msg':'All watch tasks deleted.',
-									'args':{
-										'call_id':request['call_id'],
-										'watch':list(env['watch_tasks'].keys())
-									}
-								}))
-								env['watch_tasks'] = {}
-							else:
-								env['watch_tasks'][request['query'][0]['watch']]['stream'].close()
-								env['watch_tasks'][request['query'][0]['watch']]['task'].cancel()
-								await ws.send_str(JSONEncoder().encode({
-									'status':200,
-									'msg':'Watch task deleted.',
-									'args':{
-										'call_id':request['call_id'],
-										'watch':[request['query'][0]['watch']]
-									}
-								}))
-								del env['watch_tasks'][request['query'][0]['watch']]
-						except:
-							await ws.send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
-						continue
-
-					if module not in modules.keys():
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Endpoint module is invalid.',
-							'args':{
-								'call_id':request['call_id'],
-								'code':'CORE_REQ_INVALID_MODULE'
-							}
-						}))
-						continue
-
-					if request['path'][1].lower() not in modules[module].methods.keys():
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Endpoint method is invalid.',
-							'args':{
-								'call_id':request['call_id'],
-								'code':'CORE_REQ_INVALID_METHOD'
-							}
-						}))
-						continue
-
-					if modules[module].methods[request['path'][1].lower()].get_method:
-						await ws.send_str(JSONEncoder().encode({
-							'status':400,
-							'msg':'Endpoint method is a GET method.',
-							'args':{
-								'call_id':request['call_id'],
-								'code':'CORE_REQ_GET_METHOD'
-							}
-						}))
-						continue
-
-					if not request['sid']:
-						request['sid'] = 'f00000000000000000000012'
-
-					method = modules[module].methods[request['path'][1].lower()]
-					query = request['query']
-					doc = parse_file_obj(request['doc'], files)
-					await method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id'])
-
-				except Exception as e:
-					logger.error('An error occured. Details: %s.', traceback.format_exc())
-					if Config.debug:
-						await ws.send_str(JSONEncoder().encode({
-							'status':500,
-							'msg':'Unexpected error has occured [{}].'.format(str(e)),
-							'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
-						}))
-					else:
-						await ws.send_str(JSONEncoder().encode({
-							'status':500,
-							'msg':'Unexpected error has occured.',
-							'args':{'code':'CORE_SERVER_ERROR'}
-						}))
+				asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg))
 
 		if 'id' in env.keys():
 			await close_session(env['id'])
 
 		return ws
+	
+	async def handle_msg(env, modules, msg):
+		try:
+			env['last_call'] = datetime.datetime.utcnow()
+			try:
+				env['session'].token
+			except Exception:
+				anon_user = Config.compile_anon_user()
+				anon_session = Config.compile_anon_session()
+				anon_session['user'] = DictObj(anon_user)
+				env['session'] = DictObj(anon_session)
+			res = json.loads(msg.data)
+			try:
+				res = jwt.decode(res['token'], env['session'].token, algorithms=['HS256'])
+			except Exception:
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':403,
+					'msg':'Request token is not accepted.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_REQ_INVALID_TOKEN'
+					}
+				}))
+				if env['init'] == False:
+					await env['ws'].close()
+					return
+					# break
+				else:
+					return
+					# continue
+			
+			logger.debug('Decoded request: %s', JSONEncoder().encode(res))
+
+			if 'endpoint' not in res.keys():
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Request missing endpoint.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_REQ_NO_ENDPOINT'
+					}
+				}))
+				return
+				# continue
+			
+			if env['init'] == False:
+				if res['endpoint'] != 'conn/verify':
+					await env['ws'].send_str(JSONEncoder().encode({
+						'status':1008,
+						'msg':'Request token is not accepted.',
+						'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_REQ_NO_VERIFY'
+						}
+					}))
+					await env['ws'].close()
+					return
+					# break
+				else:
+					env['init'] = True
+					logger.debug('Connection on session #\'%s\' is verified.', env['id'])
+					await env['ws'].send_str(JSONEncoder().encode({
+						'status':200,
+						'msg':'Connection establised',
+						'args':{
+							'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+							'code':'CORE_CONN_OK'
+						}
+					}))
+					return
+					# continue
+			
+			if res['endpoint'] == 'conn/close':
+				logger.debug('Received connection close instructions on session #\'%s\'.', env['id'])
+				await env['ws'].close()
+				return
+				# break
+
+			
+			res['endpoint'] = res['endpoint'].lower()
+			if res['endpoint'] in ['session/auth', 'session/reauth'] and str(env['session']._id) != 'f00000000000000000000012':
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'You are already authed.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_SESSION_ALREADY_AUTHED'
+					}
+				}))
+				return
+				# continue
+			elif res['endpoint'] == 'session/signout' and str(env['session']._id) == 'f00000000000000000000012':
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Singout is not allowed for \'__ANON\' user.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_SESSION_ANON_SIGNOUT'
+					}
+				}))
+				return
+				# continue
+
+			if 'query' not in res.keys(): res['query'] = []
+			if 'doc' not in res.keys(): res['doc'] = {}
+			if 'call_id' not in res.keys(): res['call_id'] = ''
+
+			request = {'call_id':res['call_id'], 'sid':res['sid'] or False, 'query':res['query'], 'doc':res['doc'], 'path':res['endpoint'].split('/')}
+
+			if request['path'].__len__() != 2:
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Endpoint path is invalid.',
+					'args':{
+						'call_id':request['call_id'],
+						'code':'CORE_REQ_INVALID_PATH'
+					}
+				}))
+				return
+				# continue
+
+			module = request['path'][0].lower()
+			if module == 'file' and request['path'][1].lower() == 'upload':
+				logger.debug('Received file chunk for %s, index %s, %s out of %s', request['doc']['attr'], request['doc']['index'], request['doc']['chunk'], request['doc']['total'])
+				if request['doc']['attr'] not in env['files'].keys():
+					# [DOC] File attr first file, prepare files dict.
+					env['files'][request['doc']['attr']] = {}
+				if request['doc']['chunk'] == 1:
+					# [DOC] First Chunk received, prepare files dict to accept it.
+					env['files'][request['doc']['attr']][request['doc']['index']] = request['doc']['file']
+				else:
+					# [DOC] Past-first chunk received, append more bytes to it.
+					env['files'][request['doc']['attr']][request['doc']['index']]['content'] += ',' + request['doc']['file']['content']
+				if request['doc']['chunk'] == request['doc']['total']:
+					# [DOC] Last chunk received, convert file to bytes and update the client.
+					await env['ws'].send_str(JSONEncoder().encode({'status':200, 'msg':'Last chunk accepted', 'args':{'call_id':request['call_id']}}))
+				else:
+					# [DOC] More chunks expeceted, update the client
+					await env['ws'].send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
+				return
+				# continue
+			
+			if module == 'watch' and request['path'][1].lower() == 'delete':
+				logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
+				try:
+					if request['query'][0]['watch'] == '__all':
+						for watch_task in env['watch_tasks'].values():
+							watch_task['stream'].close()
+							watch_task['task'].cancel()
+						await env['ws'].send_str(JSONEncoder().encode({
+							'status':200,
+							'msg':'All watch tasks deleted.',
+							'args':{
+								'call_id':request['call_id'],
+								'watch':list(env['watch_tasks'].keys())
+							}
+						}))
+						env['watch_tasks'] = {}
+					else:
+						env['watch_tasks'][request['query'][0]['watch']]['stream'].close()
+						env['watch_tasks'][request['query'][0]['watch']]['task'].cancel()
+						await env['ws'].send_str(JSONEncoder().encode({
+							'status':200,
+							'msg':'Watch task deleted.',
+							'args':{
+								'call_id':request['call_id'],
+								'watch':[request['query'][0]['watch']]
+							}
+						}))
+						del env['watch_tasks'][request['query'][0]['watch']]
+				except:
+					await env['ws'].send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
+				return
+				# continue
+
+			if module not in modules.keys():
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Endpoint module is invalid.',
+					'args':{
+						'call_id':request['call_id'],
+						'code':'CORE_REQ_INVALID_MODULE'
+					}
+				}))
+				return
+				# continue
+
+			if request['path'][1].lower() not in modules[module].methods.keys():
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Endpoint method is invalid.',
+					'args':{
+						'call_id':request['call_id'],
+						'code':'CORE_REQ_INVALID_METHOD'
+					}
+				}))
+				return
+				# continue
+
+			if modules[module].methods[request['path'][1].lower()].get_method:
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':400,
+					'msg':'Endpoint method is a GET method.',
+					'args':{
+						'call_id':request['call_id'],
+						'code':'CORE_REQ_GET_METHOD'
+					}
+				}))
+				return
+				# continue
+
+			if not request['sid']:
+				request['sid'] = 'f00000000000000000000012'
+
+			method = modules[module].methods[request['path'][1].lower()]
+			query = request['query']
+			doc = parse_file_obj(request['doc'], env['files'])
+			asyncio.create_task(method(skip_events=[], env=env, query=query, doc=doc, call_id=request['call_id']))
+
+		except Exception as e:
+			logger.error('An error occured. Details: %s.', traceback.format_exc())
+			if Config.debug:
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':500,
+					'msg':'Unexpected error has occured [{}].'.format(str(e)),
+					'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
+				}))
+			else:
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':500,
+					'msg':'Unexpected error has occured.',
+					'args':{'code':'CORE_SERVER_ERROR'}
+				}))
 
 	async def close_session(id):
 		if sessions[id].keys():

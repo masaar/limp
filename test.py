@@ -14,7 +14,7 @@ calc_opers = {
 class Test():
 	
 	@classmethod
-	async def run_test(self, test_name, steps, modules, env, session):
+	async def run_test(cls, test_name, steps, modules, env, session):
 		from config import Config
 		from utils import DictObj
 		if test_name not in Config.tests.keys():
@@ -78,7 +78,7 @@ class Test():
 
 			if step['step'] == 'call':
 				logger.debug('Starting to test \'call\' step: %s', step)
-				call_results = await self.run_call(modules=modules, env=env, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
+				call_results = await cls.run_call(modules=modules, env=env, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
 				
 				if 'session' in call_results.keys():
 					logger.debug('Updating session after detecting \'session\' in call results.')
@@ -94,7 +94,7 @@ class Test():
 					test_steps = step['steps']
 				else:
 					test_steps = False
-				test_results, results['session'] = await self.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=results['session'])
+				test_results, results['session'] = await cls.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=results['session'])
 				if test_results['status'] == 'PASSED':
 					test_results['status'] = True
 				else:
@@ -143,7 +143,7 @@ class Test():
 			return (results, results['session'])
 
 	@classmethod
-	async def run_call(self, modules, env, results, module, method, query, doc, acceptance):
+	async def run_call(cls, modules, env, results, module, method, query, doc, acceptance):
 		from utils import Query, extract_attr
 		call_results = {
 			'step':'call',
@@ -153,16 +153,16 @@ class Test():
 			'doc':doc,
 			'status':True
 		}
-		query = Query(self.parse_obj(results=results, obj=query))
-		doc = self.parse_obj(results=results, obj=doc)
+		query = Query(cls.parse_obj(results=results, obj=query))
+		doc = cls.parse_obj(results=results, obj=doc)
 		try:
 			call_results['results'] = await modules[module].methods[method](env=env, query=query, doc=doc)
-			call_results['acceptance'] = self.parse_obj(results=results, obj=copy.deepcopy(acceptance))
+			call_results['acceptance'] = cls.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
-					self.break_debugger()
+					cls.break_debugger()
 					break
 			if call_results['status'] == False:
 				logger.debug('Test step \'call\' failed at measure \'%s\'. Required value is \'%s\', but test results is \'%s\'', measure, call_results['acceptance'][measure], results_measure)
@@ -170,7 +170,7 @@ class Test():
 		except Exception as e:
 			tb = traceback.format_exc()
 			logger.error('Exception occured: %s', tb)
-			self.break_debugger()
+			cls.break_debugger()
 			call_results.update({
 				'measure':measure,
 				'results':{
@@ -186,7 +186,7 @@ class Test():
 		return call_results
 	
 	@classmethod
-	def parse_obj(self, results, obj):
+	def parse_obj(cls, results, obj):
 		from utils import extract_attr
 		if type(obj) == dict:
 			obj_iter = obj.keys()
@@ -196,14 +196,14 @@ class Test():
 		for i in obj_iter:
 			if type(obj[i]) == dict:
 				if '__attr' in obj[i].keys():
-					obj[i] = self.generate_attr(attr_type=obj[i]['__attr'], **obj[i])
+					obj[i] = cls.generate_attr(attr_type=obj[i]['__attr'], **obj[i])
 				elif '__join' in obj[i].keys():
 					for ii in range(0, obj[i]['__join'].__len__()):
 						# [DOC] Checking for any test variables, attr generators in join attrs
 						if type(obj[i]['__join'][ii]) == str and obj[i]['__join'][ii].startswith('$__'):
 							obj[i]['__join'][ii] = str(extract_attr(scope=results, attr_path=obj[i]['__join'][ii]))
 						elif type(obj[i]['__join'][ii]) == dict and '__attr' in obj[i]['__join'][ii].keys():
-							obj[i]['__join'][ii] = str(self.generate_attr(obj[i]['__join'][ii]['__attr'], **obj[i]['__join'][ii]))
+							obj[i]['__join'][ii] = str(cls.generate_attr(obj[i]['__join'][ii]['__attr'], **obj[i]['__join'][ii]))
 					obj[i] = obj[i]['separator'].join(obj[i]['__join'])
 				elif '__calc' in obj[i].keys():
 					if obj[i]['__calc'][1] not in calc_opers.keys():
@@ -216,21 +216,21 @@ class Test():
 					# [DOC] Running calc oper
 					obj[i] = getattr(obj[i]['__calc'][0], calc_opers[obj[i]['__calc'][1]])(obj[i]['__calc'][2])
 				else:
-					obj[i] = self.parse_obj(results=results, obj=obj[i])
+					obj[i] = cls.parse_obj(results=results, obj=obj[i])
 			elif type(obj[i]) == list:
 				if obj[i].__len__() and type(obj[i][0]) == dict and '__attr' in obj[i][0].keys():
 					if 'count' not in obj[i][0].keys():
 						obj[i][0]['count'] = 1
-					obj[i] = [self.generate_attr(attr_type=obj[i][0]['__attr'], **obj[i][0]) for ii in range(0, obj[i][0]['count'])]
+					obj[i] = [cls.generate_attr(attr_type=obj[i][0]['__attr'], **obj[i][0]) for ii in range(0, obj[i][0]['count'])]
 				else:
-					obj[i] = self.parse_obj(results=results, obj=obj[i])
+					obj[i] = cls.parse_obj(results=results, obj=obj[i])
 			elif type(obj[i]) == str and obj[i].startswith('$__'):
 				obj[i] = extract_attr(scope=results, attr_path=obj[i])
 
 		return obj
 	
 	@classmethod
-	def generate_attr(self, attr_type, **attr_args):
+	def generate_attr(cls, attr_type, **attr_args):
 		if attr_type == 'any':
 			return '__any'
 		elif attr_type == 'id':
@@ -323,7 +323,7 @@ class Test():
 				'groups':[]
 			}
 		elif type(attr_type) == list:
-			return [self.generate_attr(attr_type[0])]
+			return [cls.generate_attr(attr_type[0])]
 		elif attr_type == 'locale':
 			from config import Config
 			return {locale:'__locale-{}'.format(math.ceil(random.random() * 10000)) for locale in Config.locales}
@@ -334,7 +334,7 @@ class Test():
 		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
 	
 	@classmethod
-	def break_debugger(self):
+	def break_debugger(cls):
 		from config import Config
 		if Config.test_breakpoint:
 			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')
