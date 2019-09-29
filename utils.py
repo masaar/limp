@@ -389,7 +389,7 @@ def validate_attr(attr_name, attr_type, attr_val):
 		if attr_type == 'any':
 			return attr_val
 		elif type(attr_type) == str and attr_type == 'id':
-			if type(attr_val) == BaseModel:
+			if type(attr_val) == BaseModel or type(attr_val) == DictObj:
 				return attr_val._id
 			elif type(attr_val) == ObjectId:
 				return attr_val
@@ -511,11 +511,12 @@ def validate_attr(attr_name, attr_type, attr_val):
 				return attr_val
 		elif type(attr_type) == list:
 			if type(attr_val) == list:
-				for child_attr_val in attr_val:
+				for i in range(0, len(attr_val)):
+					child_attr_val = attr_val[i]
 					child_attr_check = False
 					for child_attr_type in attr_type:
 						try:
-							validate_attr(attr_name=attr_name, attr_type=child_attr_type, attr_val=child_attr_val)
+							attr_val[i] = validate_attr(attr_name=attr_name, attr_type=child_attr_type, attr_val=child_attr_val)
 							child_attr_check = True
 							break
 						except:

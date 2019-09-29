@@ -646,7 +646,7 @@ class BaseModule:
 		else:
 			thumb_dims = False
 
-		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__] + skip_events, env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status':404,

@@ -2,6 +2,7 @@ from utils import DictObj, Query, NONE_VALUE, JSONEncoder, validate_attr, Invali
 from event import Event
 from config import Config
 from base_model import BaseModel
+from test import Test
 
 from asyncio import coroutine
 
@@ -61,16 +62,15 @@ class BaseMethod:
 		
 		return sets_check
 
-	async def __call__(self, skip_events=[], env={}, query=[], doc={}, call_id=None) -> DictObj:
-		# [DEPRECATED] Return error for obsolete dict query
-		if type(query) == dict:
-			logger.debug('Detected obsolete dict query. Returning error: %s')
-			return await self.return_results(ws=env['ws'], results=DictObj({
-				'status':400,
-				'msg':'Request was sent using obsolete Query structure. Upgrade your SDK.',
-				'args':DictObj({'code':'CORE_REQ_OBSOLETE_QUERY'})
-			}), call_id=call_id)
-
+	async def __call__(self, skip_events=None, env=None, query=None, doc=None, call_id=None) -> DictObj:
+		if not skip_events:
+			skip_events = []
+		if not env:
+			env = {}
+		if not query:
+			query = []
+		if not doc:
+			doc = {}
 		# [DOC] Convert list query to Query object
 		query = Query(copy.deepcopy(query))
 		# [DOC] deepcopy() doc object ro prevent duplicate memory alloc
@@ -233,6 +233,8 @@ class BaseMethod:
 				logger.error('Scope variables: %s', JSONEncoder().encode(prev.tb_frame.f_locals))
 			query = Query([])
 			if Config.debug:
+				if Config.test and Config.test_breakpoint:
+					Test.break_debugger(locals())
 				return await self.return_results(ws=env['ws'], results=DictObj({
 					'status':500,
 					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),

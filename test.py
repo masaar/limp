@@ -100,6 +100,18 @@ class Test():
 				else:
 					test_results['status'] = False
 				results['steps'].append(test_results)
+			elif step['step'] == 'set_realm':
+				from utils import extract_attr
+				logger.debug('Starting to test \'set_realm\' step: %s', step)
+				if step['realm'].startswith('$__'):
+					step['realm'] = extract_attr(scope=results, attr_path=step['realm'])
+				logger.debug('Updating realm to \'%s\'.', step['realm'])
+				env['realm'] = step['realm']
+				results['steps'].append({
+					'step':'set_realm',
+					'realm':step['realm'],
+					'status':True
+				})
 			else:
 				logger.error('Unknown step \'%s\'. Exiting.', step['step'])
 				exit()
@@ -162,7 +174,7 @@ class Test():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
-					cls.break_debugger()
+					cls.break_debugger(locals())
 					break
 			if call_results['status'] == False:
 				logger.debug('Test step \'call\' failed at measure \'%s\'. Required value is \'%s\', but test results is \'%s\'', measure, call_results['acceptance'][measure], results_measure)
@@ -170,7 +182,7 @@ class Test():
 		except Exception as e:
 			tb = traceback.format_exc()
 			logger.error('Exception occured: %s', tb)
-			cls.break_debugger()
+			cls.break_debugger(locals())
 			call_results.update({
 				'measure':measure,
 				'results':{
@@ -334,9 +346,9 @@ class Test():
 		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
 	
 	@classmethod
-	def break_debugger(cls):
+	def break_debugger(cls, scope):
 		from config import Config
 		if Config.test_breakpoint:
 			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')
-			logger.debug('All variables are available under \'locals()\' function.')
+			logger.debug('All variables are available under \'scope\' dict.')
 			breakpoint()
