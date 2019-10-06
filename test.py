@@ -238,6 +238,8 @@ class Test():
 					obj[i] = cls.parse_obj(results=results, obj=obj[i])
 			elif type(obj[i]) == str and obj[i].startswith('$__'):
 				obj[i] = extract_attr(scope=results, attr_path=obj[i])
+			elif callable(obj[i]):
+				obj[i] = obj[i](scope=results)
 
 		return obj
 	
