@@ -343,11 +343,20 @@ class BaseModule:
 				}
 			# [DOC] Check unique_attrs
 			if self.unique_attrs:
-				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=[[{attr:doc[attr]} for attr in self.unique_attrs], {'$limit':1}])
+				unique_attrs_query = [[]]
+				for attr in self.unique_attrs:
+					if type(attr) == str:
+						unique_attrs_query[0].append({attr:doc[attr]})
+					elif type(attr) == tuple:
+						unique_attrs_query[0].append({child_attr:doc[child_attr] for child_attr in attr})
+				unique_attrs_query.append({'$limit':1})
+				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
 				if unique_results.args.count: # pylint: disable=no-member
 					return {
 						'status':400,
-						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
+						'msg':'A doc with the same \'{}\' already exists.'.format(
+							', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
+						),
 						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 		# [DOC] Execute Data driver create
@@ -430,26 +439,48 @@ class BaseModule:
 		# [DOC] Find which docs are to be updated
 		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		# [DOC] Check unique_attrs
-		if self.unique_attrs and sum([1 if attr in doc.keys() else 0 for attr in self.unique_attrs]) > 0:
+		if self.unique_attrs:
 			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
 			if len(docs_results['docs']) > 1:
-				return {
-					'status':400,
-					'msg':'Update call query has more than one doc as results. This would result in duplication.',
-					'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
-				}
-			else:
-				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=[
-					[{attr:doc[attr]} for attr in self.unique_attrs if attr in doc.keys()],
-					{'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}},
-					{'$limit':1}
-				])
-				if unique_results.args.count: # pylint: disable=no-member
+				unique_attrs_check = True
+				for attr in self.unique_attrs:
+					if type(attr) == str and attr in doc.keys():
+						unique_attrs_check = False
+						break
+					elif type(attr) == tuple:
+						for child_attr in attr:
+							if not unique_attrs_check:
+								break
+							if child_attr in doc.keys():
+								unique_attrs_check = False
+								break
+
+				if not unique_attrs_check:
 					return {
 						'status':400,
-						'msg':'A doc with the same \'{}\' already exists.'.format('\', \''.join(self.unique_attrs)),
-						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+						'msg':'Update call query has more than one doc as results. This would result in duplication.',
+						'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
 					}
+
+			# [DOC] Check if the doc would result in duplication after update
+			unique_attrs_query = [[]]
+			for attr in self.unique_attrs:
+				if type(attr) == str:
+					if attr in doc.keys():
+						unique_attrs_query[0].append({attr:doc[attr]})
+				elif type(attr) == tuple:
+					unique_attrs_query[0].append({child_attr:doc[child_attr] for child_attr in attr if attr in doc.keys()})
+			unique_attrs_query.append({'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}})
+			unique_attrs_query.append({'$limit':1})
+			unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
+			if unique_results.args.count: # pylint: disable=no-member
+				return {
+					'status':400,
+					'msg':'A doc with the same \'{}\' already exists.'.format(
+						', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
+					),
+					'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+				}
 		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
