@@ -311,7 +311,7 @@ class Data():
 				if check_group:
 					del group_query[i]
 				group_query = collection.aggregate(group_query)
-				groups[group_condition['by']] = [{'min':group['_id']['min'], 'max':group['_id']['max'], 'count':group['count']} for group in group_query]
+				groups[group_condition['by']] = [{'min':group['_id']['min'], 'max':group['_id']['max'], 'count':group['count']} async for group in group_query]
 
 		if sort:
 			aggregate_query.append({'$sort':sort})
