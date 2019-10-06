@@ -78,7 +78,21 @@ class Test():
 
 			if step['step'] == 'call':
 				logger.debug('Starting to test \'call\' step: %s', step)
-				call_results = await cls.run_call(modules=modules, env=env, results=results, module=step['module'], method=step['method'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
+				if 'module' not in step.keys() or 'method' not in step.keys():
+					logger.error('Step is missing required \'module, method\' args. Exiting.')
+					exit()
+
+				if 'query' not in step.keys():
+					step['query'] = []
+				if 'doc' not in step.keys():
+					step['doc'] = {}
+				if 'skip_events' not in step.keys():
+					step['skip_events'] = []
+				if 'acceptance' not in step.keys():
+					step['acceptance'] = {
+						'status':200
+					}
+				call_results = await cls.run_call(modules=modules, env=env, results=results, module=step['module'], method=step['method'], skip_events=step['skip_events'], query=step['query'], doc=step['doc'], acceptance=step['acceptance'])
 				
 				if 'session' in call_results.keys():
 					logger.debug('Updating session after detecting \'session\' in call results.')
@@ -155,7 +169,7 @@ class Test():
 			return (results, results['session'])
 
 	@classmethod
-	async def run_call(cls, modules, env, results, module, method, query, doc, acceptance):
+	async def run_call(cls, modules, env, results, module, method, skip_events, query, doc, acceptance):
 		from utils import Query, extract_attr
 		call_results = {
 			'step':'call',
@@ -168,7 +182,7 @@ class Test():
 		query = Query(cls.parse_obj(results=results, obj=query))
 		doc = cls.parse_obj(results=results, obj=doc)
 		try:
-			call_results['results'] = await modules[module].methods[method](env=env, query=query, doc=doc)
+			call_results['results'] = await modules[module].methods[method](skip_events=skip_events, env=env, query=query, doc=doc)
 			call_results['acceptance'] = cls.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
