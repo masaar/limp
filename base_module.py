@@ -224,7 +224,7 @@ class BaseModule:
 			# [DOC] if $attrs query arg is present return only required keys.
 			if '$attrs' in query:
 				query['$attrs'].insert(0, '_id')
-				for i in range(0, results['docs'].__len__()):
+				for i in range(0, len(results['docs'])):
 					results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 
 		return {
@@ -278,7 +278,7 @@ class BaseModule:
 				# [DOC] if $attrs query arg is present return only required keys.
 				if '$attrs' in query:
 					query['$attrs'].insert(0, '_id')
-					for i in range(0, results['docs'].__len__()):
+					for i in range(0, len(results['docs'])):
 						results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 			yield {
 				'status':200,
@@ -421,7 +421,7 @@ class BaseModule:
 		for arg in del_args:
 			del doc[arg]
 		# [DOC] Check if there is anything yet to update
-		if not doc.keys().__len__():
+		if not len(doc.keys()):
 			return {
 				'status':200,
 				'msg':'Nothing to update.',
@@ -599,7 +599,7 @@ class BaseModule:
 				'args':{'code':'{}_{}_INVALID_DOC_ATTR'.format(self.package_name, self.module_name.upper())}
 			}
 		
-		if query['index'][0] not in range(0, doc[query['attr'][0]].__len__()):
+		if query['index'][0] not in range(0, len(doc[query['attr'][0]])):
 			return {
 				'status':400,
 				'msg':'Index is invalid.',

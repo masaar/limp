@@ -105,7 +105,7 @@ class BaseMethod:
 				# [TODO] Implement NONE_VALUE handler
 				if type(permissions_check['query']) == dict:
 					permissions_check['query'] = [permissions_check['query']]
-				for i in range(0, permissions_check['query'].__len__()):
+				for i in range(0, len(permissions_check['query'])):
 					del_args = []
 					for attr in permissions_check['query'][i].keys():
 						# [DOC] Check for optional attr

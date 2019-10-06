@@ -91,9 +91,9 @@ class Data():
 			cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step, watch_mode=watch_mode)
 		
 		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
-		if aggregate_match.__len__() == 1:
+		if len(aggregate_match) == 1:
 			aggregate_query = [{'$match':aggregate_match[0]}]
-		elif aggregate_match.__len__() == 0:
+		elif len(aggregate_match) == 0:
 			aggregate_query = []
 
 		aggregate_query = aggregate_prefix + aggregate_query + aggregate_suffix
@@ -101,15 +101,15 @@ class Data():
 	
 	@classmethod
 	def _compile_query_step(cls, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step, watch_mode):
-		if type(step) == dict and step.keys().__len__():
+		if type(step) == dict and len(step.keys()):
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
 				if attr.startswith('__or'):
 					child_child_aggregate_query = {'$or':[]}
 					cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=step[attr], watch_mode=watch_mode)
-					if child_child_aggregate_query['$or'].__len__() == 1:
+					if len(child_child_aggregate_query['$or']) == 1:
 						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'][0])
-					elif child_child_aggregate_query['$or'].__len__() > 1:
+					elif len(child_child_aggregate_query['$or']) > 1:
 						child_aggregate_query['$and'].append(child_child_aggregate_query['$or'])
 				else:
 					# [DOC] Add extn query when required
@@ -190,17 +190,17 @@ class Data():
 							child_aggregate_query['$and'].append({f'fullDocument.{attr}':step[attr]})
 						else:
 							child_aggregate_query['$and'].append({attr:step[attr]})
-			if child_aggregate_query['$and'].__len__() == 1:
+			if len(child_aggregate_query['$and']) == 1:
 				aggregate_match.append(child_aggregate_query['$and'][0])
-			elif child_aggregate_query['$and'].__len__() > 1:
+			elif len(child_aggregate_query['$and']) > 1:
 				aggregate_match.append(child_aggregate_query)
-		elif type(step) == list and step.__len__():
+		elif type(step) == list and len(step):
 			child_aggregate_query = {'$or':[]}
 			for child_step in step:
 				cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=child_aggregate_query['$or'], collection=collection, attrs=attrs, extns=extns, modules=modules, step=child_step, watch_mode=watch_mode)
-			if child_aggregate_query['$or'].__len__() == 1:
+			if len(child_aggregate_query['$or']) == 1:
 				aggregate_match.append(child_aggregate_query['$or'][0])
-			elif child_aggregate_query['$or'].__len__() > 1:
+			elif len(child_aggregate_query['$or']) > 1:
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
@@ -225,7 +225,7 @@ class Data():
 				skip_events = [Event.__PERM__]
 				# [DOC] Call read method on extn module, without second-step extn
 				# [DOC] Check if extn rule is explicitly requires second-dimension extn.
-				if not (extns[extn].__len__() == 3 and extns[extn][2] == True):
+				if not (len(extns[extn]) == 3 and extns[extn][2] == True):
 					skip_events.append(Event.__EXTN__)
 				# [DOC] Read doc if not in extn_models
 				if str(doc[extn]) not in extn_models.keys():
@@ -250,7 +250,7 @@ class Data():
 				# [DOC] In case value is null, do not attempt to extend doc
 				if not doc[extn]: continue
 				# [DOC] Loop over every _id in the extn array
-				for i in range(0, doc[extn].__len__()):
+				for i in range(0, len(doc[extn])):
 					# [DOC] In case value is null, do not attempt to extend doc
 					if not doc[extn][i]: continue
 					# [DOC] Read doc if not in extn_models
@@ -304,7 +304,7 @@ class Data():
 					'buckets': group_condition['count']
 				}}]
 				check_group = False
-				for i in range(0, group_query.__len__()):
+				for i in range(0, len(group_query)):
 					if list(group_query[i].keys())[0] == '$match' and list(group_query[i]['$match'].keys())[0] == group_condition['by']:
 						check_group = True
 						break
@@ -426,7 +426,7 @@ class Data():
 				del_attrs.append(attr)
 		for del_attr in del_attrs:
 			del doc[del_attr]
-		if not list(update_doc['$set'].keys()).__len__():
+		if not len(list(update_doc['$set'].keys())):
 			del update_doc['$set']
 		logger.debug('Final update doc: %s', update_doc)
 		# [DOC] If using Azure Mongo service update docs one by one
@@ -449,7 +449,7 @@ class Data():
 		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
 			if strategy == DELETE_SOFT_SKIP_SYS:
 				del_docs = [ObjectId(doc) for doc in docs if ObjectId(doc) not in Config._sys_docs.keys()]
-				if del_docs.__len__() != docs.__len__():
+				if len(del_docs) != len(docs):
 					logger.warning('Skipped soft delete for system docs due to \'DELETE_SOFT_SKIP_SYS\' strategy.')
 			else:
 				logger.warning('Detected \'DELETE_SOFT_SYS\' strategy for delete call.')
@@ -473,7 +473,7 @@ class Data():
 		elif strategy in [DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS]:
 			if strategy == DELETE_FORCE_SKIP_SYS:
 				del_docs = [ObjectId(doc) for doc in docs if ObjectId(doc) not in Config._sys_docs.keys()]
-				if del_docs.__len__() != docs.__len__():
+				if len(del_docs) != len(docs):
 					logger.warning('Skipped soft delete for system docs due to \'DELETE_FORCE_SKIP_SYS\' strategy.')
 			else:
 				logger.warning('Detected \'DELETE_FORCE_SYS\' strategy for delete call.')

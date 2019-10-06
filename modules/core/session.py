@@ -204,7 +204,7 @@ class Session(BaseModule):
 
 	def parse_permission_args(self, permission_args, user):
 		if type(permission_args) == list:
-			args_iter = range(0, permission_args.__len__())
+			args_iter = range(0, len(permission_args))
 		elif type(permission_args) == dict:
 			args_iter = list(permission_args.keys())
 		

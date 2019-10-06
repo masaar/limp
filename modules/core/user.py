@@ -60,7 +60,7 @@ class User(BaseModule):
 	}
 
 	async def on_read(self, results, skip_events, env, query, doc):
-		for i in range(0, results['docs'].__len__()):
+		for i in range(0, len(results['docs'])):
 			user = results['docs'][i]
 			del user['username_hash']
 			del user['email_hash']
@@ -71,7 +71,7 @@ class User(BaseModule):
 					if type(user.attrs[attr]) == dict and '__extn' in user.attrs[attr].keys():
 						extn = user.attrs[attr]['__extn']
 						if type(extn[1]) == list:
-							if not extn[1].__len__():
+							if not len(extn[1]):
 								# [DOC] This is placeholder __extn attr with no value. Skip.
 								continue
 							extn_query = [{'_id':{'$in':extn[1]}}]
@@ -125,7 +125,7 @@ class User(BaseModule):
 			group = group_results.args.docs[0]
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys(): user.privileges[privilege] = []
-				for i in range(0, group.privileges[privilege].__len__()):
+				for i in range(0, len(group.privileges[privilege])):
 					if group.privileges[privilege][i] not in user.privileges[privilege]:
 						user.privileges[privilege].append(group.privileges[privilege][i])
 		return results
@@ -133,7 +133,7 @@ class User(BaseModule):
 	async def add_group(self, skip_events=[], env={}, query=[], doc={}):
 		# [DOC] Check for list group attr
 		if type(doc['group']) == list:
-			for i in range(0, doc['group'].__len__()-1):
+			for i in range(0, len(doc['group'])-1):
 				await self.add_group(skip_events=skip_events, env=env, query=query, doc={'group':doc['group'][i]})
 			doc['group'] = doc['group'][-1]
 		# [DOC] Confirm all basic args are provided

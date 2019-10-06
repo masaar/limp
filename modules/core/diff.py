@@ -42,8 +42,8 @@ class Diff(BaseModule):
 					'args':{'code':'CORE_DIFF_NO_MATCH'}
 				}
 		if '_id' in query and type(query['_id'][0]) == list:
-			for i in range(0, query['_id'][0].__len__() - 1):
+			for i in range(0, len(query['_id'][0]) - 1):
 				self.create(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0][i]}], doc=doc)
-			query['_id'][0] = query['_id'][0][query['_id'][0].__len__() - 1]
+			query['_id'][0] = query['_id'][0][-1]
 		doc['doc'] = ObjectId(query['_id'][0])
 		return (skip_events, env, query, doc)

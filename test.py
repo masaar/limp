@@ -35,7 +35,7 @@ class Test():
 			'session':session
 		}
 
-		for i in range(0, test.__len__()):
+		for i in range(0, len(test)):
 			if test[i]['step'] == 'auth':
 				test[i] = {
 					'step':'call',
@@ -63,7 +63,7 @@ class Test():
 				}
 
 		step_failed = False
-		for i in range(0, test.__len__()):
+		for i in range(0, len(test)):
 			results['stats']['total'] += 1
 			step = copy.deepcopy(test[i])
 
@@ -123,7 +123,7 @@ class Test():
 			else:
 				results['stats']['passed'] += 1
 
-		if results['steps'].__len__() == 0:
+		if len(results['steps']) == 0:
 			logger.error('No steps tested. Exiting.')
 			exit()
 		results['success_rate'] = int((results['stats']['passed'] / results['stats']['total']) * 100)
@@ -203,7 +203,7 @@ class Test():
 		if type(obj) == dict:
 			obj_iter = obj.keys()
 		elif type(obj) == list:
-			obj_iter = range(0, obj.__len__())
+			obj_iter = range(0, len(obj))
 
 		for i in obj_iter:
 			if type(obj[i]) == dict:
@@ -230,7 +230,7 @@ class Test():
 				else:
 					obj[i] = cls.parse_obj(results=results, obj=obj[i])
 			elif type(obj[i]) == list:
-				if obj[i].__len__() and type(obj[i][0]) == dict and '__attr' in obj[i][0].keys():
+				if len(obj[i]) and type(obj[i][0]) == dict and '__attr' in obj[i][0].keys():
 					if 'count' not in obj[i][0].keys():
 						obj[i][0]['count'] = 1
 					obj[i] = [cls.generate_attr(attr_type=obj[i][0]['__attr'], **obj[i][0]) for ii in range(0, obj[i][0]['count'])]
