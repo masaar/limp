@@ -66,6 +66,19 @@ class Session(BaseModule):
 			}
 		user = user_results.args.docs[0]
 
+		if user.status in ['banned', 'deleted']:
+			return {
+				'status':403,
+				'msg':f'User is {user.status}.',
+				'args':{'code':'CORE_SESSION_INVALID_USER'}
+			}
+		elif user.status == 'disabled_password':
+			return {
+				'status':403,
+				'msg':'User password is disabled.',
+				'args':{'code':'CORE_SESSION_INVALID_USER'}
+			}
+
 		token = secrets.token_urlsafe(32)
 		session = {
 			'user':user._id,
