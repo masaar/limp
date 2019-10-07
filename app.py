@@ -1,6 +1,9 @@
+from typing import Dict, Any
+
 async def run_app(packages, port):
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
-	from base_module import Event
+	from base_module import BaseModule
+	from event import Event
 	from config import Config
 	from data import Data
 	from test import Test
@@ -14,13 +17,14 @@ async def run_app(packages, port):
 
 	logger = logging.getLogger('limp')
 
-	modules = import_modules(packages=packages)
+	modules: Dict[str, BaseModule] = import_modules(packages=packages)
 	# [DOC] If realm mode is not enabled drop realm module.
 	if not Config.realm:
 		del modules['realm']
 	await Config.config_data(modules=modules)
-	# [DOC] Populate GET routes:
-	routes = []
+	# [DOC] Populate get_routes, post_routes
+	get_routes = []
+	post_routes = []
 	for module in modules.values():
 		for method in module.methods.values():
 			if method.get_method:
@@ -30,17 +34,28 @@ async def run_app(packages, port):
 					else:
 						get_args = ''
 					if Config.realm:
-						routes.append(f'/{{realm}}/{module.module_name}/{method.method}{get_args}')
+						get_routes.append(f'/{{realm}}/{module.module_name}/{method.method}{get_args}')
 					else:
-						routes.append(f'/{module.module_name}/{method.method}{get_args}')
+						get_routes.append(f'/{module.module_name}/{method.method}{get_args}')
+			elif method.post_method:
+				for post_args_set in method.post_args:
+					if post_args_set:
+						post_args = f'/{{{"}/{".join(list(post_args_set.keys()))}}}'
+					else:
+						post_args = ''
+					if Config.realm:
+						post_routes.append(f'/{{realm}}/{module.module_name}/{method.method}{post_args}')
+					else:
+						post_routes.append(f'/{module.module_name}/{method.method}{post_args}')
 
 	logger.debug('Loaded modules: %s', {module:modules[module].attrs for module in modules.keys()})
 	logger.debug('Config has attrs: %s', {k:str(v) for k,v in Config.__dict__.items() if not type(v) == classmethod and not k.startswith('_')})
-	logger.debug('Generated routes: %s', routes)
+	logger.debug('Generated get_routes: %s', get_routes)
+	logger.debug('Generated post_routes: %s', post_routes)
 
 	sessions = []
 
-	async def root_handler(request):
+	async def root_handler(request: aiohttp.web.Request):
 		headers = [
 			('Server', 'limpd'),
 			('Powered-By', 'Masaar, https://masaar.com'),
@@ -49,22 +64,19 @@ async def run_app(packages, port):
 			('Access-Control-Allow-Headers', 'Content-Type'),
 			('Access-Control-Expose-Headers', 'Content-Disposition')
 		]
-		if Config.debug:
-			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
-		else:
-			return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
+		return aiohttp.web.Response(status=200, headers=headers, body=JSONEncoder().encode({'status':200, 'msg':'Welcome to LIMP!'}))
 
-	async def http_handler(request):
+	async def http_handler(request: aiohttp.web.Request):
 		headers = [
 			('Server', 'limpd'),
 			('Powered-By', 'Masaar, https://masaar.com'),
 			('Access-Control-Allow-Origin', '*'),
-			('Access-Control-Allow-Methods', 'GET'),
+			('Access-Control-Allow-Methods', 'GET,POST'),
 			('Access-Control-Allow-Headers', 'Content-Type'),
 			('Access-Control-Expose-Headers', 'Content-Disposition')
 		]
-
-		logger.debug('Received new GET request: %s', request.match_info)
+		
+		logger.debug('Received new %s request: %s', request.method, request.match_info)
 
 		if Config.realm:
 			module = request.url.parts[2].lower()
@@ -72,27 +84,33 @@ async def run_app(packages, port):
 		else:
 			module = request.url.parts[1].lower()
 			method = request.url.parts[2].lower()
-		get_args = dict(request.match_info.items())
+		request_args = dict(request.match_info.items())
+
+		# [DOC] Extract Args Sets based on request.method
+		if request.method == 'GET':
+			args_sets = modules[module].methods[method].get_args
+		elif request.method == 'POST':
+			args_sets = modules[module].methods[method].post_args
 		
 		# [DOC] Attempt to validate query as doc
-		for get_args_set in modules[module].methods[method].get_args:
-			if len(get_args_set.keys()) == len(get_args.keys()) and \
-			sum([1 if get_arg in get_args.keys() else 0 for get_arg in get_args_set.keys()]) == len(get_args_set.keys()):
+		for args_set in args_sets:
+			if len(args_set.keys()) == len(args_set.keys()) and \
+			sum([1 if arg in args_set.keys() else 0 for arg in args_set.keys()]) == len(args_set.keys()):
 				# [DOC] Check presence and validate all attrs in doc args
 				try:
-					validate_doc(get_args, get_args_set)
+					validate_doc(request_args, args_set)
 				except InvalidAttrException as e:
 					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
 						'status':400,
-						'msg':f'{str(e)} for \'GET\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
+						'msg':f'{str(e)} for \'{request.method}\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
 						'args':{'code':f'{modules[module].package_name.upper()}_{module.upper()}_INVALID_ATTR'}
 					}).encode('utf-8'))
 				except ConvertAttrException as e:
 					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(status=400, headers=headers, body=JSONEncoder().encode({
 						'status':400,
-						'msg':f'{str(e)} for \'GET\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
+						'msg':f'{str(e)} for \'{request.method}\' request on module \'{modules[module].package_name.upper()}_{module.upper()}\'.',
 						'args':{'code':f'{modules[module].package_name.upper()}_{module.upper()}_CONVERT_INVALID_ATTR'}
 					}).encode('utf-8'))
 				break
@@ -162,7 +180,16 @@ async def run_app(packages, port):
 			session = DictObj(anon_session)
 
 		env['session'] = session
-		results = await modules[module].methods[method](env=env, query=[get_args])
+
+		if request.method == 'GET':
+			doc = {}
+		elif request.method == 'POST':
+			try:
+				doc = json.loads(await request.content.read())
+			except:
+				doc = {}
+
+		results = await modules[module].methods[method](env=env, query=[request_args], doc=doc)
 
 		logger.debug('Closing connection.')
 		env['conn'].close()
@@ -194,7 +221,7 @@ async def run_app(packages, port):
 		headers.append(('Content-Type', 'application/json; charset=utf-8'))
 		return aiohttp.web.Response(status=405, headers=headers, body=JSONEncoder().encode({'status':405, 'msg':'METHOD NOT ALLOWED'}))
 	
-	async def websocket_handler(request):
+	async def websocket_handler(request: aiohttp.web.Request):
 		conn = Data.create_conn() #pylint: disable=no-value-for-parameter
 		logger.debug('Websocket connection starting with client at \'%s\'', request.remote)
 		ws = aiohttp.web.WebSocketResponse()
@@ -254,7 +281,7 @@ async def run_app(packages, port):
 
 		return ws
 	
-	async def handle_msg(env, modules, msg):
+	async def handle_msg(env: Dict[str, Any], modules: Dict[str, BaseModule], msg: aiohttp.WSMessage):
 		try:
 			env['last_call'] = datetime.datetime.utcnow()
 			try:
@@ -583,8 +610,10 @@ async def run_app(packages, port):
 			app.router.add_route('*', '/ws/{realm}', websocket_handler)
 		else:
 			app.router.add_route('*', '/ws', websocket_handler)
-		for route in routes:
+		for route in get_routes:
 			app.router.add_route('GET', route, http_handler)
+		for route in post_routes:
+			app.router.add_route('POST', route, http_handler)
 		logger.info('Welcome to LIMPd.')
 		await aiohttp.web.run_app(app, host='0.0.0.0', port=port)
 	

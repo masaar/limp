@@ -11,7 +11,7 @@ import logging, copy, traceback, sys, asyncio
 logger = logging.getLogger('limp')
 
 class BaseMethod:
-	def __init__(self, module, method, permissions, query_args, doc_args, watch_method, get_method, get_args):
+	def __init__(self, module, method, permissions, query_args, doc_args, watch_method, get_method, get_args, post_method, post_args):
 		self.module = module
 		self.method = method
 		self.permissions = permissions
@@ -20,6 +20,8 @@ class BaseMethod:
 		self.watch_method = watch_method
 		self.get_method = get_method
 		self.get_args = get_args
+		self.post_method = post_method
+		self.post_args = post_args
 	
 	def validate_args(self, args, args_list):
 		args_list_label = args_list

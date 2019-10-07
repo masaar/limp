@@ -88,6 +88,15 @@ class BaseModule:
 						self.methods[method]['get_args'] = [{'_id':'id', 'var':'str'}]
 				elif type(self.methods[method]['get_args']) == dict:
 					self.methods[method]['get_args'] = [self.methods[method]['get_args']]
+			# [DOC] Check method post_method attr, set it or update it if required.
+			if 'post_method' not in self.methods[method].keys() or self.methods[method]['post_method'] == False:
+				self.methods[method]['post_method'] = False
+				self.methods[method]['post_args'] = False
+			elif self.methods[method]['post_method'] == True:
+				if 'post_args' not in self.methods[method].keys():
+					self.methods[method]['post_args'] = [{}]
+				elif type(self.methods[method]['post_args']) == dict:
+					self.methods[method]['post_args'] = [self.methods[method]['post_args']]
 			# [DOC] Initlise method as BaseMethod
 			self.methods[method] = BaseMethod(
 				module=self,
@@ -97,7 +106,9 @@ class BaseModule:
 				doc_args=self.methods[method]['doc_args'],
 				watch_method=self.methods[method]['watch_method'],
 				get_method=self.methods[method]['get_method'],
-				get_args=self.methods[method]['get_args']
+				get_args=self.methods[method]['get_args'],
+				post_method=self.methods[method]['post_method'],
+				post_args=self.methods[method]['post_args']
 			)
 		logger.debug('Initialised module %s', self.module_name)
 
