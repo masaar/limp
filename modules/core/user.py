@@ -54,8 +54,7 @@ class User(BaseModule):
 		},
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],
-			'query_args':{'_id':'id'},
-			'doc_args':{'group':'id'}
+			'query_args':{'_id':'id', 'group':'id'}
 		}
 	}
 
@@ -168,10 +167,8 @@ class User(BaseModule):
 		return results
 	
 	async def delete_group(self, skip_events=[], env={}, query=[], doc={}):
-		# [DOC] Confirm all basic args are provided
-		doc['group'] = ObjectId(doc['group'])
 		# [DOC] Confirm group is valid
-		results = await self.modules['group'].read(skip_events=[Event.__PERM__], env=env, query=[{'_id':doc['group']}])
+		results = await self.modules['group'].read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['group'][0]}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -179,7 +176,9 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_INVALID_GROUP'}
 			}
 		# [DOC] Get user details
-		results = await self.read(skip_events=[Event.__PERM__], env=env, query=query)
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{
+			'_id':query['_id'][0]
+		}])
 		if not results.args.count:
 			return {
 				'status':400,
@@ -188,7 +187,7 @@ class User(BaseModule):
 			}
 		user = results.args.docs[0]
 		# [DOC] Confirm group was not added before
-		if doc['group'] not in user.groups:
+		if query['group'][0] not in user.groups:
 			return {
 				'status':400,
 				'msg':'User is not a member of the group.',
@@ -196,7 +195,7 @@ class User(BaseModule):
 			}
 		# [DOC] Update the user
 		results = await self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={
-			'groups':{'$pull':[doc['group']]}
+			'groups':{'$pull':[query['group'][0]]}
 		})
 		return results
 
