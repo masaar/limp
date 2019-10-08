@@ -1,5 +1,5 @@
 from base_module import BaseModule
-from event import Event
+from enums import Event
 from config import Config
 
 from bson import ObjectId

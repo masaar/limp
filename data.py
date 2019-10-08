@@ -1,23 +1,23 @@
 from config import Config
-from event import Event
+from enums import Event, DELETE_STRATEGY
 from utils import DictObj, Query
 from base_model import BaseModel
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
+from typing import Dict, Union, List, Tuple, Any
+
 import os, logging, re, datetime, copy
 logger = logging.getLogger('limp')
 
-DELETE_SOFT_SKIP_SYS = 'DELETE_SOFT_SKIP_SYS'
-DELETE_SOFT_SYS = 'DELETE_SOFT_SYS'
-DELETE_FORCE_SKIP_SYS = 'DELETE_FORCE_SKIP_SYS'
-DELETE_FORCE_SYS = 'DELETE_FORCE_SYS'
+class UnknownDeleteStrategyException(Exception):
+	pass
 
 class Data():
 	
 	@classmethod
-	def create_conn(cls):
+	def create_conn(cls) -> AsyncIOMotorClient:
 		connection_config = {
 			'ssl':Config.data_ssl
 		}
@@ -44,15 +44,29 @@ class Data():
 		return conn
 	
 	@classmethod
-	def _compile_query(cls, collection, attrs, extns, modules, query, watch_mode):
+	def _compile_query(
+				cls,
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				query: Query,
+				watch_mode: bool
+			) -> Tuple[
+				int,
+				int,
+				Dict[str, int],
+				List[Dict[str, Union[str, int]]],
+				List[Any]
+			]:
 		aggregate_prefix = [{'$match':{'$or':[{'__deleted':{'$exists':False}}, {'__deleted':False}]}}]
 		aggregate_suffix = []
 		aggregate_query = [{'$match':{'$and':[]}}]
 		aggregate_match = aggregate_query[0]['$match']['$and']
-		skip = None
-		limit = None
-		sort = {'_id':-1}
-		group = None
+		skip: int = None
+		limit: int = None
+		sort: Dict[str, int] = {'_id':-1}
+		group: List[Dict[str, Union[str, int]]] = None
 		logger.debug('attempting to parse query: %s', query)
 
 		if '$skip' in query:
@@ -90,6 +104,15 @@ class Data():
 		for step in query:
 			cls._compile_query_step(aggregate_prefix=aggregate_prefix, aggregate_suffix=aggregate_suffix, aggregate_match=aggregate_match, collection=collection, attrs=attrs, extns=extns, modules=modules, step=step, watch_mode=watch_mode)
 		
+		if '$attrs' in query and type(query['$attrs']) == list:
+			aggregate_suffix.append({
+				'$project':{'_id':'$_id', **{attr:f'${attr}' for attr in query['$attrs'].keys() if attr in attrs.keys()}}
+			})
+		else:
+			aggregate_suffix.append({
+				'$project':{'_id':'$_id', **{attr:f'${attr}' for attr in attrs.keys()}}
+			})
+		
 		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
 		if len(aggregate_match) == 1:
 			aggregate_query = [{'$match':aggregate_match[0]}]
@@ -100,7 +123,18 @@ class Data():
 		return (skip, limit, sort, group, aggregate_query)
 	
 	@classmethod
-	def _compile_query_step(cls, aggregate_prefix, aggregate_suffix, aggregate_match, collection, attrs, extns, modules, step, watch_mode):
+	def _compile_query_step(
+				cls,
+				aggregate_prefix: List[Any],
+				aggregate_suffix: List[Any],
+				aggregate_match: List[Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				step: Union[Dict, List],
+				watch_mode: bool
+			) -> None:
 		if type(step) == dict and len(step.keys()):
 			child_aggregate_query = {'$and':[]}
 			for attr in step.keys():
@@ -204,7 +238,17 @@ class Data():
 				aggregate_match.append(child_aggregate_query)
 	
 	@classmethod
-	async def _process_results_doc(cls, env, collection, attrs, extns, modules, query, doc, extn_models={}):
+	async def _process_results_doc(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				query: Query,
+				doc: Dict[str, Any],
+				extn_models: Dict[str, 'BaseModel'] = {}
+			) -> Dict[str, Any]:
 		for extn in extns.keys():
 			# [DOC] Check if extn module is dynamic value
 			if extns[extn][0].startswith('$__doc.'):
@@ -276,7 +320,15 @@ class Data():
 		return doc
 
 	@classmethod
-	async def read(cls, env, collection, attrs, extns, modules, query):
+	async def read(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				query: Query
+			) -> Dict[str, Any]:
 		skip, limit, sort, group, aggregate_query = cls._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
 		logger.debug('aggregate_query: %s', aggregate_query)
@@ -349,7 +401,15 @@ class Data():
 		}
 	
 	@classmethod
-	async def watch(cls, env, collection, attrs, extns, modules, query):
+	async def watch(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				query: Query
+			) -> Dict[str, Any]:
 		aggregate_query = cls._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=True)[4]
 
 		collection = env['conn'][Config.data_name][collection]
@@ -380,7 +440,15 @@ class Data():
 		logger.debug('changeStream has been close. Generator ended at Data')
 
 	@classmethod
-	async def create(cls, env, collection, attrs, extns, modules, doc):
+	async def create(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				doc: Dict[str, Any]
+			) -> Dict[str, Any]:
 		collection = env['conn'][Config.data_name][collection]
 		results = await collection.insert_one(doc)
 		_id = results.inserted_id
@@ -390,7 +458,16 @@ class Data():
 		}
 	
 	@classmethod
-	async def update(cls, env, collection, attrs, extns, modules, docs, doc):
+	async def update(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				docs: List[str],
+				doc: Dict[str, Any]
+			) -> Dict[str, Any]:
 		# [DOC] Recreate docs list by converting all docs items to ObjectId
 		docs = [ObjectId(doc) for doc in docs]
 		# [DOC] Perform update query on matching docs
@@ -444,10 +521,19 @@ class Data():
 		}
 	
 	@classmethod
-	async def delete(cls, env, collection, attrs, extns, modules, docs, strategy):
+	async def delete(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
+				extns: Dict[str, List[Union[str, List[str]]]],
+				modules: Dict[str, 'BaseModule'],
+				docs: List[str],
+				strategy: DELETE_STRATEGY
+			) -> Dict[str, Any]:
 		# [DOC] Check strategy to cherrypick update, delete calls and system_docs
-		if strategy in [DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS]:
-			if strategy == DELETE_SOFT_SKIP_SYS:
+		if strategy in [DELETE_STRATEGY.SOFT_SKIP_SYS, DELETE_STRATEGY.SOFT_SYS]:
+			if strategy == DELETE_STRATEGY.SOFT_SKIP_SYS:
 				del_docs = [ObjectId(doc) for doc in docs if ObjectId(doc) not in Config._sys_docs.keys()]
 				if len(del_docs) != len(docs):
 					logger.warning('Skipped soft delete for system docs due to \'DELETE_SOFT_SKIP_SYS\' strategy.')
@@ -470,8 +556,8 @@ class Data():
 				'count':update_count,
 				'docs':[{'_id':doc} for doc in docs]
 			}
-		elif strategy in [DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS]:
-			if strategy == DELETE_FORCE_SKIP_SYS:
+		elif strategy in [DELETE_STRATEGY.FORCE_SKIP_SYS, DELETE_STRATEGY.FORCE_SYS]:
+			if strategy == DELETE_STRATEGY.FORCE_SKIP_SYS:
 				del_docs = [ObjectId(doc) for doc in docs if ObjectId(doc) not in Config._sys_docs.keys()]
 				if len(del_docs) != len(docs):
 					logger.warning('Skipped soft delete for system docs due to \'DELETE_FORCE_SKIP_SYS\' strategy.')
@@ -493,10 +579,14 @@ class Data():
 				'docs':[{'_id':doc} for doc in docs]
 			}
 		else:
-			return False
+			raise UnknownDeleteStrategyException(f'DELETE_STRATEGY \'{strategy}\' is unknown.')
 	
 	@classmethod
-	async def drop(cls, env, collection):
+	async def drop(
+				cls,
+				env: Dict[str, Any],
+				collection: str,
+			) -> True:
 		collection = env['conn'][Config.data_name][collection]
 		await collection.drop()
 		return True

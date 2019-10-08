@@ -3,8 +3,6 @@ from bson import ObjectId, binary
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
 
-NONE_VALUE = 'NONE_VALUE'
-
 class JSONEncoder(json.JSONEncoder):
 	def default(self, o): # pylint: disable=E0202
 		from base_model import BaseModel

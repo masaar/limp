@@ -1,4 +1,7 @@
 from bson import ObjectId
+from enums import Event
+
+from typing import List, Dict, Any, Union, Tuple
 
 import logging, traceback, math, random, datetime, os, json, copy, pdb
 logger = logging.getLogger('limp')
@@ -14,7 +17,14 @@ calc_opers = {
 class Test():
 	
 	@classmethod
-	async def run_test(cls, test_name, steps, modules, env, session):
+	async def run_test(
+				cls,
+				test_name: str,
+				steps: List[Dict[str, Any]],
+				modules: Dict[str, 'BaseModule'],
+				env: Dict[str, Any],
+				session: 'BaseModule'
+			) -> Union[None, Tuple[Dict[str, Any], 'BaseModule']]:
 		from config import Config
 		from utils import DictObj
 		if test_name not in Config.tests.keys():
@@ -169,7 +179,18 @@ class Test():
 			return (results, results['session'])
 
 	@classmethod
-	async def run_call(cls, modules, env, results, module, method, skip_events, query, doc, acceptance):
+	async def run_call(
+				cls,
+				modules: Dict[str, 'BaseModule'],
+				env: Dict[str, Any],
+				results: Dict[str, Any],
+				module: str,
+				method: str,
+				skip_events: List[Event],
+				query: List[Any],
+				doc: Dict[str, Any],
+				acceptance: Dict[str, Any]
+			):
 		from utils import Query, extract_attr
 		call_results = {
 			'step':'call',
@@ -212,7 +233,7 @@ class Test():
 		return call_results
 	
 	@classmethod
-	def parse_obj(cls, results, obj):
+	def parse_obj(cls, results: Dict[str, Any], obj: Union[Dict[str, Any], List[Any]]) -> Union[Dict[str, Any], List[Any]]:
 		from utils import extract_attr
 		if type(obj) == dict:
 			obj_iter = obj.keys()
@@ -258,7 +279,7 @@ class Test():
 		return obj
 	
 	@classmethod
-	def generate_attr(cls, attr_type, **attr_args):
+	def generate_attr(cls, attr_type: Union[str, List[str]], **attr_args) -> Any:
 		if attr_type == 'any':
 			return '__any'
 		elif attr_type == 'id':
@@ -362,7 +383,7 @@ class Test():
 		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
 	
 	@classmethod
-	def break_debugger(cls, scope):
+	def break_debugger(cls, scope: Dict[str, Any]) -> None:
 		from config import Config
 		if Config.test_breakpoint:
 			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')

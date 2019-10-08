@@ -1,5 +1,5 @@
 from base_module import BaseModule
-from event import Event
+from enums import Event
 
 class Setting(BaseModule):
 	collection = 'settings'

@@ -1,4 +1,4 @@
-from event import Event
+from enums import Event
 from test import Test
 from base_model import BaseModel
 
@@ -77,7 +77,7 @@ class Config:
 	jobs: List[Dict[str, Any]] = []
 
 	@classmethod
-	async def config_data(cls, modules):
+	async def config_data(cls, modules: Dict[str, 'BaseModule']) -> None:
 		from utils import DictObj
 
 		# [DOC] Check API version

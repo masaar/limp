@@ -1,5 +1,5 @@
 from base_module import BaseModule, BaseModel
-from event import Event
+from enums import Event
 from utils import DictObj, extract_attr
 
 from bson import ObjectId

@@ -1,6 +1,6 @@
 from config import Config
-from event import Event
-from data import Data, DELETE_SOFT_SKIP_SYS, DELETE_SOFT_SYS, DELETE_FORCE_SKIP_SYS, DELETE_FORCE_SYS
+from enums import Event, DELETE_STRATEGY
+from data import Data
 from utils import DictObj, validate_doc, InvalidAttrException, MissingAttrException, ConvertAttrException, Query
 from base_model import BaseModel
 from base_method import BaseMethod
@@ -57,7 +57,7 @@ class BaseModule:
 		self.package_name = self.__module__.replace('modules.', '').upper().split('.')[0]
 		self.module_name = re.sub(r'([A-Z])', r'_\1', self.__class__.__name__[0].lower() + self.__class__.__name__[1:]).lower()
 	
-	def __initilise(self):
+	def __initilise(self) -> None:
 		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
 			# [DOC] Check method query_args attr, set it or update it if required.
@@ -112,7 +112,7 @@ class BaseModule:
 			)
 		logger.debug('Initialised module %s', self.module_name)
 
-	def update_modules(self, modules):
+	def update_modules(self, modules: Dict[str, 'BaseModule']) -> None:
 		self.modules = modules
 		# [DOC] Check for proxy
 		if self.proxy:
@@ -159,9 +159,13 @@ class BaseModule:
 		else:
 			return object.__getattribute__(self, attr)
 
-	async def pre_read(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_read(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_read(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_read(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	async def read(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
@@ -237,6 +241,9 @@ class BaseModule:
 				query['$attrs'].insert(0, '_id')
 				for i in range(0, len(results['docs'])):
 					results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
+			else:
+				for i in range(0, len(results['docs'])):
+					results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in ['_id', *self.attrs.keys()] if attr in results['docs'][i]._attrs()})
 
 		return {
 			'status':200,
@@ -244,11 +251,15 @@ class BaseModule:
 			'args':results
 		}
 	
-	async def pre_watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_watch(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_watch(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_watch(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
-	async def watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def watch(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> DictObj:
 		if Event.__PRE__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -299,9 +310,13 @@ class BaseModule:
 		
 		logger.debug('Generator ended at BaseModule.')
 	
-	async def pre_create(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_create(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_create(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_create(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	async def create(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
@@ -396,9 +411,13 @@ class BaseModule:
 			'args':results
 		}
 	
-	async def pre_update(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_update(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_update(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_update(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	async def update(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
@@ -534,9 +553,13 @@ class BaseModule:
 			'args':results
 		}
 	
-	async def pre_delete(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_delete(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_delete(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_delete(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	async def delete(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		# [TODO] refactor for template use
@@ -552,13 +575,13 @@ class BaseModule:
 			skip_events, env, query, doc = pre_delete
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] Pick delete strategy based on skip_events
-		strategy = DELETE_SOFT_SKIP_SYS
+		strategy = DELETE_STRATEGY.SOFT_SKIP_SYS
 		if Event.__SOFT__ not in skip_events and Event.__SYS_DOCS__ in skip_events:
-			strategy = DELETE_SOFT_SYS
+			strategy = DELETE_STRATEGY.SOFT_SYS
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ not in skip_events:
-			strategy = DELETE_FORCE_SKIP_SYS
+			strategy = DELETE_STRATEGY.FORCE_SKIP_SYS
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
-			strategy = DELETE_FORCE_SYS
+			strategy = DELETE_STRATEGY.FORCE_SYS
 		
 		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
 		results = await Data.delete(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
@@ -582,9 +605,13 @@ class BaseModule:
 			'args':results
 		}
 	
-	def pre_create_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	def pre_create_file(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	def on_create_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	def on_create_file(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	def create_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
@@ -608,9 +635,13 @@ class BaseModule:
 		
 		return results
 	
-	def pre_delete_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	def pre_delete_file(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	def on_delete_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	def on_delete_file(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
@@ -671,9 +702,13 @@ class BaseModule:
 
 		return results
 
-	async def pre_retrieve_file(self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def pre_retrieve_file(
+				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	async def on_retrieve_file(self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]) -> (Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]):
+	async def on_retrieve_file(
+				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: Dict[str, Any]
+			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
 	async def retrieve_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: Dict[str, Any]={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:

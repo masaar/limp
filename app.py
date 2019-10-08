@@ -3,7 +3,7 @@ from typing import Dict, Any
 async def run_app(packages, port):
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
 	from base_module import BaseModule
-	from event import Event
+	from enums import Event
 	from config import Config
 	from data import Data
 	from test import Test

@@ -1,17 +1,31 @@
-from utils import DictObj, Query, NONE_VALUE, JSONEncoder, validate_attr, InvalidAttrException, ConvertAttrException
-from event import Event
+from utils import DictObj, Query, JSONEncoder, validate_attr, InvalidAttrException, ConvertAttrException
+from enums import Event, LIMP_VALUES
 from config import Config
 from base_model import BaseModel
 from test import Test
 
 from asyncio import coroutine
+from aiohttp.web import WebSocketResponse
+from typing import List, Dict, Union, Any, Tuple, Set, AsyncGenerator
 
 import logging, copy, traceback, sys, asyncio
 
 logger = logging.getLogger('limp')
 
 class BaseMethod:
-	def __init__(self, module, method, permissions, query_args, doc_args, watch_method, get_method, get_args, post_method, post_args):
+	def __init__(
+				self,
+				module: str,
+				method: str,
+				permissions: List[List[Union[str, Dict, List]]],
+				query_args: List[Dict[str, Union[str, Tuple[Any], Set[str]]]],
+				doc_args: List[Dict[str, Union[str, Tuple[Any], Set[str]]]],
+				watch_method: bool,
+				get_method: bool,
+				get_args: List[Dict[str, Union[str, Tuple[Any], Set[str]]]],
+				post_method: bool,
+				post_args: List[Dict[str, Union[str, Tuple[Any], Set[str]]]]
+			):
 		self.module = module
 		self.method = method
 		self.permissions = permissions
@@ -23,7 +37,7 @@ class BaseMethod:
 		self.post_method = post_method
 		self.post_args = post_args
 	
-	def validate_args(self, args, args_list):
+	def validate_args(self, args: Dict[str, Any], args_list: str):
 		args_list_label = args_list
 		args_list = getattr(self, f'{args_list}_args')
 
@@ -64,7 +78,14 @@ class BaseMethod:
 		
 		return sets_check
 
-	async def __call__(self, skip_events=None, env=None, query=None, doc=None, call_id=None) -> DictObj:
+	async def __call__(
+				self,
+				skip_events: List[Event]=None,
+				env: Dict[str, Any]=None,
+				query: Query=None,
+				doc: Dict[str, Any]=None,
+				call_id: str=None
+			) -> DictObj:
 		if not skip_events:
 			skip_events = []
 		if not env:
@@ -136,7 +157,7 @@ class BaseMethod:
 						permissions_check['doc'][attr] = permissions_check['doc'][attr]['__optional']
 					# [DOC] Replace None value with NONE_VALUE to bypass later validate step
 					if permissions_check['doc'][attr] == None:
-						permissions_check['doc'][attr] = NONE_VALUE
+						permissions_check['doc'][attr] = LIMP_VALUES.NONE_VALUE
 				for attr in del_args:
 					del permissions_check['doc'][attr]
 				# [DOC] Update doc with doc permissions args
@@ -249,7 +270,7 @@ class BaseMethod:
 					'args':DictObj({'code':'CORE_SERVER_ERROR'})
 				}), call_id=call_id)
 
-	async def return_results(self, ws, results, call_id):
+	async def return_results(self, ws: WebSocketResponse, results: DictObj, call_id: str) -> Union[None, DictObj]:
 		if call_id:
 			results.args['call_id'] = call_id
 			await ws.send_str(JSONEncoder().encode(results))
@@ -257,7 +278,7 @@ class BaseMethod:
 		else:
 			return results
 
-	async def watch_loop(self, ws, stream, call_id, watch_task):
+	async def watch_loop(self, ws: WebSocketResponse, stream: AsyncGenerator, call_id: str, watch_task: Dict[str, Any]):
 		logger.debug('Preparing async loop at BaseMethod')
 		async for results in stream:
 			logger.debug('Received watch results at BaseMethod: %s', results)
