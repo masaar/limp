@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Union, List
 
 async def run_app(packages, port):
 	from utils import JSONEncoder, DictObj, import_modules, signal_handler, parse_file_obj, validate_doc, InvalidAttrException, ConvertAttrException
@@ -53,7 +53,8 @@ async def run_app(packages, port):
 	logger.debug('Generated get_routes: %s', get_routes)
 	logger.debug('Generated post_routes: %s', post_routes)
 
-	sessions = []
+	sessions: List[Dict[int, Any]] = []
+	ip_quota: Dict[str, Dict[str, Union[int, datetime.datetime]]] = {}
 
 	async def root_handler(request: aiohttp.web.Request):
 		headers = [
@@ -77,6 +78,31 @@ async def run_app(packages, port):
 		]
 		
 		logger.debug('Received new %s request: %s', request.method, request.match_info)
+
+		# [DOC] Check for IP quota
+		if str(request.remote) not in ip_quota:
+			ip_quota[str(request.remote)] = {
+				'counter':Config.quota_ip_min,
+				'last_check':datetime.datetime.utcnow()
+			}
+		else:
+			if (datetime.datetime.utcnow() - ip_quota[str(request.remote)]['last_check']).seconds > 59:
+				ip_quota[str(request.remote)]['last_check'] = datetime.datetime.utcnow()
+				ip_quota[str(request.remote)]['counter'] = Config.quota_ip_min
+			else:
+				if ip_quota[str(request.remote)]['counter'] - 1 <= 0:
+					logger.warning('Denying \'%s\' request from \'%s\' for hitting IP quota.', request.method, request.remote)
+					headers.append(('Content-Type', 'application/json; charset=utf-8'))
+					return aiohttp.web.Response(status=429, headers=headers, body=JSONEncoder().encode({
+						'status':429,
+						'msg':'You have hit calls quota from this IP.',
+						'args':{
+							'code':'CORE_REQ_IP_QUOTA_HIT'
+						}
+					}))
+				else:
+					ip_quota[str(request.remote)]['counter'] -= 1
+
 
 		if Config.realm:
 			module = request.url.parts[2].lower()
@@ -236,7 +262,11 @@ async def run_app(packages, port):
 			'watch_tasks':{},
 			'init':False,
 			'last_call':datetime.datetime.utcnow(),
-			'files':{}
+			'files':{},
+			'quota':{
+				'counter':Config.quota_anon_min,
+				'last_check':datetime.datetime.utcnow()
+			}
 		}
 		sessions.append(env)
 		try:
@@ -274,14 +304,45 @@ async def run_app(packages, port):
 				break
 			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
-				asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg))
+				logger.warning('ip_quota: %s', ip_quota)
+				logger.warning('session_quota: %s', env['quota'])
+				# [DOC] Check for IP quota
+				if str(request.remote) not in ip_quota:
+					ip_quota[str(request.remote)] = {
+						'counter':Config.quota_ip_min,
+						'last_check':datetime.datetime.utcnow()
+					}
+				else:
+					if (datetime.datetime.utcnow() - ip_quota[str(request.remote)]['last_check']).seconds > 59:
+						ip_quota[str(request.remote)]['last_check'] = datetime.datetime.utcnow()
+						ip_quota[str(request.remote)]['counter'] = Config.quota_ip_min
+					else:
+						if ip_quota[str(request.remote)]['counter'] - 1 <= 0:
+							logger.warning('Denying Websocket request from \'%s\' for hitting IP quota.', request.remote)
+							asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg, decline_quota='ip'))
+							continue
+						else:
+							ip_quota[str(request.remote)]['counter'] -= 1
+				# [DOC] Check for session quota
+				if (datetime.datetime.utcnow() - env['quota']['last_check']).seconds > 59:
+					env['quota']['last_check'] = datetime.datetime.utcnow()
+					env['quota']['counter'] = (Config.quota_anon_min-1) if not env['session'] or env['session'].token == Config.anon_token else (Config.quota_auth_min-1)
+					logger.warning('Denying Websocket request from \'%s\' for hitting session quota.', env['id'])
+					asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg))
+				else:
+					if env['quota']['counter'] - 1 <= 0:
+						asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg, decline_quota='session'))
+						continue
+					else:
+						env['quota']['counter'] -= 1
+						asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg))
 
 		if 'id' in env.keys():
 			await close_session(env['id'])
 
 		return ws
 	
-	async def handle_msg(env: Dict[str, Any], modules: Dict[str, BaseModule], msg: aiohttp.WSMessage):
+	async def handle_msg(env: Dict[str, Any], modules: Dict[str, BaseModule], msg: aiohttp.WSMessage, decline_quota: str=None):
 		try:
 			env['last_call'] = datetime.datetime.utcnow()
 			try:
@@ -310,6 +371,28 @@ async def run_app(packages, port):
 				else:
 					return
 					# continue
+			
+			# [DOC] Check if msg should be denied for quota hit
+			if decline_quota == 'ip':
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':429,
+					'msg':'You have hit calls quota from this IP.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_REQ_IP_QUOTA_HIT'
+					}
+				}))
+				return
+			elif decline_quota == 'session':
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':429,
+					'msg':'You have hit calls quota.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_REQ_SESSION_QUOTA_HIT'
+					}
+				}))
+				return
 			
 			logger.debug('Decoded request: %s', JSONEncoder().encode(res))
 
@@ -543,6 +626,7 @@ async def run_app(packages, port):
 		while True:
 			await asyncio.sleep(60)
 			try:
+				# [DOC] Connection Timeout Workflow
 				logger.debug('Time to check for sessions!')
 				logger.debug('Current sessions: %s', sessions)
 				for i in range(0, len(sessions)):
@@ -552,8 +636,18 @@ async def run_app(packages, port):
 					if datetime.datetime.utcnow() > (session['last_call'] + datetime.timedelta(seconds=Config.conn_timeout)):
 						logger.debug('Session #\'%s\' with REMOTE_ADDR \'%s\' HTTP_USER_AGENT: \'%s\' is idle. Closing.', session['id'], session['REMOTE_ADDR'], session['HTTP_USER_AGENT'])
 						await close_session(i)
-				if not Config.jobs:
-					continue
+
+				# [DOC] Calls Quota Workflow - Cleanup Sequence
+				logger.debug('Time to check for IPs quotas!')
+				del_ip_quota = []
+				for ip in ip_quota.keys():
+					if (datetime.datetime.utcnow() - ip_quota[ip]['last_check']).seconds > 59:
+						logger.debug('IP \'%s\' with quota \'%s\' is idle. Cleaning-up.', ip, ip_quota[ip]['counter'])
+						del_ip_quota.append(ip)
+				for ip in del_ip_quota:
+					del ip_quota[ip]
+					
+				# [DOC] Jobs Workflow
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
 				logger.debug('Time to check for jobs!')
 				for job in Config.jobs:
