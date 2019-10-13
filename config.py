@@ -75,9 +75,11 @@ class Config:
 
 	l10n: Dict[str, Dict[str, Any]] = {}
 
-	types: Dict[str, Callable] = {}
-
 	jobs: List[Dict[str, Any]] = []
+
+	gateways: Dict[str, Callable] = {}
+
+	types: Dict[str, Callable] = {}
 
 	@classmethod
 	async def config_data(cls, modules: Dict[str, 'BaseModule']) -> None:

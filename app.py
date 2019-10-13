@@ -86,7 +86,7 @@ async def run_app(packages, port):
 				'last_check':datetime.datetime.utcnow()
 			}
 		else:
-			if (datetime.datetime.utcnow() - ip_quota[str(request.remote)]['last_check']).seconds > 59:
+			if (datetime.datetime.utcnow() - ip_quota[str(request.remote)]['last_check']).seconds > 259:
 				ip_quota[str(request.remote)]['last_check'] = datetime.datetime.utcnow()
 				ip_quota[str(request.remote)]['counter'] = Config.quota_ip_min
 			else:
