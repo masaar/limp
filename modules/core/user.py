@@ -7,27 +7,17 @@ from bson import ObjectId
 class User(BaseModule):
 	collection = 'users'
 	attrs = {
-		'username':'str',
-		'email':'email',
-		'phone':'phone',
 		'name':'locale',
-		'bio':'locale',
-		'address':'locale',
-		'postal_code':'str',
-		'website':'uri:web',
 		'locale':'locales',
 		'create_time':'datetime',
 		'login_time':'datetime',
 		'groups':['id'],
 		'privileges':'privileges',
-		'username_hash':'str',
-		'email_hash':'str',
-		'phone_hash':'str',
 		'status':{'active', 'banned', 'deleted', 'disabled_password'},
 		'attrs':'attrs'
 	}
-	defaults = {'bio':{locale:'' for locale in Config.locales}, 'website':None, 'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
-	unique_attrs = ['username', 'email', 'phone']
+	defaults = {'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
+	unique_attrs = []
 	methods = {
 		'read':{
 			'permissions':[['admin', {}, {}], ['read', {'_id':'$__user'}, {}]]
@@ -61,9 +51,8 @@ class User(BaseModule):
 	async def on_read(self, results, skip_events, env, query, doc):
 		for i in range(0, len(results['docs'])):
 			user = results['docs'][i]
-			del user['username_hash']
-			del user['email_hash']
-			del user['phone_hash']
+			for attr in self.unique_attrs:
+				del user[f'{attr}_hash']
 			# [DOC] Attempt to extend attrs values if __EXTN__ event is not skipped
 			if Event.__EXTN__ not in skip_events:
 				for attr in user.attrs.keys():

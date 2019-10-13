@@ -223,6 +223,11 @@ def import_modules(packages=None):
 	from config import Config # pylint: disable=W0612
 	# package = modules
 	modules = {}
+	user_config = {
+		'user_attrs':{},
+		'user_auth_attrs':[],
+		'user_attrs_defaults':{}
+	}
 	package_prefix = package.__name__ + '.'
 	for importer, pkgname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix): # pylint: disable=unused-variable
 		if packages and pkgname.replace('modules.', '') not in packages:
@@ -234,6 +239,8 @@ def import_modules(packages=None):
 				if Config.env and Config.env in v.keys():
 					for kk, vv in v[Config.env].items():
 						setattr(Config, kk, vv)
+			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
+				user_config[k] = v
 			elif type(v) == dict:
 				getattr(Config, k).update(v)
 			else:
@@ -252,6 +259,12 @@ def import_modules(packages=None):
 						logger.error('Duplicate module name \'%s\'. Exiting.', module_name)
 						exit()
 					modules[module_name] = cls()
+	modules['user'].attrs.update(user_config['user_attrs'])
+	for attr in user_config['user_auth_attrs']:
+		modules['user'].unique_attrs.append(attr)
+		modules['user'].attrs[f'{attr}_hash'] = 'str'
+		modules['session'].methods['auth']['doc_args'].append({'hash':'str', attr:user_config['user_attrs'][attr]})
+	modules['user'].defaults.update(user_config['user_attrs_defaults'])
 	for module in modules.values():
 		module.update_modules(modules)
 	return modules

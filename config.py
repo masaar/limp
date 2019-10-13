@@ -51,8 +51,6 @@ class Config:
 
 	data_azure_mongo: bool = False
 
-	sms_auth: Dict[str, str] = {}
-
 	email_auth: Dict[str, str] = {}
 
 	locales: List[str] = ['ar_AE', 'en_AE']
@@ -65,6 +63,12 @@ class Config:
 
 	anon_token: str = '__ANON_TOKEN_f00000000000000000000012'
 	anon_privileges: Dict[str, List[str]] = {}
+
+	user_attrs = {
+		'auth_attr':'str'
+	}
+	user_auth_attrs = ['auth_attr']
+	user_attrs_defaults = {}
 
 	groups: List[Dict[str, Any]] = []
 	default_privileges: Dict[str, List[str]] = {}

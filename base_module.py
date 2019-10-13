@@ -492,25 +492,27 @@ class BaseModule:
 						'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
 					}
 
-			# [DOC] Check if the doc would result in duplication after update
-			unique_attrs_query = [[]]
-			for attr in self.unique_attrs:
-				if type(attr) == str:
-					if attr in doc.keys():
-						unique_attrs_query[0].append({attr:doc[attr]})
-				elif type(attr) == tuple:
-					unique_attrs_query[0].append({child_attr:doc[child_attr] for child_attr in attr if attr in doc.keys()})
-			unique_attrs_query.append({'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}})
-			unique_attrs_query.append({'$limit':1})
-			unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
-			if unique_results.args.count: # pylint: disable=no-member
-				return {
-					'status':400,
-					'msg':'A doc with the same \'{}\' already exists.'.format(
-						', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
-					),
-					'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
-				}
+			# [DOC] Check if any of the unique_attrs are present in doc
+			if sum([1 for attr in doc.keys() if attr in self.unique_attrs]) > 0:
+				# [DOC] Check if the doc would result in duplication after update
+				unique_attrs_query = [[]]
+				for attr in self.unique_attrs:
+					if type(attr) == str:
+						if attr in doc.keys():
+							unique_attrs_query[0].append({attr:doc[attr]})
+					elif type(attr) == tuple:
+						unique_attrs_query[0].append({child_attr:doc[child_attr] for child_attr in attr if attr in doc.keys()})
+				unique_attrs_query.append({'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}})
+				unique_attrs_query.append({'$limit':1})
+				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
+				if unique_results.args.count: # pylint: disable=no-member
+					return {
+						'status':400,
+						'msg':'A doc with the same \'{}\' already exists.'.format(
+							', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
+						),
+						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+					}
 		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module

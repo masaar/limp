@@ -37,11 +37,7 @@ class Session(BaseModule):
 		},
 		'auth':{
 			'permissions':[['*', {}, {}]],
-			'doc_args':[
-				{'hash':'str', 'username':'str'},
-				{'hash':'str', 'email':'email'},
-				{'hash':'str', 'phone':'phone'}
-			]
+			'doc_args':[]
 		},
 		'reauth':{
 			'permissions':[['*', {}, {}]],
@@ -54,9 +50,10 @@ class Session(BaseModule):
 	}
 
 	async def auth(self, skip_events=[], env={}, query=[], doc={}):
-		if 'username' in doc.keys(): key = 'username'
-		elif 'phone' in doc.keys(): key = 'phone'
-		elif 'email' in doc.keys(): key = 'email'
+		for attr in self.modules['user'].unique_attrs:
+			if attr in doc.keys():
+				key = attr
+				break
 		user_results = await self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], '{}_hash'.format(key):doc['hash'], '$limit':1}])
 		if not user_results.args.count:
 			return {
