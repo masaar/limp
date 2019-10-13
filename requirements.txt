@@ -3,7 +3,6 @@ Pillow==6.1.0
 pymongo==3.9.0
 motor==2.0.0
 PyJWT==1.7.1
-twilio==6.25.1
 dnspython==1.16.0
 nest-asyncio==1.0.0
 croniter==0.3.30
