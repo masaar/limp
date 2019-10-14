@@ -247,7 +247,7 @@ class BaseModule:
 
 		return {
 			'status':200,
-			'msg':'Found {} docs.'.format(results['count']),
+			'msg':f'Found {results["count"]} docs.',
 			'args':results
 		}
 	
@@ -304,7 +304,7 @@ class BaseModule:
 						results['docs'][i] = BaseModel({attr:results['docs'][i][attr] for attr in query['$attrs'] if attr in results['docs'][i]._attrs()})
 			yield {
 				'status':200,
-				'msg':'Detected {} docs.'.format(results['count']),
+				'msg':f'Detected {results["count"]} docs.',
 				'args':results
 			}
 		
@@ -352,20 +352,20 @@ class BaseModule:
 			except MissingAttrException as e:
 				return {
 					'status':400,
-					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+					'msg':f'{str(e)} for \'create\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+					'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_MISSING_ATTR'}
 				}
 			except InvalidAttrException as e:
 				return {
 					'status':400,
-					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+					'msg':f'{str(e)} for \'create\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+					'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 				}
 			except ConvertAttrException as e:
 				return {
 					'status':400,
-					'msg':'{} for \'create\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-					'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+					'msg':f'{str(e)} for \'create\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+					'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_CONVERT_INVALID_ATTR'}
 				}
 			# [DOC] Check unique_attrs
 			if self.unique_attrs:
@@ -378,12 +378,11 @@ class BaseModule:
 				unique_attrs_query.append({'$limit':1})
 				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
 				if unique_results.args.count: # pylint: disable=no-member
+					unique_attrs_str = ', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
 					return {
 						'status':400,
-						'msg':'A doc with the same \'{}\' already exists.'.format(
-							', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
-						),
-						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+						'msg':f'A doc with the same \'{unique_attrs_str}\' already exists.',
+						'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_DUPLICATE_DOC'}
 					}
 		# [DOC] Execute Data driver create
 		results = await Data.create(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
@@ -407,7 +406,7 @@ class BaseModule:
 
 		return {
 			'status':200,
-			'msg':'Created {} docs.'.format(results['count']),
+			'msg':f'Created {results["count"]} docs.',
 			'args':results
 		}
 	
@@ -436,20 +435,20 @@ class BaseModule:
 		except MissingAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_MISSING_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+				'msg':f'{str(e)} for \'update\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_MISSING_ATTR'}
 			}
 		except InvalidAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+				'msg':f'{str(e)} for \'update\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 			}
 		except ConvertAttrException as e:
 			return {
 				'status':400,
-				'msg':'{} for \'update\' request on module \'{}_{}\'.'.format(str(e), self.package_name.upper(), self.module_name.upper()),
-				'args':{'code':'{}_{}_CONVERT_INVALID_ATTR'.format(self.package_name.upper(), self.module_name.upper())}
+				'msg':f'{str(e)} for \'update\' request on module \'{self.package_name.upper()}_{self.module_name.upper()}\'.',
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_CONVERT_INVALID_ATTR'}
 			}
 		# [DOC] Delete all attrs not belonging to the doc
 		del_args = []
@@ -489,7 +488,7 @@ class BaseModule:
 					return {
 						'status':400,
 						'msg':'Update call query has more than one doc as results. This would result in duplication.',
-						'args':{'code':'{}_{}_MULTI_DUPLICATE'.format(self.package_name.upper(), self.module_name.upper())}
+						'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_MULTI_DUPLICATE'}
 					}
 
 			# [DOC] Check if any of the unique_attrs are present in doc
@@ -506,12 +505,11 @@ class BaseModule:
 				unique_attrs_query.append({'$limit':1})
 				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
 				if unique_results.args.count: # pylint: disable=no-member
+					unique_attrs_str = ', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
 					return {
 						'status':400,
-						'msg':'A doc with the same \'{}\' already exists.'.format(
-							', '.join(map(lambda _: ('(' + ', '.join(_) + ')') if type(_) == tuple else _, self.unique_attrs))
-						),
-						'args':{'code':'{}_{}_DUPLICATE_DOC'.format(self.package_name.upper(), self.module_name.upper())}
+						'msg':f'A doc with the same \'{unique_attrs_str}\' already exists.',
+						'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_DUPLICATE_DOC'}
 					}
 		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
@@ -551,7 +549,7 @@ class BaseModule:
 
 		return {
 			'status':200,
-			'msg':'Updated {} docs.'.format(results['count']),
+			'msg':f'Updated {results["count"]} docs.',
 			'args':results
 		}
 	
@@ -603,7 +601,7 @@ class BaseModule:
 
 		return {
 			'status':200,
-			'msg':'Deleted {} docs.'.format(results['count']),
+			'msg':f'Deleted {results["count"]} docs.',
 			'args':results
 		}
 	
@@ -625,7 +623,7 @@ class BaseModule:
 			return {
 				'status':400,
 				'msg':'Attr is invalid.',
-				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 			}
 		
 		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
@@ -655,7 +653,7 @@ class BaseModule:
 			return {
 				'status':400,
 				'msg':'Attr is invalid.',
-				'args':{'code':'{}_{}_INVALID_ATTR'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 			}
 
 		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
@@ -663,7 +661,7 @@ class BaseModule:
 			return {
 				'status':400,
 				'msg':'Doc is invalid.',
-				'args':{'code':'{}_{}_INVALID_DOC'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_DOC'}
 			}
 		doc = results.args.docs[0] # pylint: disable=no-member
 
@@ -671,28 +669,28 @@ class BaseModule:
 			return {
 				'status':400,
 				'msg':'Doc attr is invalid.',
-				'args':{'code':'{}_{}_INVALID_DOC_ATTR'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_DOC_ATTR'}
 			}
 		
 		if query['index'][0] not in range(0, len(doc[query['attr'][0]])):
 			return {
 				'status':400,
 				'msg':'Index is invalid.',
-				'args':{'code':'{}_{}_INVALID_INDEX'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_INDEX'}
 			}
 		
 		if type(doc[query['attr'][0]][query['index'][0]]) != dict or 'name' not in doc[query['attr'][0]][query['index'][0]].keys():
 			return {
 				'status':400,
 				'msg':'Index value is invalid.',
-				'args':{'code':'{}_{}_INVALID_INDEX_VALUE'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_INDEX_VALUE'}
 			}
 		
 		if doc[query['attr'][0]][query['index'][0]]['name'] != query['name'][0]:
 			return {
 				'status':400,
 				'msg':'File name in query doesn\'t match value.',
-				'args':{'code':'{}_{}_FILE_NAME_MISMATCH'.format(self.package_name, self.module_name.upper())}
+				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_FILE_NAME_MISMATCH'}
 			}
 		
 		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={

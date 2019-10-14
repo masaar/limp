@@ -54,7 +54,7 @@ class Session(BaseModule):
 			if attr in doc.keys():
 				key = attr
 				break
-		user_results = await self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], '{}_hash'.format(key):doc['hash'], '$limit':1}])
+		user_results = await self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], f'{key}_hash':doc['hash'], '$limit':1}])
 		if not user_results.args.count:
 			return {
 				'status':403,
