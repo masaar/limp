@@ -1,5 +1,5 @@
 # LIMP
-LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 websocket` as primary protocol of communication with clients. However, it also provides an `HTTP/1 GET` interface for additional communication windows.
+LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 Websocket` as primary protocol of communication with clients. However, it also provides an `HTTP/1 GET`, `POST` interfaces for additional communication windows.
 
 # Features
 ## Modern
@@ -25,6 +25,9 @@ Yes! No more dealing with custom handlers for multi-language apps. Your app is m
 
 ## Cache-able Responses
 LIMP Cache Workflow gives developers the power to cache queries without having a hassle. Simple instructions, and condition checkers and developers get apps with dynamic cache feature.
+
+## The Cron we All Like!
+LIMP has Cron-like Jobs Workflow that allows developers to run background tasks using Cron timing expression. The jobs can be LIMP calls, or simple Python function that can be run for any purpose. 
 
 # Docs Index
 > LIMP docs have moved to [https://github.com/masaar/limp-docs](https://github.com/masaar/limp-docs).

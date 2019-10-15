@@ -6,3 +6,4 @@ PyJWT==1.7.1
 dnspython==1.16.0
 nest-asyncio==1.0.0
 croniter==0.3.30
+requests==2.21.0

@@ -183,7 +183,9 @@ class User(BaseModule):
 				'args':{'code':'CORE_USER_GROUP_NOT_ADDED'}
 			}
 		# [DOC] Update the user
-		results = await self.update(skip_events=[Event.__PERM__], env=env, query=query, doc={
+		results = await self.update(skip_events=[Event.__PERM__], env=env, query=[{
+			'_id':query['_id'][0]
+		}], doc={
 			'groups':{'$pull':[query['group'][0]]}
 		})
 		return results
