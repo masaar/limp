@@ -373,6 +373,8 @@ class Test():
 			}
 		elif type(attr_type) == list:
 			return [cls.generate_attr(attr_type[0])]
+		elif type(attr_type) == dict:
+			return cls.parse_obj(results={}, obj=attr_type)
 		elif attr_type == 'locale':
 			from config import Config
 			return {locale:'__locale-{}'.format(math.ceil(random.random() * 10000)) for locale in Config.locales}

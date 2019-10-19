@@ -20,6 +20,7 @@ parser.add_argument('--test-flush', help='Flush previous test data collections',
 parser.add_argument('--test-force', help='Force running all test steps even if one is failed', action='store_true')
 parser.add_argument('--test-env', help='Run tests on selected env rather than sandbox env', action='store_true')
 parser.add_argument('--test-breakpoint', help='Create debugger breakpoint upon failure of test.', action='store_true')
+parser.add_argument('--test-collections', help='Enable Test Collections Mode.', action='store_true')
 args = parser.parse_args()
 
 logger = logging.getLogger('limp')
@@ -63,6 +64,7 @@ Config.test_flush = args.test_flush
 Config.test_force = args.test_force
 Config.test_env = args.test_env
 Config.test_breakpoint = args.test_breakpoint
+Config.test_collections = args.test_collections
 Config.env = args.env or os.getenv('ENV') or None
 try:
 	port = int(args.port)

@@ -14,6 +14,9 @@ logger = logging.getLogger('limp')
 class UnknownDeleteStrategyException(Exception):
 	pass
 
+class InvalidQueryException(Exception):
+	pass
+
 class Data():
 	
 	@classmethod
@@ -68,6 +71,9 @@ class Data():
 		sort: Dict[str, int] = {'_id':-1}
 		group: List[Dict[str, Union[str, int]]] = None
 		logger.debug('attempting to parse query: %s', query)
+
+		if not isinstance(query, Query):
+			raise InvalidQueryException(f'Query of type \'{type(query)}\' is invalid.')
 
 		if '$skip' in query:
 			skip = query['$skip']

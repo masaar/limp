@@ -32,11 +32,14 @@ class Config:
 	test_force: bool = False
 	test_env: bool = False
 	test_breakpoint: bool = False
+	test_collections: bool = False
 	tests: Dict[str, List[Dict[str, Any]]] = {}
 
 	emulate_test: bool = False
 
 	realm: bool = False
+
+	vars: Dict[str, Any] = {}
 
 	conn_timeout: int = 600
 	quota_anon_min: int = 40
@@ -195,7 +198,27 @@ class Config:
 						logger.debug('Skipping service module: %s.', module)
 				except Exception as err:
 					logger.error(err)
-		
+
+		# [DOC] Check test mode
+		if cls.test or cls.test_collections:
+			logger.debug('Test mode or Test Collections Mode detected.')
+			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+			if not os.path.exists(os.path.join(__location__, 'tests')):
+				os.makedirs(os.path.join(__location__, 'tests'))
+			if not cls.test_env:
+				for module in modules.keys():
+					if modules[module].collection:
+						logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
+						modules[module].collection = 'test_{}'.format(modules[module].collection)
+						if cls.test_flush:
+							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
+							await Data.drop(env=cls._sys_env, collection=modules[module].collection)
+					else:
+						logger.debug('Skipping service module %s', module)
+			else:
+				logger.warning('Testing on \'%s\' env. LIMPd would be sleeping for 5secs to give you chance to abort test workflow if this was a mistake.', cls.env)
+				time.sleep(5)
+				
 		logger.debug('Testing realm mode.')
 		if Config.realm:
 			# [DOC] Append realm to env dict
@@ -239,27 +262,6 @@ class Config:
 				if realm_results.status != 200:
 					logger.error('Config step failed. Exiting.')
 					exit()
-
-		# [DOC] Check test mode
-		if cls.test:
-			logger.debug('Test mode detected.')
-			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-			if not os.path.exists(os.path.join(__location__, 'tests')):
-				os.makedirs(os.path.join(__location__, 'tests'))
-			if not cls.test_env:
-				for module in modules.keys():
-					if modules[module].collection:
-						logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
-						modules[module].collection = 'test_{}'.format(modules[module].collection)
-						if cls.test_flush:
-							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
-							await Data.drop(env=cls._sys_env, collection=modules[module].collection)
-					else:
-						logger.debug('Skipping service module %s', module)
-			else:
-				logger.warning('Testing on \'%s\' env. LIMPd would be sleeping for 5secs to give you chance to abort test workflow if this was a mistake.', cls.env)
-				time.sleep(5)
-				
 
 		# [DOC] Checking users collection
 		logger.debug('Testing users collection.')
