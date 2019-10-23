@@ -1,6 +1,10 @@
 #!/usr/bin/python3
 
-import argparse, os, logging, datetime
+import argparse, os, logging, datetime, sys
+
+if sys.version_info.major != 3 or sys.version_info.minor not in [7, 8]:
+	print('LIMPd can only run with Python3.7 or Python3.8. Exiting.')
+	exit()
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
