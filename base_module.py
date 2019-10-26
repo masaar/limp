@@ -385,7 +385,7 @@ class BaseModule:
 						'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_DUPLICATE_DOC'}
 					}
 		# [DOC] Execute Data driver create
-		results = await Data.create(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, doc=doc)
+		results = await Data.create(env=env, collection=self.collection, attrs=self.attrs, modules=self.modules, doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -466,7 +466,7 @@ class BaseModule:
 				'args':{}
 			}
 		# [DOC] Find which docs are to be updated
-		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
+		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, skip_process=True)
 		# [DOC] Check unique_attrs
 		if self.unique_attrs:
 			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
@@ -511,7 +511,7 @@ class BaseModule:
 						'msg':f'A doc with the same \'{unique_attrs_str}\' already exists.',
 						'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_DUPLICATE_DOC'}
 					}
-		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
+		results = await Data.update(env=env, collection=self.collection, attrs=self.attrs, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], doc=doc)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:
@@ -583,8 +583,8 @@ class BaseModule:
 		elif Event.__SOFT__ in skip_events and Event.__SYS_DOCS__ in skip_events:
 			strategy = DELETE_STRATEGY.FORCE_SYS
 		
-		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, query=query)
-		results = await Data.delete(env=env, collection=self.collection, attrs=self.attrs, extns={}, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
+		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, skip_process=True)
+		results = await Data.delete(env=env, collection=self.collection, attrs=self.attrs, modules=self.modules, docs=[doc._id for doc in docs_results['docs']], strategy=strategy)
 		if Event.__ON__ not in skip_events:
 			# [DOC] Check proxy module
 			if self.proxy:

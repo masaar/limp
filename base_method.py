@@ -162,6 +162,7 @@ class BaseMethod:
 					del permissions_check['doc'][attr]
 				# [DOC] Update doc with doc permissions args
 				doc.update(permissions_check['doc'])
+				doc = {attr:doc[attr] for attr in doc.keys() if doc[attr] != LIMP_VALUES.NONE_VALUE}
 	
 		if Event.__ARGS__ not in skip_events:
 			if self.query_args:
@@ -257,7 +258,7 @@ class BaseMethod:
 			query = Query([])
 			if Config.debug:
 				if Config.test and Config.test_breakpoint:
-					Test.break_debugger(locals())
+					Test.break_debugger(locals(), None)
 				return await self.return_results(ws=env['ws'], results=DictObj({
 					'status':500,
 					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),

@@ -209,7 +209,7 @@ class Test():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
-					cls.break_debugger(locals())
+					cls.break_debugger(locals(), call_results)
 					break
 			if call_results['status'] == False:
 				logger.debug('Test step \'call\' failed at measure \'%s\'. Required value is \'%s\', but test results is \'%s\'', measure, call_results['acceptance'][measure], results_measure)
@@ -217,7 +217,7 @@ class Test():
 		except Exception as e:
 			tb = traceback.format_exc()
 			logger.error('Exception occured: %s', tb)
-			cls.break_debugger(locals())
+			cls.break_debugger(locals(), call_results)
 			call_results.update({
 				'measure':measure,
 				'results':{
@@ -385,9 +385,11 @@ class Test():
 		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
 	
 	@classmethod
-	def break_debugger(cls, scope: Dict[str, Any]) -> None:
+	def break_debugger(cls, scope: Dict[str, Any], call_results: Dict[str, Any]) -> None:
 		from config import Config
 		if Config.test_breakpoint:
 			logger.debug('Creating a breakpoint to allow you to investigate step failure. Type \'c\' after finishing to continue.')
 			logger.debug('All variables are available under \'scope\' dict.')
+			if call_results:
+				logger.debug('Call test raised exception available under \'call_results\' dict')
 			breakpoint()

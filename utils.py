@@ -55,6 +55,8 @@ class DictObj:
 class Query(list):
 	def __init__(self, query):
 		self._query = query
+		if type(self._query) == Query:
+			self._query = query._query
 		self._special = {}
 		self._index = {}
 		self._create_index(self._query)
@@ -112,10 +114,7 @@ class Query(list):
 					query_shadow.append(step)
 		return query_shadow
 	def __deepcopy__(self, memo):
-		try:
-			return self._query.__deepcopy__(memo)
-		except:
-			return self._query
+		return Query(copy.deepcopy(self._query))
 	def append(self, obj):
 		self._query.append(obj)
 		self._create_index(self._query)

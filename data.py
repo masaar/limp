@@ -333,7 +333,8 @@ class Data():
 				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
 				extns: Dict[str, List[Union[str, List[str]]]],
 				modules: Dict[str, 'BaseModule'],
-				query: Query
+				query: Query,
+				skip_process: bool = False
 			) -> Dict[str, Any]:
 		skip, limit, sort, group, aggregate_query = cls._compile_query(collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, watch_mode=False)
 		
@@ -396,7 +397,8 @@ class Data():
 		models = []
 		extn_models = {}
 		async for doc in docs:
-			doc = await cls._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc, extn_models=extn_models)
+			if not skip_process:
+				doc = await cls._process_results_doc(env=env, collection=collection, attrs=attrs, extns=extns, modules=modules, query=query, doc=doc, extn_models=extn_models)
 			if doc:
 				models.append(BaseModel(doc))
 		return {
@@ -451,7 +453,6 @@ class Data():
 				env: Dict[str, Any],
 				collection: str,
 				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
-				extns: Dict[str, List[Union[str, List[str]]]],
 				modules: Dict[str, 'BaseModule'],
 				doc: Dict[str, Any]
 			) -> Dict[str, Any]:
@@ -469,7 +470,6 @@ class Data():
 				env: Dict[str, Any],
 				collection: str,
 				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
-				extns: Dict[str, List[Union[str, List[str]]]],
 				modules: Dict[str, 'BaseModule'],
 				docs: List[str],
 				doc: Dict[str, Any]
@@ -532,7 +532,6 @@ class Data():
 				env: Dict[str, Any],
 				collection: str,
 				attrs: Dict[str, Union[str, List[str], Tuple[str]]],
-				extns: Dict[str, List[Union[str, List[str]]]],
 				modules: Dict[str, 'BaseModule'],
 				docs: List[str],
 				strategy: DELETE_STRATEGY
