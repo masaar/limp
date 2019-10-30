@@ -367,10 +367,8 @@ async def run_app(packages, port):
 				if env['init'] == False:
 					await env['ws'].close()
 					return
-					# break
 				else:
 					return
-					# continue
 			
 			# [DOC] Check if msg should be denied for quota hit
 			if decline_quota == 'ip':
@@ -406,7 +404,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 			
 			if env['init'] == False:
 				if res['endpoint'] != 'conn/verify':
@@ -420,7 +417,6 @@ async def run_app(packages, port):
 					}))
 					await env['ws'].close()
 					return
-					# break
 				else:
 					env['init'] = True
 					logger.debug('Connection on session #\'%s\' is verified.', env['id'])
@@ -433,13 +429,22 @@ async def run_app(packages, port):
 						}
 					}))
 					return
-					# continue
 			
 			if res['endpoint'] == 'conn/close':
 				logger.debug('Received connection close instructions on session #\'%s\'.', env['id'])
 				await env['ws'].close()
 				return
-				# break
+			
+			if res['endpoint'] == 'heart/beat':
+				logger.debug('Received connection heartbeat on session #\'%s\'.', env['id'])
+				await env['ws'].send_str(JSONEncoder().encode({
+					'status':200,
+					'msg':'Heartbeat received.',
+					'args':{
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None
+					}
+				}))
+				return
 
 			
 			res['endpoint'] = res['endpoint'].lower()
@@ -453,7 +458,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 			elif res['endpoint'] == 'session/signout' and str(env['session']._id) == 'f00000000000000000000012':
 				await env['ws'].send_str(JSONEncoder().encode({
 					'status':400,
@@ -464,7 +468,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 
 			if 'query' not in res.keys(): res['query'] = []
 			if 'doc' not in res.keys(): res['doc'] = {}
@@ -482,7 +485,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 
 			module = request['path'][0].lower()
 			if module == 'file' and request['path'][1].lower() == 'upload':
@@ -503,7 +505,6 @@ async def run_app(packages, port):
 					# [DOC] More chunks expeceted, update the client
 					await env['ws'].send_str(JSONEncoder().encode({'status':200, 'msg':'Chunk accepted', 'args':{'call_id':request['call_id']}}))
 				return
-				# continue
 			
 			if module == 'watch' and request['path'][1].lower() == 'delete':
 				logger.debug('Received watch task delete request for: %s', request['query'][0]['watch'])
@@ -536,7 +537,6 @@ async def run_app(packages, port):
 				except:
 					await env['ws'].send_str(JSONEncoder().encode({'status':400, 'msg':'Watch is invalid.', 'args':{'call_id':request['call_id'], 'code':'CORE_WATCH_INVALID_WATCH'}}))
 				return
-				# continue
 
 			if module not in modules.keys():
 				await env['ws'].send_str(JSONEncoder().encode({
@@ -548,7 +548,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 
 			if request['path'][1].lower() not in modules[module].methods.keys():
 				await env['ws'].send_str(JSONEncoder().encode({
@@ -560,7 +559,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 
 			if modules[module].methods[request['path'][1].lower()].get_method:
 				await env['ws'].send_str(JSONEncoder().encode({
@@ -572,7 +570,6 @@ async def run_app(packages, port):
 					}
 				}))
 				return
-				# continue
 
 			if not request['sid']:
 				request['sid'] = 'f00000000000000000000012'

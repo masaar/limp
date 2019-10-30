@@ -41,7 +41,7 @@ class Config:
 
 	vars: Dict[str, Any] = {}
 
-	conn_timeout: int = 600
+	conn_timeout: int = 120
 	quota_anon_min: int = 40
 	quota_auth_min: int = 100
 	quota_ip_min: int = 500
