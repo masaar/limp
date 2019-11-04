@@ -409,7 +409,9 @@ def validate_attr(attr_name, attr_type, attr_val):
 				except:
 					raise ConvertAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 		elif attr_type == 'locale':
-			return validate_attr(attr_name=attr_name, attr_type={locale:'str' for locale in Config.locales}, attr_val=attr_val)
+			attr_val = validate_attr(attr_name=attr_name, attr_type={'__key':{locale for locale in Config.locales}, '__val':'str', '__len':1, '__req':[Config.locale]}, attr_val=attr_val)
+			attr_val = {locale:attr_val[locale] if locale in attr_val.keys() else attr_val[Config.locale] for locale in Config.locales}
+			return attr_val
 		elif type(attr_type) == str and attr_type.startswith('str'):
 			if type(attr_val) == str:
 				if attr_type != 'str':
@@ -507,9 +509,16 @@ def validate_attr(attr_name, attr_type, attr_val):
 		elif type(attr_type) == dict:
 			if type(attr_val) == dict:
 				if '__key' in attr_type.keys():
+					if '__len' in attr_type.keys():
+						if len(attr_val.keys()) < attr_type['__len']:
+							raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 					shadow_attr_val = {}
 					for child_attr_val in attr_val.keys():
 						shadow_attr_val[validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
+					if '__req' in attr_type.keys():
+						for req_key in attr_type['__req']:
+							if req_key not in shadow_attr_val.keys():
+								raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 					return shadow_attr_val
 				else:
 					for child_attr_type in attr_type.keys():

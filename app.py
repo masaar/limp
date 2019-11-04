@@ -304,8 +304,8 @@ async def run_app(packages, port):
 				break
 			logger.debug('Received new message from session #\'%s\': %s', env['id'], msg.data[:256])
 			if msg.type == aiohttp.WSMsgType.TEXT:
-				logger.warning('ip_quota: %s', ip_quota)
-				logger.warning('session_quota: %s', env['quota'])
+				logger.debug('ip_quota on session #\'%s\': %s', env['id'], ip_quota)
+				logger.debug('session_quota: on session #\'%s\': %s', env['id'], env['quota'])
 				# [DOC] Check for IP quota
 				if str(request.remote) not in ip_quota:
 					ip_quota[str(request.remote)] = {

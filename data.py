@@ -112,11 +112,15 @@ class Data():
 		
 		if '$attrs' in query and type(query['$attrs']) == list:
 			aggregate_suffix.append({
-				'$project':{'_id':'$_id', **{attr:f'${attr}' for attr in query['$attrs'].keys() if attr in attrs.keys()}}
+				'$group':{'_id':'$_id', **{attr:{
+					'$first':f'${attr}'
+				} for attr in query['$attrs'].keys() if attr in attrs.keys()}}
 			})
 		else:
 			aggregate_suffix.append({
-				'$project':{'_id':'$_id', **{attr:f'${attr}' for attr in attrs.keys()}}
+				'$group':{'_id':'$_id', **{attr:{
+					'$first':f'${attr}'
+				} for attr in attrs.keys()}}
 			})
 		
 		logger.debug('parsed query, aggregate_prefix: %s, aggregate_suffix: %s, aggregate_match:%s', aggregate_prefix, aggregate_suffix, aggregate_match)
@@ -255,6 +259,12 @@ class Data():
 				doc: Dict[str, Any],
 				extn_models: Dict[str, 'BaseModel'] = {}
 			) -> Dict[str, Any]:
+		# [DOC] Process doc attrs
+		for attr in attrs.keys():
+			if attrs[attr] == 'locale':
+				if type(doc[attr]) == dict and Config.locale in doc[attr].keys():
+					doc[attr] = {locale:doc[attr][locale] if locale in doc[attr].keys() else doc[attr][Config.locale] for locale in Config.locales}
+		# [DOC] Attempt to extned the doc per extns
 		for extn in extns.keys():
 			# [DOC] Check if extn module is dynamic value
 			if extns[extn][0].startswith('$__doc.'):
