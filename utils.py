@@ -1,4 +1,7 @@
+from enums import LIMP_DOC, LIMP_ATTRS, LIMP_QUERY
+
 from bson import ObjectId, binary
+from typing import Dict, Union, Literal, List, Any
 
 import logging, json, pkgutil, inspect, re, datetime, time, json, copy
 logger = logging.getLogger('limp')
@@ -18,6 +21,7 @@ class JSONEncoder(json.JSONEncoder):
 			return json.JSONEncoder.default(self, o)
 		except TypeError:
 			return str(o)
+
 
 class DictObj:
 	__attrs = {}
@@ -52,8 +56,9 @@ class DictObj:
 	def _attrs(self):
 		return copy.deepcopy(self.__attrs)
 
+
 class Query(list):
-	def __init__(self, query):
+	def __init__(self, query: Union[LIMP_QUERY, 'Query']):
 		self._query = query
 		if type(self._query) == Query:
 			self._query = query._query
@@ -61,7 +66,7 @@ class Query(list):
 		self._index = {}
 		self._create_index(self._query)
 		super().__init__(self._query)
-	def _create_index(self, query, path=[]):
+	def _create_index(self, query: LIMP_QUERY, path=[]):
 		if not path:
 			self._index = {}
 		for i in range(0, query.__len__()):
@@ -93,7 +98,7 @@ class Query(list):
 				self._create_index(query[i], path=path + [i])
 		if not path:
 			self._query = self._sanitise_query()
-	def _sanitise_query(self, query=None):
+	def _sanitise_query(self, query: LIMP_QUERY=None):
 		if query == None:
 			query = self._query
 		query_shadow = []
@@ -115,11 +120,11 @@ class Query(list):
 		return query_shadow
 	def __deepcopy__(self, memo):
 		return Query(copy.deepcopy(self._query))
-	def append(self, obj):
+	def append(self, obj: Any):
 		self._query.append(obj)
 		self._create_index(self._query)
 		super().__init__(self._query)
-	def __contains__(self, attr):
+	def __contains__(self, attr: str):
 		if attr[0] == '$':
 			return attr in self._special.keys()
 		else:
@@ -135,7 +140,7 @@ class Query(list):
 					if val['oper'] == attr_oper:
 						return True
 			return False
-	def __getitem__(self, attr):
+	def __getitem__(self, attr: str):
 		if attr[0] == '$':
 			return self._special[attr]
 		else:
@@ -157,31 +162,31 @@ class Query(list):
 
 			for index_attr in self._index.keys():
 				if attr_filter and index_attr != attr_filter: continue
-				# if oper_filter and index_attr.split(':')[1] != oper_filter: continue
 				
 				attrs += [index_attr for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
 				vals += [val['val'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
 				paths += [val['path'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
 				indexes += [i for i in range(0, self._index[index_attr].__len__()) if not oper_filter or (oper_filter and self._index[index_attr][i]['oper'] == oper_filter)]
 			return QueryAttrList(self, attrs, paths, indexes, vals)
-	def __setitem__(self, attr, val):
+	def __setitem__(self, attr: str, val: Any):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be updated by attr index.')
 		self._special[attr] = val
-	def __delitem__(self, attr):
+	def __delitem__(self, attr: str):
 		if attr[0] != '$':
 			raise Exception('Non-special attrs can only be deleted by attr index.')
 		del self._special[attr]
 
+
 class QueryAttrList(list):
-	def __init__(self, query, attrs, paths, indexes, vals):
+	def __init__(self, query: Query, attrs: List[str], paths: List[List[int]], indexes: List[int], vals: List[Any]):
 		self._query = query
 		self._attrs = attrs
 		self._paths = paths
 		self._indexes = indexes
 		self._vals = vals
 		super().__init__(vals)
-	def __setitem__(self, item, val):
+	def __setitem__(self, item: Union[Literal['*'], int], val: Any):
 		if item == '*':
 			for i in range(0, self._vals.__len__()):
 				self.__setitem__(i, val)
@@ -191,7 +196,7 @@ class QueryAttrList(list):
 				instance_attr = instance_attr[path_part]
 			instance_attr[self._attrs[item].split(':')[0]] = val
 			self._query._create_index(self._query._query)
-	def __delitem__(self, item):
+	def __delitem__(self, item: Union[Literal['*'], int]):
 		if item == '*':
 			for i in range(0, self._vals.__len__()):
 				self.__delitem__(i)
@@ -201,7 +206,7 @@ class QueryAttrList(list):
 				instance_attr = instance_attr[path_part]
 			del instance_attr[self._attrs[item].split(':')[0]]
 			self._query._create_index(self._query._query)
-	def replace_attr(self, item, new_attr):
+	def replace_attr(self, item: Union[Literal['*'], int], new_attr: str):
 		if item == '*':
 			for i in range(0, self._vals.__len__()):
 				self.replace_attr(i, new_attr)
@@ -216,11 +221,11 @@ class QueryAttrList(list):
 			# [DOC] Update index
 			self._query._create_index(self._query._query)
 	
+
 def import_modules(packages=None):
 	import modules as package
 	from base_module import BaseModule
 	from config import Config # pylint: disable=W0612
-	# package = modules
 	modules = {}
 	user_config = {
 		'user_attrs':{},
@@ -232,6 +237,7 @@ def import_modules(packages=None):
 		if packages and pkgname.replace('modules.', '') not in packages:
 			logger.debug('Skipping package: %s', pkgname)
 			continue
+		logger.debug('Importing package: %s', pkgname)
 		child_package = __import__(pkgname, fromlist='*')
 		for k, v in child_package.config().items():
 			if k == 'envs':
@@ -240,6 +246,7 @@ def import_modules(packages=None):
 						setattr(Config, kk, vv)
 			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
 				user_config[k] = v
+				setattr(Config, k, v)
 			elif type(v) == dict:
 				getattr(Config, k).update(v)
 			else:
@@ -268,6 +275,7 @@ def import_modules(packages=None):
 		module.update_modules(modules)
 	return modules
 
+
 def parse_file_obj(doc, files):
 	for attr in doc.keys():
 		if attr in files.keys():
@@ -282,6 +290,7 @@ def parse_file_obj(doc, files):
 				})
 			del files[attr]
 	return doc
+
 
 def sigtime():
 	sigtime.time = 0
@@ -302,6 +311,7 @@ def signal_handler(signum, frame):
 		logger.info(' Have a great {}!'.format(msg))
 		exit()
 
+
 def extract_attr(scope, attr_path):
 	attr_path = attr_path[3:].split('.')
 	attr = scope
@@ -317,11 +327,13 @@ def extract_attr(scope, attr_path):
 			raise e
 	return attr
 
+
 class MissingAttrException(Exception):
 	def __init__(self, attr_name):
 		self.attr_name = attr_name
 	def __str__(self):
 		return 'Missing attr \'{}\''.format(self.attr_name)
+
 
 class InvalidAttrException(Exception):
 	def __init__(self, attr_name, attr_type, val_type):
@@ -331,6 +343,7 @@ class InvalidAttrException(Exception):
 	def __str__(self):
 		return 'Invalid attr \'{}\' of type \'{}\' with required type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
 
+
 class ConvertAttrException(Exception):
 	def __init__(self, attr_name, attr_type, val_type):
 		self.attr_name = attr_name
@@ -339,7 +352,14 @@ class ConvertAttrException(Exception):
 	def __str__(self):
 		return 'Can\'t convert attr \'{}\' of type \'{}\' to type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
 
-def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
+
+def validate_doc(
+			doc: LIMP_DOC,
+			attrs: LIMP_ATTRS,
+			defaults: Dict[str, Any]={},
+			allow_opers: bool=False,
+			allow_none: bool=False
+		):
 	for attr in attrs:
 		if attr not in doc.keys():
 			if not allow_none:
@@ -392,7 +412,8 @@ def validate_doc(doc, attrs, defaults={}, allow_opers=False, allow_none=False):
 				else:
 					raise e
 
-def validate_attr(attr_name, attr_type, attr_val):
+
+def validate_attr(attr_name: str, attr_type: Any, attr_val: Any):
 	from base_model import BaseModel
 	from config import Config
 	try:

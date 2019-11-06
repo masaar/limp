@@ -15,6 +15,8 @@ calc_opers = {
 }
 
 class Test():
+
+	session: 'BaseModule' = None
 	
 	@classmethod
 	async def run_test(
@@ -22,9 +24,8 @@ class Test():
 				test_name: str,
 				steps: List[Dict[str, Any]],
 				modules: Dict[str, 'BaseModule'],
-				env: Dict[str, Any],
-				session: 'BaseModule'
-			) -> Union[None, Tuple[Dict[str, Any], 'BaseModule']]:
+				env: Dict[str, Any]
+			) -> Union[None, Dict[str, Any]]:
 		from config import Config
 		from utils import DictObj
 		if test_name not in Config.tests.keys():
@@ -41,8 +42,7 @@ class Test():
 				'skipped':0,
 				'total':0
 			},
-			'steps':[],
-			'session':session
+			'steps':[]
 		}
 
 		for i in range(0, len(test)):
@@ -107,9 +107,9 @@ class Test():
 				if 'session' in call_results.keys():
 					logger.debug('Updating session after detecting \'session\' in call results.')
 					if str(call_results['session']._id) == 'f00000000000000000000012':
-						results['session'] = DictObj({**Config.compile_anon_session(), 'user':DictObj(Config.compile_anon_user())})
+						cls.session = DictObj({**Config.compile_anon_session(), 'user':DictObj(Config.compile_anon_user())})
 					else:
-						results['session'] = call_results['session']
+						cls.session = call_results['session']
 
 				results['steps'].append(call_results)
 			elif step['step'] == 'test':
@@ -118,7 +118,7 @@ class Test():
 					test_steps = step['steps']
 				else:
 					test_steps = False
-				test_results, results['session'] = await cls.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env, session=results['session'])
+				test_results = await cls.run_test(test_name=step['test'], steps=test_steps, modules=modules, env=env)
 				if test_results['status'] == 'PASSED':
 					test_results['status'] = True
 				else:
@@ -176,7 +176,7 @@ class Test():
 				f.write(json.dumps(json.loads(JSONEncoder().encode(results)), indent=4))
 				logger.debug('Full tests log available at: %s', tests_log)
 		else:
-			return (results, results['session'])
+			return results
 
 	@classmethod
 	async def run_call(
@@ -203,7 +203,7 @@ class Test():
 		query = Query(cls.parse_obj(results=results, obj=query))
 		doc = cls.parse_obj(results=results, obj=doc)
 		try:
-			call_results['results'] = await modules[module].methods[method](skip_events=skip_events, env=env, query=query, doc=doc)
+			call_results['results'] = await modules[module].methods[method](skip_events=skip_events, env={**env, 'session':cls.session}, query=query, doc=doc)
 			call_results['acceptance'] = cls.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
 				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
@@ -234,6 +234,7 @@ class Test():
 	
 	@classmethod
 	def parse_obj(cls, results: Dict[str, Any], obj: Union[Dict[str, Any], List[Any]]) -> Union[Dict[str, Any], List[Any]]:
+		logger.debug('Attempting to parse object: %s', obj)
 		from utils import extract_attr
 		if type(obj) == dict:
 			obj_iter = obj.keys()
@@ -272,10 +273,14 @@ class Test():
 				else:
 					obj[i] = cls.parse_obj(results=results, obj=obj[i])
 			elif type(obj[i]) == str and obj[i].startswith('$__'):
-				obj[i] = extract_attr(scope=results, attr_path=obj[i])
+				if obj[i] == '$__session':
+					obj[i] = cls.session
+				else:
+					obj[i] = extract_attr(scope=results, attr_path=obj[i])
 			elif callable(obj[i]):
 				obj[i] = obj[i](scope=results)
 
+		logger.debug('Parsed object: %s', obj)
 		return obj
 	
 	@classmethod

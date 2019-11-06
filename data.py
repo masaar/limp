@@ -114,7 +114,7 @@ class Data():
 			aggregate_suffix.append({
 				'$group':{'_id':'$_id', **{attr:{
 					'$first':f'${attr}'
-				} for attr in query['$attrs'].keys() if attr in attrs.keys()}}
+				} for attr in query['$attrs'] if attr in attrs.keys()}}
 			})
 		else:
 			aggregate_suffix.append({

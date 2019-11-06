@@ -1,8 +1,9 @@
 from enums import Event
 from test import Test
 from base_model import BaseModel
+from utils import LIMP_ATTRS, DictObj
 
-from typing import List, Dict, Callable, Any
+from typing import List, Dict, Callable, Any, Union, Set, Tuple
 
 from croniter import croniter
 from pymongo import database
@@ -59,19 +60,15 @@ class Config:
 	locales: List[str] = ['ar_AE', 'en_AE']
 	locale: str = 'ar_AE'
 
-	admin_username: str = '__ADMIN'
-	admin_email: str = 'ADMIN@LIMP.MASAAR.COM'
-	admin_phone: str = '+971500000000'
+	admin_doc: Dict[str, Any] = {}
 	admin_password: str = '__ADMIN'
 
 	anon_token: str = '__ANON_TOKEN_f00000000000000000000012'
 	anon_privileges: Dict[str, List[str]] = {}
 
-	user_attrs = {
-		'auth_attr':'str'
-	}
-	user_auth_attrs = ['auth_attr']
-	user_attrs_defaults = {}
+	user_attrs: LIMP_ATTRS = {}
+	user_auth_attrs: List[str] = []
+	user_attrs_defaults: Dict[str, Any] = {}
 
 	groups: List[Dict[str, Any]] = []
 	default_privileges: Dict[str, List[str]] = {}
@@ -90,8 +87,6 @@ class Config:
 
 	@classmethod
 	async def config_data(cls, modules: Dict[str, 'BaseModule']) -> None:
-		from utils import DictObj
-
 		# [DOC] Check API version
 		if not cls.version:
 			logger.warning('No version sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding version to eliminate specs mismatch.')
@@ -132,14 +127,15 @@ class Config:
 					job['next_time'] = datetime.datetime.fromtimestamp(job['schedule'].get_next(), datetime.timezone.utc).isoformat()[:16]
 			
 
+		# [DOC] Check for presence of user_auth_attrs
+		if len(cls.user_auth_attrs) < 1 or \
+			sum([1 for attr in cls.user_auth_attrs if attr in cls.user_attrs.keys()]) != len(cls.user_auth_attrs):
+			logger.error('Either no \'user_auth_attrs\' are provided, or one of \'user_auth_attrs\' not present in \'user_attrs\'. Exiting.')
+			exit()
+
+
 		# [DOC] Check default values
 		security_warning = '[SECURITY WARNING] %s is not explicitly set. It has been defaulted to \'%s\' but in production environment you should consider setting it to your own to protect your app from breaches.'
-		if cls.admin_username == '__ADMIN':
-			logger.warning(security_warning, 'Admin username', '__ADMIN')
-		if cls.admin_email == 'ADMIN@LIMP.MASAAR.COM':
-			logger.warning(security_warning, 'Admin email', 'ADMIN@LIMP.MASAAR.COM')
-		if cls.admin_phone == '+971500000000':
-			logger.warning(security_warning, 'Admin phone', '+971500000000')
 		if cls.admin_password == '__ADMIN':
 			logger.warning(security_warning, 'Admin password', '__ADMIN')
 		if cls.anon_token == '__ANON_TOKEN_f00000000000000000000012':
@@ -268,30 +264,22 @@ class Config:
 		user_results = await modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=cls._sys_env, query=[{'_id':'f00000000000000000000010'}])
 		if not user_results.args.count:
 			logger.debug('ADMIN user not found, creating it.')
+			# [DOC] Prepare base ADMIN user doc
 			admin_doc = {
 				'_id': ObjectId('f00000000000000000000010'),
-				'username': cls.admin_username,
-				'email': cls.admin_email,
 				'name': {
-					locale: '__ADMIN' for locale in cls.locales
+					cls.locale: '__ADMIN'
 				},
-				'bio': {
-					locale: '__ADMIN' for locale in cls.locales
-				},
-				'address': {
-					locale: '__ADMIN' for locale in cls.locales
-				},
-				'postal_code': '__ADMIN',
-				'phone': cls.admin_phone,
-				'website': 'https://ADMIN.limp.masaar.com',
 				'groups': [],
 				'privileges': {'*': '*'},
-				'email_hash': jwt.encode({'hash':['email', cls.admin_email, cls.admin_password, cls.anon_token]}, cls.admin_password).decode('utf-8').split('.')[1],
-				'phone_hash': jwt.encode({'hash':['phone', cls.admin_phone, cls.admin_password, cls.anon_token]}, cls.admin_password).decode('utf-8').split('.')[1],
-				'username_hash': jwt.encode({'hash':['username', cls.admin_username, cls.admin_password, cls.anon_token]}, cls.admin_password).decode('utf-8').split('.')[1],
 				'locale': cls.locale,
 				'attrs':{}
 			}
+			# [DOC] Update ADMIN user doc with admin_doc Config Attr
+			admin_doc.update(cls.admin_doc)
+
+			for auth_attr in cls.user_auth_attrs:
+				admin_doc[f'{auth_attr}_hash'] = jwt.encode({'hash':[auth_attr, admin_doc[auth_attr], cls.admin_password, cls.anon_token]}, cls.admin_password).decode('utf-8').split('.')[1]
 			if Config.realm:
 				admin_doc['realm'] = '__global'
 			admin_results = await modules['user'].create(skip_events=[Event.__PERM__, Event.__PRE__, Event.__ON__], env=cls._sys_env, doc=admin_doc)
@@ -414,10 +402,10 @@ class Config:
 		# [DOC] Check for test mode
 		if cls.test:
 			logger.debug('Running tests')
-			from utils import DictObj
 			anon_session = cls.compile_anon_session()
 			anon_session['user'] = DictObj(cls.compile_anon_user())
-			await Test.run_test(test_name=cls.test, steps=False, modules=modules, env=cls._sys_env, session=DictObj(anon_session))
+			Test.session = DictObj(anon_session)
+			await Test.run_test(test_name=cls.test, steps=False, modules=modules, env=cls._sys_env)
 			exit()
 		
 		# [DOC] Check for emulate_test mode
@@ -428,28 +416,18 @@ class Config:
 	def compile_anon_user(cls):
 		anon_doc = {
 			'_id': ObjectId('f00000000000000000000011'),
-			'username': cls.anon_token,
-			'email': 'ANON@LIMP.MASAAR.COM',
 			'name': {
-				locale: '__ANON' for locale in cls.locales
+				cls.locale: '__ANON'
 			},
-			'bio': {
-				locale: '__ANON' for locale in cls.locales
-			},
-			'address': {
-				locale: '__ANON' for locale in cls.locales
-			},
-			'postal_code': '__ANON',
-			'phone': '+0',
-			'website': 'https://ANON.limp.masaar.com',
 			'groups': [],
 			'privileges': cls.anon_privileges,
-			'email_hash': cls.anon_token,
-			'phone_hash': cls.anon_token,
-			'username_hash': cls.anon_token,
 			'locale': cls.locale,
 			'attrs':{}
 		}
+		for attr in cls.user_attrs.keys():
+			anon_doc[attr] = Test.generate_attr(cls.user_attrs[attr])
+		for auth_attr in cls.user_auth_attrs:
+			anon_doc[f'{auth_attr}_hash'] = cls.anon_token
 		if cls.realm:
 			anon_doc['realm'] = '__global'
 		return anon_doc

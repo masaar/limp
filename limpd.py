@@ -6,6 +6,11 @@ if sys.version_info.major != 3 or sys.version_info.minor not in [7, 8]:
 	print('LIMPd can only run with Python3.7 or Python3.8. Exiting.')
 	exit()
 
+if sys.version_info.minor == 7:
+	import typing, typing_extensions # pylint: disable=all
+	typing.Literal = typing_extensions.Literal
+	typing.TypedDict = typing_extensions.TypedDict
+
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 with open(os.path.join(__location__, 'version.txt')) as f:
