@@ -298,7 +298,7 @@ sigtime()
 def signal_handler(signum, frame):
 	if time.time() - sigtime.time > 3:
 		sigtime.time = time.time()
-		logger.warn(' Interrupt again within 3 seconds to exit.')
+		logger.warn('Interrupt again within 3 seconds to exit.')
 	else:
 		if time.localtime().tm_hour >= 21 or time.localtime().tm_hour <= 4:
 			msg = 'night'
@@ -308,8 +308,12 @@ def signal_handler(signum, frame):
 			msg = 'afternoon'
 		elif time.localtime().tm_hour >= 5:
 			msg = 'morning'
-		logger.info(' Have a great {}!'.format(msg))
-		exit()
+		logger.info('Have a great {}!'.format(msg))
+		import os
+		if os.name == 'nt':
+			os.kill(os.getpid(), 9)
+		else:
+			exit()
 
 
 def extract_attr(scope, attr_path):

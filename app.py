@@ -121,7 +121,7 @@ async def run_app(packages, port):
 		# [DOC] Attempt to validate query as doc
 		for args_set in args_sets:
 			if len(args_set.keys()) == len(args_set.keys()) and \
-			sum([1 if arg in args_set.keys() else 0 for arg in args_set.keys()]) == len(args_set.keys()):
+			sum(1 for arg in args_set.keys() if arg in args_set.keys()) == len(args_set.keys()):
 				# [DOC] Check presence and validate all attrs in doc args
 				try:
 					validate_doc(request_args, args_set)
@@ -327,7 +327,6 @@ async def run_app(packages, port):
 				if (datetime.datetime.utcnow() - env['quota']['last_check']).seconds > 59:
 					env['quota']['last_check'] = datetime.datetime.utcnow()
 					env['quota']['counter'] = (Config.quota_anon_min-1) if not env['session'] or env['session'].token == Config.anon_token else (Config.quota_auth_min-1)
-					logger.warning('Denying Websocket request from \'%s\' for hitting session quota.', env['id'])
 					asyncio.create_task(handle_msg(env=env, modules=modules, msg=msg))
 				else:
 					if env['quota']['counter'] - 1 <= 0:

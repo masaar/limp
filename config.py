@@ -129,7 +129,7 @@ class Config:
 
 		# [DOC] Check for presence of user_auth_attrs
 		if len(cls.user_auth_attrs) < 1 or \
-			sum([1 for attr in cls.user_auth_attrs if attr in cls.user_attrs.keys()]) != len(cls.user_auth_attrs):
+			sum(1 for attr in cls.user_auth_attrs if attr in cls.user_attrs.keys()) != len(cls.user_auth_attrs):
 			logger.error('Either no \'user_auth_attrs\' are provided, or one of \'user_auth_attrs\' not present in \'user_attrs\'. Exiting.')
 			exit()
 

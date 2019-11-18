@@ -466,7 +466,7 @@ class BaseModule:
 				'args':{}
 			}
 		# [DOC] Find which docs are to be updated
-		docs_results = results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, skip_process=True)
+		docs_results = await Data.read(env=env, collection=self.collection, attrs=self.attrs, extns=self.extns, modules=self.modules, query=query, skip_process=True)
 		# [DOC] Check unique_attrs
 		if self.unique_attrs:
 			# [DOC] If any of the unique_attrs is present in doc, and docs_results is > 1, we have duplication
@@ -492,7 +492,7 @@ class BaseModule:
 					}
 
 			# [DOC] Check if any of the unique_attrs are present in doc
-			if sum([1 for attr in doc.keys() if attr in self.unique_attrs]) > 0:
+			if sum(1 for attr in doc.keys() if attr in self.unique_attrs) > 0:
 				# [DOC] Check if the doc would result in duplication after update
 				unique_attrs_query = [[]]
 				for attr in self.unique_attrs:
@@ -501,7 +501,7 @@ class BaseModule:
 							unique_attrs_query[0].append({attr:doc[attr]})
 					elif type(attr) == tuple:
 						unique_attrs_query[0].append({child_attr:doc[child_attr] for child_attr in attr if attr in doc.keys()})
-				unique_attrs_query.append({'_id':{'$not':{'$in':[doc._id for doc in docs_results['docs']]}}})
+				unique_attrs_query.append({'_id':{'$nin':[doc._id for doc in docs_results['docs']]}})
 				unique_attrs_query.append({'$limit':1})
 				unique_results = await self.read(skip_events=[Event.__PERM__], env=env, query=unique_attrs_query)
 				if unique_results.args.count: # pylint: disable=no-member
