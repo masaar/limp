@@ -7,9 +7,12 @@ if sys.version_info.major != 3 or sys.version_info.minor not in [7, 8]:
 	exit()
 
 if sys.version_info.minor == 7:
-	import typing, typing_extensions # pylint: disable=all
-	typing.Literal = typing_extensions.Literal
-	typing.TypedDict = typing_extensions.TypedDict
+	try:
+		import typing, typing_extensions #noqa
+		typing.Literal = typing_extensions.Literal
+		typing.TypedDict = typing_extensions.TypedDict
+	except:
+		only_install_deps = True
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -17,8 +20,9 @@ with open(os.path.join(__location__, 'version.txt')) as f:
 	__version__ = f.read()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--version', help='Show LIMP version and exit', action='version', version='LIMPd v{}'.format(__version__))
+parser.add_argument('--version', help='Show LIMP version and exit', action='version', version=f'LIMPd v{__version__}')
 parser.add_argument('--install-deps', help='Install dependencies for LIMP and packages', action='store_true')
+parser.add_argument('--install-user', help='Install dependencies with `--user` option', action='store_true')
 parser.add_argument('--env', help='Choose specific env')
 parser.add_argument('--debug', help='Enable debug mode', action='store_true')
 parser.add_argument('--log', help='Enable debug mode and log all debug messages to log file', action='store_true')
@@ -42,26 +46,44 @@ logger.setLevel(logging.INFO)
 
 # [DOC] Parse runtime args
 if args.install_deps:
+	# [DOC] Change logging level to debug
 	logger.setLevel(logging.DEBUG)
 	logger.debug('Detected install_deps flag.')
+	# [DOC] Create standard call command list
+	pip_command = [sys.executable, '-m', 'pip', 'install']
+	# [DOC] Check for install_user glag to install dependencies with --user option
+	if args.install_user:
+		logger.debug('Detected install_user flag.')
+		pip_command.append('--user')
+	# [DOC] Add -r option to use requirements.txt files.
+	pip_command.append('-r')
+	# [DOC] Install LIMP dependencies
 	import subprocess, sys, os.path
 	logger.debug('Attempting to install dependencies of LIMP.')
-	subprocess.call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+	subprocess.call(pip_command + ['requirements.txt'])
 	__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 	dirs = [d for d in os.listdir(os.path.join(__location__, 'modules')) if os.path.isdir(os.path.join(__location__, 'modules', d))]
+	# [DOC] Iterate over packages to find requirements.txt files
 	for package in dirs:
 		logger.debug('Checking package \'%s\' for \'requirements.txt\' file.', package)
 		if os.path.exists(os.path.join(__location__, 'modules', package, 'requirements.txt')):
 			logger.debug('File \'requirements.txt\' found! Attempting to install package dependencies.')
-			subprocess.call([sys.executable, '-m', 'pip', 'install', '-r', os.path.join(__location__, 'modules', package, 'requirements.txt')])
+			subprocess.call(pip_command + [os.path.join(__location__, 'modules', package, 'requirements.txt')])
 	exit()
+else:
+	try:
+		only_install_deps
+		logger.error('You are running Python 3.7, and some libraries used in LIMP require backport libraries to run. You should start LIMPd with install_deps flag. Exiting.')
+		exit()
+	except:
+		pass
 
 # [DOC] Check for logging options
 if args.log:
 	logger.removeHandler(handler)
 	if not os.path.exists(os.path.join(__location__, 'logs')):
 		os.makedirs(os.path.join(__location__, 'logs'))
-	handler = logging.FileHandler(filename=os.path.join(__location__, 'logs', '{}.log'.format((datetime.datetime.utcnow().strftime('%d-%b-%Y')))))
+	handler = logging.FileHandler(filename=os.path.join(__location__, 'logs', f'{datetime.datetime.utcnow().strftime("%d-%b-%Y")}.log'))
 	handler.setFormatter(formatter)
 	logger.addHandler(handler)
 	logger.setLevel(logging.DEBUG)

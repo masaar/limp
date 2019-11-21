@@ -161,14 +161,14 @@ class Test():
 		if test_name == Config.test:
 			logger.debug('Finished testing %s steps [Passed: %s, Failed: %s, Skipped: %s] with success rate of: %s%%', results['stats']['total'], results['stats']['passed'], results['stats']['failed'], results['stats']['skipped'], results['success_rate'])
 			__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-			tests_log = os.path.join(__location__, 'tests', 'LIMP-TEST_{}_{}'.format(test_name, datetime.datetime.utcnow().strftime('%d-%b-%Y')))
-			if os.path.exists('{}.json'.format(tests_log)):
+			tests_log = os.path.join(__location__, 'tests', f'LIMP-TEST_{test_name}_{datetime.datetime.utcnow().strftime("%d-%b-%Y")}')
+			if os.path.exists(f'{tests_log}.json'):
 				i = 1
 				while True:
-					if os.path.exists('{}.{}.json'.format(tests_log, i)):
+					if os.path.exists(f'{tests_log}.{i}.json'):
 						i += 1
 					else:
-						tests_log = '{}.{}'.format(tests_log, i)
+						tests_log = f'{tests_log}.{i}'
 						break
 			tests_log += '.json'
 			from utils import JSONEncoder
@@ -206,7 +206,7 @@ class Test():
 			call_results['results'] = await modules[module].methods[method](skip_events=skip_events, env={**env, 'session':cls.session}, query=query, doc=doc)
 			call_results['acceptance'] = cls.parse_obj(results=results, obj=copy.deepcopy(acceptance))
 			for measure in acceptance.keys():
-				results_measure = extract_attr(scope=call_results['results'], attr_path='$__{}'.format(measure))
+				results_measure = extract_attr(scope=call_results['results'], attr_path=f'$__{measure}')
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
 					cls.break_debugger(locals(), call_results)
@@ -290,7 +290,7 @@ class Test():
 		elif attr_type == 'id':
 			return ObjectId()
 		elif attr_type == 'str':
-			return '__str-{}'.format(math.ceil(random.random() * 10000))
+			return f'__str-{math.ceil(random.random() * 10000)}'
 		elif attr_type == 'int':
 			if 'range' in attr_args.keys():
 				attr_val = random.choice([i for i in range(*attr_args['range'])])
@@ -310,11 +310,15 @@ class Test():
 			attr_val = random.choice([True, False])
 			return attr_val
 		elif attr_type == 'email':
-			return 'some-{}@email.com'.format(math.ceil(random.random() * 10000))
-		elif attr_type == 'phone':
-			return '+97150{}'.format(math.ceil(random.random() * 10000))
+			return f'some-{math.ceil(random.random() * 10000)}@email.com'
+		elif attr_type.startswith('phone'):
+			if attr_type != 'phone':
+				attr_args['code'] = attr_type[6:-1].split(',')[0]
+			if 'code' not in attr_args.keys():
+				attr_args['code'] = '97150'
+			return f'+{attr_args["code"]}{math.ceil(random.random() * 10000)}'
 		elif attr_type == 'uri:web':
-			return 'https://some.uri-{}.com'.format(math.ceil(random.random() * 10000))
+			return f'https://some.uri-{math.ceil(random.random() * 10000)}.com'
 		elif attr_type == 'datetime':
 			attr_val = datetime.datetime.utcnow()
 			if 'future' in attr_args.keys():
@@ -348,10 +352,12 @@ class Test():
 					seconds = 0
 				attr_val += datetime.timedelta(seconds=seconds)
 			return attr_val.isoformat().split('T')[1]
-		elif attr_type == 'file':
+		elif attr_type.startswith('file'):
+			if attr_type != 'file':
+				attr_args['type'] = attr_type[5:-1]
 			if 'extension' not in attr_args.keys():
 				attr_args['extension'] = 'txt'
-			file_name = '__file-{}.{}'.format(math.ceil(random.random() * 10000), attr_args['extension'])
+			file_name = f'__file-{math.ceil(random.random() * 10000)}.{attr_args["extension"]}'
 			if 'type' not in attr_args.keys():
 				attr_args['type'] = 'text/plain'
 			return {
@@ -382,12 +388,12 @@ class Test():
 			return cls.parse_obj(results={}, obj=attr_type)
 		elif attr_type == 'locale':
 			from config import Config
-			return {locale:'__locale-{}'.format(math.ceil(random.random() * 10000)) for locale in Config.locales}
+			return {locale:f'__locale-{math.ceil(random.random() * 10000)}' for locale in Config.locales}
 		elif attr_type == 'locales':
 			from config import Config
 			return Config.locale
 		
-		raise Exception('Unkown generator attr \'{}\''.format(attr_type))
+		raise Exception(f'Unkown generator attr \'{attr_type}\'')
 	
 	@classmethod
 	def break_debugger(cls, scope: Dict[str, Any], call_results: Dict[str, Any]) -> None:

@@ -625,9 +625,9 @@ class BaseModule:
 				'msg':'Attr is invalid.',
 				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 			}
-		
+			
 		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
-			query['attr'][0]:{'$push':doc['file'][0]}
+			query['attr'][0]:{'$push':doc['file']}
 		})
 
 		if Event.__ON__ not in skip_events:
@@ -635,17 +635,17 @@ class BaseModule:
 		
 		return results
 	
-	def pre_delete_file(
+	async def pre_delete_file(
 				self, skip_events: List[str], env: Dict[str, Any], query: Query, doc: LIMP_DOC
 			) -> Tuple[List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (skip_events, env, query, doc)
-	def on_delete_file(
+	async def on_delete_file(
 				self, results: Dict[str, Any], skip_events: List[str], env: Dict[str, Any], query: Query, doc: LIMP_DOC
 			) -> Tuple[Dict[str, Any], List[str], Dict[str, Any], Query, Dict[str, Any]]:
 		return (results, skip_events, env, query, doc)
-	def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: LIMP_DOC={}) -> DictObj:
+	async def delete_file(self, skip_events: List[str]=[], env: Dict[str, Any]={}, query: Query=[], doc: LIMP_DOC={}) -> DictObj:
 		if Event.__PRE__ not in skip_events:
-			pre_delete_file = self.pre_delete_file(skip_events=skip_events, env=env, query=query, doc=doc)
+			pre_delete_file = await self.pre_delete_file(skip_events=skip_events, env=env, query=query, doc=doc)
 			if type(pre_delete_file) in [DictObj, dict]: return pre_delete_file
 			skip_events, env, query, doc = pre_delete_file
 
@@ -656,7 +656,7 @@ class BaseModule:
 				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_INVALID_ATTR'}
 			}
 
-		results = self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
 		if not results.args.count: # pylint: disable=no-member
 			return {
 				'status':400,
@@ -693,12 +693,12 @@ class BaseModule:
 				'args':{'code':f'{self.package_name.upper()}_{self.module_name.upper()}_FILE_NAME_MISMATCH'}
 			}
 		
-		results = self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
+		results = await self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}], doc={
 			query['attr'][0]:{'$pull':[doc[query['attr'][0]][query['index'][0]]]}
 		})
 
 		if Event.__ON__ not in skip_events:
-			results, skip_events, env, query, doc = self.on_delete_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
+			results, skip_events, env, query, doc = await self.on_delete_file(results=results, skip_events=skip_events, env=env, query=query, doc=doc)
 
 		return results
 

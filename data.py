@@ -170,9 +170,9 @@ class Data():
 						if not lookup_query:
 							extn_collection = modules[extns[attr.split('.')[0]][0]].collection
 							aggregate_prefix.append({'$lookup':{'from':extn_collection, 'localField':attr.split('.')[0], 'foreignField':'_id', 'as':attr.split('.')[0]}})
-							aggregate_prefix.append({'$unwind':'${}'.format(attr.split('.')[0])})
-							group_query = {attr:{'$first':'${}'.format(attr)} for attr in attrs.keys()}
-							group_query[attr.split('.')[0]] = {'$first':'${}._id'.format(attr.split('.')[0])}
+							aggregate_prefix.append({'$unwind':f'${attr.split(".")[0]}'})
+							group_query = {attr:{'$first':f'${attr}'} for attr in attrs.keys()}
+							group_query[attr.split('.')[0]] = {'$first':f'${attr.split(".")[0]}._id'}
 							group_query['_id'] = '$_id'
 							aggregate_suffix.append({'$group':group_query})
 					else:
@@ -213,9 +213,9 @@ class Data():
 						access_query = [
 							{'$project':{
 								'__user':'$user',
-								'__access.anon':'${}.anon'.format(attr),
-								'__access.users':{'$in':[ObjectId(step[attr]['$__user']), '${}.users'.format(attr)]},
-								'__access.groups':{'$or':[{'$in':[group, '${}.groups'.format(attr)]} for group in step[attr]['$__groups']]}
+								'__access.anon':f'${attr}.anon',
+								'__access.users':{'$in':[ObjectId(step[attr]['$__user']), f'${attr}.users']},
+								'__access.groups':{'$or':[{'$in':[group, f'${attr}.groups']} for group in step[attr]['$__groups']]}
 							}},
 							{'$match':{'$or':[{'__user':ObjectId(step[attr]['$__user'])}, {'__access.anon':True}, {'__access.users':True}, {'__access.groups':True}]}}
 						]

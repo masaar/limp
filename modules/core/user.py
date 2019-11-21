@@ -16,7 +16,7 @@ class User(BaseModule):
 		'status':{'active', 'banned', 'deleted', 'disabled_password'},
 		'attrs':'attrs'
 	}
-	defaults = {'locale':Config.locale, 'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
+	defaults = {'login_time':None, 'status':'active', 'attrs':{}, 'groups':[], 'privileges':{}}
 	unique_attrs = []
 	methods = {
 		'read':{
@@ -45,6 +45,16 @@ class User(BaseModule):
 		'delete_group':{
 			'permissions':[['admin', {}, {}]],
 			'query_args':{'_id':'id', 'group':'id'}
+		},
+		'retrieve_file':{
+			'permissions':[['__sys', {}, {}]],
+			'get_method':True
+		},
+		'create_file':{
+			'permissions':[['__sys', {}, {}]]
+		},
+		'delete_file':{
+			'permissions':[['__sys', {}, {}]]
 		}
 	}
 

@@ -144,12 +144,12 @@ class Config:
 		# [DOC] Check for env data variables
 		data_attrs = {'server':'mongodb://localhost', 'name':'limp_data', 'ssl':False, 'ca_name':False, 'ca':False}
 		for data_attr_name in data_attrs.keys():
-			data_attr = getattr(cls, 'data_{}'.format(data_attr_name))
+			data_attr = getattr(cls, f'data_{data_attr_name}')
 			if type(data_attr) == str and data_attr.startswith('$__env.'):
 				logger.debug('Detected env variable for config attr \'data_%s\'', data_attr_name)
 				if not os.getenv(data_attr[7:]):
 					logger.warning('Couldn\'t read env variable for config attr \'data_%s\'. Defaulting to \'%s\'', data_attr_name, data_attrs[data_attr_name])
-					setattr(cls, 'data_{}'.format(data_attr_name), data_attrs[data_attr_name])
+					setattr(cls, f'data_{data_attr_name}', data_attrs[data_attr_name])
 				else:
 					# [DOC] Set data_ssl to True rather than string env variable value
 					if data_attr_name == 'ssl':
@@ -157,7 +157,7 @@ class Config:
 					else:
 						data_attr = os.getenv(data_attr[7:])
 					logger.warning('Setting env variable for config attr \'data_%s\' to \'%s\'', data_attr_name, data_attr)
-					setattr(cls, 'data_{}'.format(data_attr_name), data_attr)
+					setattr(cls, f'data_{data_attr_name}', data_attr)
 
 
 		# [DOC] Check SSL settings
@@ -189,7 +189,7 @@ class Config:
 				try:
 					if modules[module].collection:
 						logger.debug('Attempting to create shard collection: %s.', modules[module].collection)
-						cls._sys_conn[cls.data_name].command('shardCollection', '{}.{}'.format(Config.data_name, modules[module].collection), key={'_id':'hashed'})
+						cls._sys_conn[cls.data_name].command('shardCollection', f'{Config.data_name}.{modules[module].collection}', key={'_id':'hashed'})
 					else:
 						logger.debug('Skipping service module: %s.', module)
 				except Exception as err:
@@ -205,7 +205,7 @@ class Config:
 				for module in modules.keys():
 					if modules[module].collection:
 						logger.debug('Updating collection name \'%s\' of module %s', modules[module].collection, module)
-						modules[module].collection = 'test_{}'.format(modules[module].collection)
+						modules[module].collection = f'test_{modules[module].collection}'
 						if cls.test_flush:
 							logger.debug('Flushing test collection \'%s\'', modules[module].collection)
 							await Data.drop(env=cls._sys_env, collection=modules[module].collection)

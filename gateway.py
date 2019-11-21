@@ -33,7 +33,7 @@ def email_gateway(
 
 	for file in files:
 		part = MIMEApplication(file['content'], Name=file['name'])
-		part['Content-Disposition'] = 'attachment; filename="{}"'.format(file['name'])
+		part['Content-Disposition'] = f'attachment; filename="{file["name"]}"'
 		msg.attach(part)
 
 	smtp = smtplib.SMTP_SSL(email_auth['server'])

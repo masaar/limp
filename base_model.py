@@ -8,4 +8,4 @@ class BaseModel(DictObj):
 		super().__init__(attrs)
 	
 	def __str__(self):
-		return '<Model:{}>'.format(str(self._id))
+		return f'<Model:{str(self._id)}>'

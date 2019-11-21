@@ -34,7 +34,7 @@ class DictObj:
 	def __deepcopy__(self, memo):
 		return DictObj(copy.deepcopy(self.__attrs))
 	def __repr__(self):
-		return '<DictObj:{}>'.format(self.__attrs)
+		return f'<DictObj:{self.__attrs}>'
 	def __getattr__(self, attr):
 		return self.__attrs[attr]
 	def __setattr__(self, attr, val):
@@ -226,7 +226,7 @@ def import_modules(packages=None):
 	import modules as package
 	from base_module import BaseModule
 	from config import Config # pylint: disable=W0612
-	modules = {}
+	modules: List[BaseModule] = {}
 	user_config = {
 		'user_attrs':{},
 		'user_auth_attrs':[],
@@ -265,12 +265,15 @@ def import_modules(packages=None):
 						logger.error('Duplicate module name \'%s\'. Exiting.', module_name)
 						exit()
 					modules[module_name] = cls()
+	# [DOC] Update User, Session modules with populated attrs
 	modules['user'].attrs.update(user_config['user_attrs'])
+	modules['user'].defaults['locale'] = Config.locale
 	for attr in user_config['user_auth_attrs']:
 		modules['user'].unique_attrs.append(attr)
 		modules['user'].attrs[f'{attr}_hash'] = 'str'
 		modules['session'].methods['auth']['doc_args'].append({'hash':'str', attr:user_config['user_attrs'][attr]})
 	modules['user'].defaults.update(user_config['user_attrs_defaults'])
+	# [DOC] Call update_modules, effectively finalise initlising modules
 	for module in modules.values():
 		module.update_modules(modules)
 	return modules
@@ -308,7 +311,7 @@ def signal_handler(signum, frame):
 			msg = 'afternoon'
 		elif time.localtime().tm_hour >= 5:
 			msg = 'morning'
-		logger.info('Have a great {}!'.format(msg))
+		logger.info(f'Have a great {msg}!')
 		import os
 		if os.name == 'nt':
 			os.kill(os.getpid(), 9)
@@ -336,7 +339,7 @@ class MissingAttrException(Exception):
 	def __init__(self, attr_name):
 		self.attr_name = attr_name
 	def __str__(self):
-		return 'Missing attr \'{}\''.format(self.attr_name)
+		return f'Missing attr \'{self.attr_name}\''
 
 
 class InvalidAttrException(Exception):
@@ -345,7 +348,7 @@ class InvalidAttrException(Exception):
 		self.attr_type = attr_type
 		self.val_type = val_type
 	def __str__(self):
-		return 'Invalid attr \'{}\' of type \'{}\' with required type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
+		return f'Invalid attr \'{self.attr_name}\' of type \'{self.val_type}\' with required type \'{self.attr_type}\''
 
 
 class ConvertAttrException(Exception):
@@ -354,7 +357,7 @@ class ConvertAttrException(Exception):
 		self.attr_type = attr_type
 		self.val_type = val_type
 	def __str__(self):
-		return 'Can\'t convert attr \'{}\' of type \'{}\' to type \'{}\''.format(self.attr_name, self.val_type, self.attr_type)
+		return f'Can\'t convert attr \'{self.attr_name}\' of type \'{self.val_type}\' to type \'{self.attr_type}\''
 
 
 def validate_doc(
@@ -539,7 +542,7 @@ def validate_attr(attr_name: str, attr_type: Any, attr_val: Any):
 							raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
 					shadow_attr_val = {}
 					for child_attr_val in attr_val.keys():
-						shadow_attr_val[validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_val), attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
+						shadow_attr_val[validate_attr(attr_name=f'{attr_name}.{child_attr_val}', attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name=f'{attr_name}.{child_attr_val}', attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
 					if '__req' in attr_type.keys():
 						for req_key in attr_type['__req']:
 							if req_key not in shadow_attr_val.keys():
@@ -548,7 +551,7 @@ def validate_attr(attr_name: str, attr_type: Any, attr_val: Any):
 				else:
 					for child_attr_type in attr_type.keys():
 						if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-						attr_val[child_attr_type] = validate_attr(attr_name='{}.{}'.format(attr_name, child_attr_type), attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
+						attr_val[child_attr_type] = validate_attr(attr_name=f'{attr_name}.{child_attr_type}', attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
 					return attr_val
 		elif type(attr_type) == str and attr_type == 'access':
 			if type(attr_val) == dict and 'anon' in attr_val.keys() and type(attr_val['anon']) == bool and 'users' in attr_val.keys() and type(attr_val['users']) == list and 'groups' in attr_val.keys() and type(attr_val['groups']) == list:

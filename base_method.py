@@ -173,7 +173,7 @@ class BaseMethod:
 					return await self.return_results(ws=env['ws'], results=DictObj({
 						'status':400,
 						'msg':'Could not match query with any of the required query_args. Failed sets:' + ', '.join(test_query),
-						'args':DictObj({'code':'{}_{}_INVALID_QUERY'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+						'args':DictObj({'code':f'{self.module.package_name.upper()}_{self.module.module_name.upper()}_INVALID_QUERY'})
 					}), call_id=call_id)
 			
 			if self.doc_args:
@@ -184,7 +184,7 @@ class BaseMethod:
 					return await self.return_results(ws=env['ws'], results=DictObj({
 						'status':400,
 						'msg':'Could not match doc with any of the required doc_args. Failed sets:' + ', '.join(test_doc),
-						'args':DictObj({'code':'{}_{}_INVALID_DOC'.format(self.module.package_name.upper(), self.module.module_name.upper())})
+						'args':DictObj({'code':f'{self.module.package_name.upper()}_{self.module.module_name.upper()}_INVALID_DOC'})
 					}), call_id=call_id)
 
 		for arg in doc.keys():
@@ -204,12 +204,12 @@ class BaseMethod:
 		try:
 			# [DOC] Check for proxy module
 			if self.module.proxy:
-				if not getattr(self.module, '_method_{}'.format(self.method), None):
-					method = getattr(self.module.modules[self.module.proxy], '_method_{}'.format(self.method))
+				if not getattr(self.module, f'_method_{self.method}', None):
+					method = getattr(self.module.modules[self.module.proxy], f'_method_{self.method}')
 				else:
-					method = getattr(self.module, '_method_{}'.format(self.method))
+					method = getattr(self.module, f'_method_{self.method}')
 			else:
-				method = getattr(self.module, '_method_{}'.format(self.method))
+				method = getattr(self.module, f'_method_{self.method}')
 			# [DOC] Call method function
 			if self.watch_method:
 				await env['ws'].send_str(JSONEncoder().encode({
@@ -261,8 +261,8 @@ class BaseMethod:
 					Test.break_debugger(locals(), None)
 				return await self.return_results(ws=env['ws'], results=DictObj({
 					'status':500,
-					'msg':'Unexpected error has occured [method:{}.{}] [{}].'.format(self.module.module_name, self.method, str(e)),
-					'args':DictObj({'code':'CORE_SERVER_ERROR', 'method':'{}.{}'.format(self.module.module_name, self.method), 'err':str(e)})
+					'msg':f'Unexpected error has occured [method:{self.module.module_name}.{self.method}] [{str(e)}].',
+					'args':DictObj({'code':'CORE_SERVER_ERROR', f'method':'{self.module.module_name}.{self.method}', 'err':str(e)})
 				}), call_id=call_id)
 			else:
 				return await self.return_results(ws=env['ws'], results=DictObj({

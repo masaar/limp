@@ -171,7 +171,7 @@ async def run_app(packages, port):
 				if Config.debug:
 					return aiohttp.web.Response(status=500, headers=headers, body=JSONEncoder().encode({
 						'status':500,
-						'msg':'Unexpected error has occured [{}].'.format(str(e)),
+						'msg':f'Unexpected error has occured [{str(e)}].',
 						'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
 					}).encode('utf-8'))
 				else:
@@ -583,7 +583,7 @@ async def run_app(packages, port):
 			if Config.debug:
 				await env['ws'].send_str(JSONEncoder().encode({
 					'status':500,
-					'msg':'Unexpected error has occured [{}].'.format(str(e)),
+					'msg':f'Unexpected error has occured [{str(e)}].',
 					'args':{'code':'CORE_SERVER_ERROR', 'err':str(e)}
 				}))
 			else:
