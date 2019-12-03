@@ -74,6 +74,7 @@ class Data():
 
 		if not isinstance(query, Query):
 			raise InvalidQueryException(f'Query of type \'{type(query)}\' is invalid.')
+		query = copy.deepcopy(query)
 
 		if '$skip' in query:
 			skip = query['$skip']

@@ -218,11 +218,11 @@ class Group(BaseModule):
 			'permissions':[['admin', {}, {}]]
 		},
 		'update':{
-			'permissions':[['admin', {}, {}], ['update', {'user':'$__user', 'privileges':None}]],
+			'permissions':[['admin', {}, {}], ['update', {'user':'$__user'}, {'privileges':None}]],
 			'query_args':{'_id':'id'}
 		},
 		'delete':{
-			'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}]],
+			'permissions':[['admin', {}, {}], ['delete', {'user':'$__user'}, {}]],
 			'query_args':{'_id':'id'}
 		}
 	}
