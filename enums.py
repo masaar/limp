@@ -34,7 +34,8 @@ LIMP_QUERY = List[Union[
 			Dict[Literal['$lte'], Union[int, str]],
 			Dict[Literal['$bet'], Union[List[int], List[str]]],
 			Dict[Literal['$all'], List[Any]],
-			Dict[Literal['$in'], List[Any]]
+			Dict[Literal['$in'], List[Any]],
+			Dict[Literal['$regex'], str]
 		]]],
 		Dict[Literal['$search'], str],
 		Dict[Literal['$sort'], Dict[str, Literal[1, -1]]],

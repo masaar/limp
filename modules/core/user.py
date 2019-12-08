@@ -70,12 +70,14 @@ class User(BaseModule):
 						extn = user.attrs[attr]['__extn']
 						if type(extn[1]) == list:
 							if not len(extn[1]):
-								# [DOC] This is placeholder __extn attr with no value. Skip.
+								# [DOC] This is placeholder __extn attr with no value. Set as empty array
+								user.attrs[attr] = []
 								continue
 							extn_query = [{'_id':{'$in':extn[1]}}]
 						else:
 							if not extn[1]:
-								# [DOC] This is placeholder __extn attr with no value. Skip.
+								# [DOC] This is placeholder __extn attr with no value. Set as None
+								user.attrs[attr] = None
 								continue
 							extn_query = [{'_id':extn[1]}]
 						if extn[2] != ['*']:
@@ -84,7 +86,10 @@ class User(BaseModule):
 						if not extn_results.args.count:
 							user.attrs[attr] = None
 						else:
-							user.attrs[attr] = extn_results.args.docs[0]
+							if type(extn[1]) == list:
+								user.attrs[attr] = extn_results.args.docs
+							else:
+								user.attrs[attr] = extn_results.args.docs[0]
 		return (results, skip_events, env, query, doc)
 	
 	async def pre_create(self, skip_events, env, query, doc):

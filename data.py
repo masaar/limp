@@ -224,9 +224,14 @@ class Data():
 
 						aggregate_prefix.append(access_query[0])
 						step[attr] = access_query[1]
-					# [DOC] Check for $bet query oper
-					if type(step[attr]) == dict and '$bet' in step[attr].keys():
-						step[attr] = {'$gte':step[attr]['$bet'][0], '$lte':step[attr]['$bet'][1]}
+					# [DOC] Check for query oper
+					if type(step[attr]) == dict:
+						# [DOC] Check for $bet query oper
+						if '$bet' in step[attr].keys():
+							step[attr] = {'$gte':step[attr]['$bet'][0], '$lte':step[attr]['$bet'][1]}
+						# [DOC] Check for $regex query oper
+						elif '$regex' in step[attr].keys():
+							step[attr] = {'$regex':re.compile(step[attr]['$regex'], re.RegexFlag.IGNORECASE)}
 					
 					if type(step[attr]) == dict and '$match' in step[attr].keys():
 						child_aggregate_query['$and'].append(step[attr]['$match'])

@@ -440,7 +440,8 @@ async def run_app(packages, port):
 					'status':200,
 					'msg':'Heartbeat received.',
 					'args':{
-						'call_id':res['call_id'] if 'call_id' in res.keys() else None
+						'call_id':res['call_id'] if 'call_id' in res.keys() else None,
+						'code':'CORE_HEARTBEAT_OK'
 					}
 				}))
 				return
