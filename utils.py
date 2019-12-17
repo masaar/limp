@@ -119,7 +119,7 @@ class Query(list):
 					query_shadow.append(step)
 		return query_shadow
 	def __deepcopy__(self, memo):
-		return Query(copy.deepcopy(self._query))
+		return Query(copy.deepcopy(self._query + [self._special]))
 	def append(self, obj: Any):
 		self._query.append(obj)
 		self._create_index(self._query)
