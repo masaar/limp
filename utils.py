@@ -1,246 +1,56 @@
-from enums import LIMP_DOC, LIMP_ATTRS, LIMP_QUERY
+from classes import (
+	LIMP_DOC,
+	ATTR,
+	ATTR_MOD,
+	EXTN,
+	DictObj,
+	BaseModel,
+	Query,
+	LIMP_QUERY,
+	L10N,
+)
+from enums import LIMP_VALUES
 
-from bson import ObjectId, binary
 from typing import Dict, Union, Literal, List, Any
+from bson import ObjectId, binary
 
-import logging, json, pkgutil, inspect, re, datetime, time, json, copy
+import logging, pkgutil, inspect, re, datetime, time, math, random, copy
+
 logger = logging.getLogger('limp')
 
-class JSONEncoder(json.JSONEncoder):
-	def default(self, o): # pylint: disable=E0202
-		from base_model import BaseModel
-		if isinstance(o, ObjectId):
-			return str(o)
-		elif isinstance(o, BaseModel) or isinstance(o, DictObj):
-			return o._attrs()
-		elif type(o) == datetime.datetime:
-			return o.isoformat()
-		elif type(o) == bytes:
-			return True
-		try:
-			return json.JSONEncoder.default(self, o)
-		except TypeError:
-			return str(o)
 
-
-class DictObj:
-	__attrs = {}
-	def __init__(self, attrs):
-		if type(attrs) == DictObj:
-			attrs = attrs._attrs()
-		elif type(attrs) != dict:
-			raise TypeError('DictObj can be initilised using DictObj or dict types only.')
-		self.__attrs = attrs
-	def __deepcopy__(self, memo):
-		return DictObj(copy.deepcopy(self.__attrs))
-	def __repr__(self):
-		return f'<DictObj:{self.__attrs}>'
-	def __getattr__(self, attr):
-		return self.__attrs[attr]
-	def __setattr__(self, attr, val):
-		if not attr.endswith('__attrs'):
-			raise AttributeError(f'Can\'t assign to DictObj attr \'{attr}\' using __setattr__. Use __setitem__ instead.')
-		object.__setattr__(self, attr, val)
-	def __getitem__(self, attr):
-		try:
-			return self.__attrs[attr]
-		except Exception as e:
-			logger.debug('Unable to __getitem__ %s of %s.', attr, self.__attrs.keys())
-			raise e
-	def __setitem__(self, attr, val):
-		self.__attrs[attr] = val
-	def __delitem__(self, attr):
-		del self.__attrs[attr]
-	def __contains__(self, attr):
-		return attr in self.__attrs.keys()
-	def _attrs(self):
-		return copy.deepcopy(self.__attrs)
-
-
-class Query(list):
-	def __init__(self, query: Union[LIMP_QUERY, 'Query']):
-		self._query = query
-		if type(self._query) == Query:
-			self._query = query._query
-		self._special = {}
-		self._index = {}
-		self._create_index(self._query)
-		super().__init__(self._query)
-	def _create_index(self, query: LIMP_QUERY, path=[]):
-		if not path:
-			self._index = {}
-		for i in range(0, query.__len__()):
-			if type(query[i]) == dict:
-				del_attrs = []
-				for attr in query[i].keys():
-					if attr[0] == '$':
-						self._special[attr] = query[i][attr]
-						del_attrs.append(attr)
-					elif attr.startswith('__or'):
-						self._create_index(query[i][attr], path=path + [i, attr])
-					else:
-						if type(query[i][attr]) == dict and query[i][attr].keys().__len__() == 1 and list(query[i][attr].keys())[0][0] == '$':
-							attr_oper = list(query[i][attr].keys())[0]
-						else:
-							attr_oper = '$eq'
-						if attr not in self._index.keys():
-							self._index[attr] = []
-						if isinstance(query[i][attr], DictObj):
-							query[i][attr] = query[i][attr]._id
-						self._index[attr].append({
-							'oper':attr_oper,
-							'path':path + [i],
-							'val':query[i][attr]
-						})
-				for attr in del_attrs:
-					del query[i][attr]
-			elif type(query[i]) == list:
-				self._create_index(query[i], path=path + [i])
-		if not path:
-			self._query = self._sanitise_query()
-	def _sanitise_query(self, query: LIMP_QUERY=None):
-		if query == None:
-			query = self._query
-		query_shadow = []
-		for step in query:
-			if type(step) == dict:
-				for attr in step.keys():
-					if attr.startswith('__or'):
-						step[attr] = self._sanitise_query(step[attr])
-						if len(step[attr]):
-							query_shadow.append(step)
-							break
-					elif attr[0] != '$':
-						query_shadow.append(step)
-						break
-			elif type(step) == list:
-				step = self._sanitise_query(step)
-				if len(step):
-					query_shadow.append(step)
-		return query_shadow
-	def __deepcopy__(self, memo):
-		return Query(copy.deepcopy(self._query + [self._special]))
-	def append(self, obj: Any):
-		self._query.append(obj)
-		self._create_index(self._query)
-		super().__init__(self._query)
-	def __contains__(self, attr: str):
-		if attr[0] == '$':
-			return attr in self._special.keys()
-		else:
-			if ':' in attr:
-				attr_index, attr_oper = attr.split(':')
-			else:
-				attr_index = attr
-				attr += ':$eq'
-				attr_oper = '$eq'
-
-			if attr_index in self._index.keys():
-				for val in self._index[attr_index]:
-					if val['oper'] == attr_oper:
-						return True
-			return False
-	def __getitem__(self, attr: str):
-		if attr[0] == '$':
-			return self._special[attr]
-		else:
-			attrs = []
-			vals = []
-			paths = []
-			indexes = []
-			attr_filter = False
-			oper_filter = False
-
-			if attr.split(':')[0] != '*':
-				attr_filter = attr.split(':')[0]
-
-			if ':' not in attr:
-				oper_filter = '$eq'
-				attr += ':$eq'
-			elif ':*' not in attr:
-				oper_filter = attr.split(':')[1]
-
-			for index_attr in self._index.keys():
-				if attr_filter and index_attr != attr_filter: continue
-				
-				attrs += [index_attr for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
-				vals += [val['val'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
-				paths += [val['path'] for val in self._index[index_attr] if not oper_filter or (oper_filter and val['oper'] == oper_filter)]
-				indexes += [i for i in range(0, self._index[index_attr].__len__()) if not oper_filter or (oper_filter and self._index[index_attr][i]['oper'] == oper_filter)]
-			return QueryAttrList(self, attrs, paths, indexes, vals)
-	def __setitem__(self, attr: str, val: Any):
-		if attr[0] != '$':
-			raise Exception('Non-special attrs can only be updated by attr index.')
-		self._special[attr] = val
-	def __delitem__(self, attr: str):
-		if attr[0] != '$':
-			raise Exception('Non-special attrs can only be deleted by attr index.')
-		del self._special[attr]
-
-
-class QueryAttrList(list):
-	def __init__(self, query: Query, attrs: List[str], paths: List[List[int]], indexes: List[int], vals: List[Any]):
-		self._query = query
-		self._attrs = attrs
-		self._paths = paths
-		self._indexes = indexes
-		self._vals = vals
-		super().__init__(vals)
-	def __setitem__(self, item: Union[Literal['*'], int], val: Any):
-		if item == '*':
-			for i in range(0, self._vals.__len__()):
-				self.__setitem__(i, val)
-		else:
-			instance_attr = self._query._query
-			for path_part in self._paths[item]:
-				instance_attr = instance_attr[path_part]
-			instance_attr[self._attrs[item].split(':')[0]] = val
-			self._query._create_index(self._query._query)
-	def __delitem__(self, item: Union[Literal['*'], int]):
-		if item == '*':
-			for i in range(0, self._vals.__len__()):
-				self.__delitem__(i)
-		else:
-			instance_attr = self._query._query
-			for path_part in self._paths[item]:
-				instance_attr = instance_attr[path_part]
-			del instance_attr[self._attrs[item].split(':')[0]]
-			self._query._create_index(self._query._query)
-	def replace_attr(self, item: Union[Literal['*'], int], new_attr: str):
-		if item == '*':
-			for i in range(0, self._vals.__len__()):
-				self.replace_attr(i, new_attr)
-		else:
-			instance_attr = self._query._query
-			for path_part in self._paths[item]:
-				instance_attr = instance_attr[path_part]
-			# [DOC] Set new attr
-			instance_attr[new_attr] = instance_attr[self._attrs[item].split(':')[0]]
-			# [DOC] Delete old attr
-			del instance_attr[self._attrs[item].split(':')[0]]
-			# [DOC] Update index
-			self._query._create_index(self._query._query)
-	
-
-def import_modules(packages=None):
+def import_modules(*, packages=None):
 	import modules as package
 	from base_module import BaseModule
-	from config import Config # pylint: disable=W0612
-	modules: List[BaseModule] = {}
-	user_config = {
-		'user_attrs':{},
-		'user_auth_attrs':[],
-		'user_attrs_defaults':{}
-	}
+	from config import Config
+	from test import TEST
+
+	# [DOC] Assign required variables
+	modules: Dict[str, BaseModule] = {}
+	modules_packages: Dict[str, List[str]] = {}
+	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
+
+	# [DOC] Iterate over packages in modules folder
 	package_prefix = package.__name__ + '.'
-	for importer, pkgname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix): # pylint: disable=unused-variable
+	for _, pkgname, _ in pkgutil.iter_modules(
+		package.__path__, package_prefix
+	):  # pylint: disable=unused-variable
+		# [DOC] Check if package should be skipped
 		if packages and pkgname.replace('modules.', '') not in packages:
-			logger.debug('Skipping package: %s', pkgname)
+			logger.debug(f'Skipping package: {pkgname}')
 			continue
-		logger.debug('Importing package: %s', pkgname)
+		logger.debug(f'Importing package: {pkgname}')
+
+		# [DOC] Load package and attempt to load config
 		child_package = __import__(pkgname, fromlist='*')
 		for k, v in child_package.config().items():
-			if k == 'envs':
+			if k == 'packages_versions':
+				Config.packages_versions[pkgname.replace('modules.', '')] = v
+			elif k in ['tests', 'l10n']:
+				logger.warning(
+					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
+				)
+			elif k == 'envs':
 				if Config.env and Config.env in v.keys():
 					for kk, vv in v[Config.env].items():
 						setattr(Config, kk, vv)
@@ -248,56 +58,286 @@ def import_modules(packages=None):
 				user_config[k] = v
 				setattr(Config, k, v)
 			elif type(v) == dict:
+				if not getattr(Config, k):
+					setattr(Config, k, {})
 				getattr(Config, k).update(v)
 			else:
 				setattr(Config, k, v)
+
+		# [DOC] Iterate over python modules in package
 		child_prefix = child_package.__name__ + '.'
-		for importer, modname, ispkg in pkgutil.iter_modules(child_package.__path__, child_prefix):
+		for importer, modname, ispkg in pkgutil.iter_modules(
+			child_package.__path__, child_prefix
+		):
+			# [DOC] Iterate over python classes in module
 			module = __import__(modname, fromlist='*')
+			if modname.endswith('__tests__'):
+				for test_name in dir(module):
+					if type(getattr(module, test_name)) == TEST:
+						Config.tests[test_name] = getattr(module, test_name)
+				continue
+			elif modname.endswith('__l10n__'):
+				for l10n_name in dir(module):
+					if type(getattr(module, l10n_name)) == L10N:
+						Config.l10n[l10n_name] = getattr(module, l10n_name)
+				continue
 			for clsname in dir(module):
-				if clsname != 'BaseModule' and inspect.isclass(getattr(module, clsname)) and issubclass(getattr(module, clsname), BaseModule):
-					if clsname.lower() in ['file', 'watch']:
-						logger.error('Module with LIMPd-reserved name \'%s\' was found. Exiting.', clsname.lower())
+				# [DOC] Confirm class is subclass of BaseModule
+				if (
+					clsname != 'BaseModule'
+					and inspect.isclass(getattr(module, clsname))
+					and issubclass(getattr(module, clsname), BaseModule)
+				):
+					# [DOC] Deny loading LIMPd-reserved named LIMP modules
+					if clsname.lower() in ['conn', 'heart', 'file', 'watch']:
+						logger.error(
+							f'Module with LIMPd-reserved name \'{clsname.lower()}\' was found. Exiting.'
+						)
 						exit()
+					# [DOC] Load LIMP module and assign module_name attr
 					cls = getattr(module, clsname)
-					module_name = re.sub(r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]).lower()
+					module_name = re.sub(
+						r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]
+					).lower()
+					# [DOC] Deny duplicat LIMP modules names
 					if module_name in modules.keys():
-						logger.error('Duplicate module name \'%s\'. Exiting.', module_name)
+						logger.error(
+							f'Duplicate module name \'{module_name}\'. Exiting.'
+						)
 						exit()
+					# [DOC] Add module to loaded modules dict
 					modules[module_name] = cls()
+					if pkgname not in modules_packages.keys():
+						modules_packages[pkgname] = []
+					modules_packages[pkgname].append(module_name)
 	# [DOC] Update User, Session modules with populated attrs
 	modules['user'].attrs.update(user_config['user_attrs'])
 	modules['user'].defaults['locale'] = Config.locale
 	for attr in user_config['user_auth_attrs']:
 		modules['user'].unique_attrs.append(attr)
-		modules['user'].attrs[f'{attr}_hash'] = 'str'
-		modules['session'].methods['auth']['doc_args'].append({'hash':'str', attr:user_config['user_attrs'][attr]})
+		modules['user'].attrs[f'{attr}_hash'] = ATTR.STR()
+		modules['session'].methods['auth']['doc_args'].append(
+			{
+				'hash': ATTR.STR(),
+				attr: user_config['user_attrs'][attr],
+				'groups': ATTR.LIST(list=[ATTR.ID()]),
+			}
+		)
+		modules['session'].methods['auth']['doc_args'].append(
+			{'hash': ATTR.STR(), attr: user_config['user_attrs'][attr]}
+		)
 	modules['user'].defaults.update(user_config['user_attrs_defaults'])
 	# [DOC] Call update_modules, effectively finalise initlising modules
 	for module in modules.values():
-		module.update_modules(modules)
+		module._initialise()
+	# [DOC] Write api_ref if generate_ref mode
+	if Config.generate_ref:
+		generate_ref(modules_packages=modules_packages, modules=modules)
 	return modules
 
 
-def parse_file_obj(doc, files):
+def extract_lambda_body(lambda_func):
+	lambda_body = re.sub(
+		r'^[a-z]+\s*=\s*lambda\s', '', inspect.getsource(lambda_func).strip()
+	)
+	if lambda_body.endswith(','):
+		lambda_body = lambda_body[:-1]
+	return lambda_body
+
+
+def generate_ref(
+	*, modules_packages: Dict[str, List[str]], modules: List['BaseModule']
+):
+	from config import Config
+	from base_module import BaseModule
+
+	modules: List[BaseModule]
+	# [DOC] Initialise _api_ref Config Attr
+	Config._api_ref = '# API Reference\n- - -\n'
+	# [DOC] Iterate over packages in ascending order
+	for package in sorted(modules_packages.keys()):
+		# [DOC] Add package header
+		Config._api_ref += f'## Package: {package.replace("modules.", "")}\n'
+		# [DOC] Iterate over package modules in ascending order
+		for module in sorted(modules_packages[package]):
+			# [DOC] Add module header
+			Config._api_ref += f'### Module: {module}\n'
+			# [DOC] Add module description
+			Config._api_ref += f'{modules[module].__doc__}\n'
+			# [DOC] Add module attrs header
+			Config._api_ref += '#### Attrs\n'
+			# [DOC] Iterate over module attrs to add attrs types, defaults (if any)
+			for attr in modules[module].attrs.keys():
+				attr_ref = f'* {attr}:\n  * Type: `{modules[module].attrs[attr]}`\n'
+				for default_attr in modules[module].defaults.keys():
+					if (
+						default_attr == attr
+						or default_attr.startswith(f'{attr}.')
+						or default_attr.startswith(f'{attr}:')
+					):
+						if type(modules[module].defaults[default_attr]) == ATTR_MOD:
+							attr_ref += f'  * Default [{default_attr}]:\n'
+							attr_ref += f'	* ATTR_MOD condition: `{extract_lambda_body(modules[module].defaults[default_attr].condition)}`\n'
+							if callable(modules[module].defaults[default_attr].default):
+								attr_ref += f'	* ATTR_MOD default: `{extract_lambda_body(modules[module].defaults[default_attr].default)}`\n'
+							else:
+								attr_ref += f'	* ATTR_MOD default: {modules[module].defaults[default_attr].default}\n'
+						else:
+							attr_ref += f'  * Default [{default_attr}]: {modules[module].defaults[default_attr]}\n'
+				Config._api_ref += attr_ref
+			if modules[module].diff:
+				Config._api_ref += f'#### Attrs Diff: {modules[module].diff}\n'
+			# [DOC] Add module methods
+			Config._api_ref += '#### Methods\n'
+			for method in modules[module].methods.keys():
+				Config._api_ref += f'##### Method: {method}\n'
+				Config._api_ref += f'* Permissions Sets:\n'
+				for permission in modules[module].methods[method].permissions:
+					Config._api_ref += f'  * {permission.privilege}\n'
+					# [DOC] Add Query Modifier
+					if permission.query_mod:
+						Config._api_ref += f'	* Query Modifier:\n'
+						if type(permission.query_mod) == dict:
+							permission.query_mod = [permission.query_mod]
+						for i in range(len(permission.query_mod)):
+							Config._api_ref += f'	  * Set {i}:\n'
+							for attr in permission.query_mod[i].keys():
+								if type(permission.query_mod[i][attr]) == ATTR_MOD:
+									Config._api_ref += f'		* {attr}:\n'
+									Config._api_ref += f'		  * ATTR_MOD condition: {extract_lambda_body(permission.query_mod[i][attr].condition)}\n'
+									if callable(permission.query_mod[i][attr].default):
+										Config._api_ref += f'		  * ATTR_MOD default: {extract_lambda_body(permission.query_mod[i][attr].default)}\n'
+									else:
+										Config._api_ref += f'		  * ATTR_MOD default: {permission.query_mod[i][attr].default}\n'
+								else:
+									Config._api_ref += f'		* {attr}: {permission.query_mod[i][attr]}\n'
+					else:
+						Config._api_ref += f'	* Query Modifier: None\n'
+					# [DOC] Add Doc Modifier
+					if permission.doc_mod:
+						Config._api_ref += f'	* Doc Modifier:\n'
+						if type(permission.doc_mod) == dict:
+							permission.doc_mod = [permission.doc_mod]
+						for i in range(len(permission.doc_mod)):
+							Config._api_ref += f'	  * Set {i}:\n'
+							for attr in permission.doc_mod[i].keys():
+								if type(permission.doc_mod[i][attr]) == ATTR_MOD:
+									Config._api_ref += f'		* {attr}:\n'
+									Config._api_ref += f'		  * ATTR_MOD condition: `{extract_lambda_body(permission.doc_mod[i][attr].condition)}`\n'
+									if callable(permission.doc_mod[i][attr].default):
+										Config._api_ref += f'		  * ATTR_MOD default: {extract_lambda_body(permission.doc_mod[i][attr].default)}\n'
+									else:
+										Config._api_ref += f'		  * ATTR_MOD default: {permission.doc_mod[i][attr].default}\n'
+								else:
+									Config._api_ref += f'		* {attr}: {permission.doc_mod[i][attr]}\n'
+					else:
+						Config._api_ref += f'	* Doc Modifier: None\n'
+				# [DOC] Add Query Args
+				if modules[module].methods[method].query_args:
+					Config._api_ref += f'* Query Args Sets:\n'
+					for query_args_set in modules[module].methods[method].query_args:
+						Config._api_ref += f'  * `{query_args_set}`\n'
+				else:
+					Config._api_ref += f'* Query Args Sets: None\n'
+				# [DOC] Add Doc Args
+				if modules[module].methods[method].doc_args:
+					Config._api_ref += f'* DOC Args Sets:\n'
+					for doc_args_set in modules[module].methods[method].doc_args:
+						Config._api_ref += f'  * `{doc_args_set}`\n'
+				else:
+					Config._api_ref += f'* Doc Args Sets: None\n'
+			# [DOC] Add module extns
+			if modules[module].extns.keys():
+				Config._api_ref += '#### Extended Attrs\n'
+				for attr in modules[module].extns.keys():
+					Config._api_ref += f'* {attr}:\n'
+					if type(modules[module].extns[attr]) == EXTN:
+						Config._api_ref += (
+							f'  * Module: \'{modules[module].extns[attr].module}\'\n'
+						)
+						Config._api_ref += f'  * Extend Attrs: \'{modules[module].extns[attr].attrs}\'\n'
+						Config._api_ref += (
+							f'  * Force: \'{modules[module].extns[attr].force}\'\n'
+						)
+					elif type(modules[module].extns[attr]) == ATTR_MOD:
+						Config._api_ref += f'  * ATTR_MOD condition: `{extract_lambda_body(modules[module].extns[attr].condition)}`\n'
+						Config._api_ref += f'  * ATTR_MOD default: `{extract_lambda_body(modules[module].extns[attr].default)}`\n'
+			else:
+				Config._api_ref += '#### Extended Attrs: None\n'
+			# [DOC] Add module cache sets
+			if modules[module].cache:
+				Config._api_ref += '#### Cache Sets\n'
+				for i in range(len(modules[module].cache)):
+					Config._api_ref += f'* Set {i}:\n'
+					Config._api_ref += f'  * CACHE condition: `{extract_lambda_body(modules[module].cache[i].condition)}`\n'
+					Config._api_ref += (
+						f'  * CACHE period: {modules[module].cache[i].period}\n'
+					)
+			else:
+				Config._api_ref += '#### Cache Sets: None\n'
+			# [DOC] Add module anayltics sets
+			if modules[module].analytics:
+				Config._api_ref += '#### Analytics Sets\n'
+				for i in range(len(modules[module].analytics)):
+					Config._api_ref += f'* Set {i}:\n'
+					Config._api_ref += f'  * ANALYTIC condition: `{extract_lambda_body(modules[module].analytics[i].condition)}`\n'
+					Config._api_ref += f'  * ANALYTIC doc: `{extract_lambda_body(modules[module].analytics[i].doc)}`\n'
+			else:
+				Config._api_ref += '#### Analytics Sets: None\n'
+	import os
+
+	ref_file = os.path.join(
+		Config._limp_location,
+		'refs',
+		f'LIMP_API_REF_{datetime.datetime.utcnow().strftime("%d-%b-%Y")}.md',
+	)
+	with open(ref_file, 'w') as f:
+		f.write(Config._api_ref)
+		logger.info(f'API reference generated and saved to: \'{ref_file}\'. Exiting.')
+		exit()
+
+
+def update_attr_values(
+	*, attr: ATTR, value: Literal['default', 'extn'], value_path: str, value_val: Any
+):
+	value_path = value_path.split('.')
+	for child_default_path in value_path:
+		if ':' in child_default_path:
+			attr = attr._args['dict'][child_default_path.split(':')[0]]._args['list'][
+				int(child_default_path.split(':')[1])
+			]
+		else:
+			attr = attr._args['dict'][child_default_path]
+	setattr(attr, f'_{value}', value_val)
+
+
+def process_file_obj(*, doc, files):
 	for attr in doc.keys():
 		if attr in files.keys():
 			doc[attr] = []
 			for file in files[attr].values():
-				doc[attr].append({
-					'name':file['name'],
-					'lastModified':file['lastModified'],
-					'type':file['type'],
-					'size':file['size'],
-					'content':binary.Binary(bytes([int(byte) for byte in file['content'].split(',')]))
-				})
+				doc[attr].append(
+					{
+						'name': file['name'],
+						'lastModified': file['lastModified'],
+						'type': file['type'],
+						'size': file['size'],
+						'content': binary.Binary(
+							bytes([int(byte) for byte in file['content'].split(',')])
+						),
+					}
+				)
 			del files[attr]
 	return doc
 
 
 def sigtime():
 	sigtime.time = 0
+
+
 sigtime()
+
+
 def signal_handler(signum, frame):
 	if time.time() - sigtime.time > 3:
 		sigtime.time = time.time()
@@ -313,16 +353,18 @@ def signal_handler(signum, frame):
 			msg = 'morning'
 		logger.info(f'Have a great {msg}!')
 		import os
+
 		if os.name == 'nt':
 			os.kill(os.getpid(), 9)
 		else:
 			exit()
 
 
-def extract_attr(scope, attr_path):
+def extract_attr(*, scope: Dict[str, Any], attr_path: str):
 	attr_path = attr_path[3:].split('.')
 	attr = scope
-	for child_attr in attr_path:
+	for i in range(len(attr_path)):
+		child_attr = attr_path[i]
 		try:
 			if ':' in child_attr:
 				child_attr = child_attr.split(':')
@@ -330,257 +372,648 @@ def extract_attr(scope, attr_path):
 			else:
 				attr = attr[child_attr]
 		except Exception as e:
-			logger.error('Failed to extract %s from %s. Exiting.', child_attr, attr)
+			logger.error(f'Failed to extract {child_attr} from {attr}.')
 			raise e
 	return attr
 
 
+def set_attr(*, scope: Dict[str, Any], attr_path: str, value: Any):
+	attr_path = attr_path[3:].split('.')
+	attr = scope
+	for i in range(len(attr_path) - 1):
+		child_attr = attr_path[i]
+		try:
+			if ':' in child_attr:
+				child_attr = child_attr.split(':')
+				attr = attr[child_attr[0]][int(child_attr[1])]
+			else:
+				attr = attr[child_attr]
+		except Exception as e:
+			logger.error(f'Failed to extract {child_attr} from {attr}.')
+			raise e
+	if ':' in attr_path[-1]:
+		attr_path[-1] = attr_path[-1].split(':')
+		attr[attr_path[-1][0]][int(attr_path[-1][1])] = value
+	else:
+		attr[attr_path[-1]] = value
+
+
 class MissingAttrException(Exception):
-	def __init__(self, attr_name):
+	def __init__(self, *, attr_name):
 		self.attr_name = attr_name
+		logger.debug(f'MissingAttrException: {str(self)}')
+
 	def __str__(self):
 		return f'Missing attr \'{self.attr_name}\''
 
 
 class InvalidAttrException(Exception):
-	def __init__(self, attr_name, attr_type, val_type):
+	def __init__(self, *, attr_name, attr_type, val_type):
 		self.attr_name = attr_name
 		self.attr_type = attr_type
 		self.val_type = val_type
+		logger.debug(f'InvalidAttrException: {str(self)}')
+
 	def __str__(self):
-		return f'Invalid attr \'{self.attr_name}\' of type \'{self.val_type}\' with required type \'{self.attr_type}\''
+		return f'Invalid attr \'{self.attr_name}\' of type \'{self.val_type}\' with required type \'{self.attr_type._type}\''
 
 
 class ConvertAttrException(Exception):
-	def __init__(self, attr_name, attr_type, val_type):
+	def __init__(self, *, attr_name, attr_type, val_type):
 		self.attr_name = attr_name
 		self.attr_type = attr_type
 		self.val_type = val_type
+		logger.debug(f'ConvertAttrException: {str(self)}')
+
 	def __str__(self):
-		return f'Can\'t convert attr \'{self.attr_name}\' of type \'{self.val_type}\' to type \'{self.attr_type}\''
+		return f'Can\'t convert attr \'{self.attr_name}\' of type \'{self.val_type}\' to type \'{self.attr_type._type}\''
 
 
 def validate_doc(
-			doc: LIMP_DOC,
-			attrs: LIMP_ATTRS,
-			defaults: Dict[str, Any]={},
-			allow_opers: bool=False,
-			allow_none: bool=False
-		):
-	for attr in attrs:
+	*,
+	doc: LIMP_DOC,
+	attrs: Dict[str, ATTR],
+	allow_opers: bool = False,
+	allow_none: bool = False,
+	skip_events: List[str] = None,
+	env: Dict[str, Any] = None,
+	query: Union[LIMP_QUERY, Query] = None,
+):
+	for attr in attrs.keys():
 		if attr not in doc.keys():
-			if not allow_none:
-				if attr not in defaults.keys():
-					raise MissingAttrException(attr)
-				else:
-					if defaults[attr] == '$__datetime':
-						doc[attr] = datetime.datetime.utcnow().isoformat()
-					elif defaults[attr] == '$__date':
-						doc[attr] = datetime.date.today().isoformat()
-					elif defaults[attr] == '$__time':
-						doc[attr] = datetime.datetime.now().time().isoformat()
-					else:
-						doc[attr] = defaults[attr]
-					continue
-		else:
-			try:
-				if allow_opers:
-					if type(doc[attr]) == dict:
-						if '$add' in doc[attr].keys():
-							doc[attr] = {'$add':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$add'])}
-						elif '$push' in doc[attr].keys():
-							doc[attr] = {'$push':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$push']])[0]}
-						elif '$push_unique' in doc[attr].keys():
-							doc[attr] = {'$push_unique':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=[doc[attr]['$push_unique']])[0]}
-						elif '$pull' in doc[attr].keys():
-							doc[attr] = {'$pull':validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr]['$pull'])}
-						else:
-							doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
-					else:
-						doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
-				else:
-					doc[attr] = validate_attr(attr_name=attr, attr_type=attrs[attr], attr_val=doc[attr])
-			except Exception as e:
-				if type(e) in [MissingAttrException, InvalidAttrException, ConvertAttrException]:
-					if allow_none:
-						doc[attr] = None
-					else:
-						if attr in defaults.keys():
-							if defaults[attr] == '$__datetime':
-								doc[attr] = datetime.datetime.utcnow().isoformat()
-							elif defaults[attr] == '$__date':
-								doc[attr] = datetime.date.today().isoformat()
-							elif defaults[attr] == '$__time':
-								doc[attr] = datetime.datetime.now().time().isoformat()
-							else:
-								doc[attr] = defaults[attr]
-						else:
-							raise e
+			doc[attr] = None
+		try:
+			doc[attr] = validate_attr(
+				attr_name=attr,
+				attr_type=attrs[attr],
+				attr_val=doc[attr],
+				allow_opers=allow_opers,
+				allow_none=allow_none,
+				skip_events=skip_events,
+				env=env,
+				query=query,
+				doc=doc,
+			)
+		except Exception as e:
+			if type(e) in [InvalidAttrException, ConvertAttrException]:
+				if doc[attr] == None:
+					raise MissingAttrException(attr_name=attr)
 				else:
 					raise e
+			else:
+				raise e
 
 
-def validate_attr(attr_name: str, attr_type: Any, attr_val: Any):
-	from base_model import BaseModel
+def validate_default(
+	*,
+	attr_type: ATTR,
+	attr_val: Any,
+	skip_events: List[str] = None,
+	env: Dict[str, Any] = None,
+	query: Union[LIMP_QUERY, Query] = None,
+	doc: LIMP_DOC = None,
+	scope: LIMP_DOC = None,
+	allow_none: bool,
+):
+	if not allow_none and type(attr_type._default) == ATTR_MOD:
+		if attr_type._default.condition(
+			skip_events=skip_events, env=env, query=query, doc=doc, scope=scope
+		):
+			if callable(attr_type._default.default):
+				attr_val = attr_type._default.default(
+					skip_events=skip_events, env=env, query=query, doc=doc, scope=scope
+				)
+			else:
+				attr_val = attr_type._default.default
+			return copy.deepcopy(attr_val)
+
+	elif attr_val == None:
+		if allow_none:
+			return attr_val
+		elif attr_type._default != LIMP_VALUES.NONE_VALUE:
+			return copy.deepcopy(attr_type._default)
+
+	raise Exception('No default set to validate.')
+
+
+def validate_attr(
+	*,
+	attr_name: str,
+	attr_type: ATTR,
+	attr_val: Any,
+	allow_opers: bool = False,
+	allow_none: bool = False,
+	skip_events: List[str] = None,
+	env: Dict[str, Any] = None,
+	query: Union[LIMP_QUERY, Query] = None,
+	doc: LIMP_DOC = None,
+	scope: LIMP_DOC = None,
+):
 	from config import Config
-	try:
-		if attr_type == 'any':
-			return attr_val
-		elif type(attr_type) == str and attr_type == 'id':
-			if type(attr_val) == BaseModel or type(attr_val) == DictObj:
-				return attr_val._id
-			elif type(attr_val) == ObjectId:
-				return attr_val
-			elif type(attr_val) == str:
-				try:
-					return ObjectId(attr_val)
-				except:
-					raise ConvertAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-		elif attr_type == 'locale':
-			attr_val = validate_attr(attr_name=attr_name, attr_type={'__key':{locale for locale in Config.locales}, '__val':'str', '__len':1, '__req':[Config.locale]}, attr_val=attr_val)
-			attr_val = {locale:attr_val[locale] if locale in attr_val.keys() else attr_val[Config.locale] for locale in Config.locales}
-			return attr_val
-		elif type(attr_type) == str and attr_type.startswith('str'):
-			if type(attr_val) == str:
-				if attr_type != 'str':
-					if re.match(f'^{attr_type[4:-1]}$', attr_val):
-						return attr_val
-				else:
-					return attr_val
-		elif type(attr_type) == str and attr_type.startswith('int'):
-			if type(attr_val) == str and re.match(r'^[0-9]+$', attr_val):
-				attr_val = int(attr_val)
 
-			if type(attr_val) == int:
-				if attr_type != 'int':
-					vals_range = range(*[int(val) for val in attr_type[4:-1].split(':')])
-					if attr_val in vals_range:
-						return attr_val
+	try:
+		return validate_default(
+			attr_type=attr_type,
+			attr_val=attr_val,
+			skip_events=skip_events,
+			env=env,
+			query=query,
+			doc=doc,
+			scope=scope if scope else doc,
+			allow_none=allow_none,
+		)
+	except:
+		pass
+
+	attr_oper = False
+	if allow_opers and type(attr_val) == dict:
+		if '$add' in attr_val.keys():
+			attr_oper = '$add'
+			attr_val = attr_val['$add']
+		elif '$multiply' in attr_val.keys():
+			attr_oper = '$multiply'
+			attr_val = attr_val['$multiply']
+		elif '$append' in attr_val.keys():
+			attr_oper = '$append'
+			if '$unique' in attr_val.keys() and attr_val['$unique'] == True:
+				attr_oper = '$append__unique'
+			attr_val = [attr_val['$append']]
+		elif '$remove' in attr_val.keys():
+			attr_oper = '$remove'
+			attr_val = attr_val['$remove']
+
+	try:
+		if attr_type._type == 'ANY':
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'ACCESS':
+			if (
+				type(attr_val) == dict
+				and set(attr_val.keys()) == {'anon', 'users', 'groups'}
+				and type(attr_val['anon']) == bool
+				and type(attr_val['users']) == list
+				and type(attr_val['groups']) == list
+			):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'BOOL':
+			if type(attr_val) == bool:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'DATE':
+			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr_val):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'DATETIME':
+			if re.match(
+				r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$',
+				attr_val,
+			):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'DICT':
+			if type(attr_val) == dict:
+				if '__key' in attr_type._args['dict'].keys():
+					if '__len' in attr_type._args['dict'].keys():
+						if len(attr_val.keys()) < attr_type._args['dict']['__len']:
+							raise InvalidAttrException(
+								attr_name=attr_name,
+								attr_type=attr_type,
+								val_type=type(attr_val),
+							)
+					shadow_attr_val = {}
+					for child_attr_val in attr_val.keys():
+						shadow_attr_val[
+							validate_attr(
+								attr_name=f'{attr_name}.{child_attr_val}',
+								attr_type=attr_type._args['dict']['__key'],
+								attr_val=child_attr_val,
+								allow_opers=allow_opers,
+								allow_none=allow_none,
+								skip_events=skip_events,
+								env=env,
+								query=query,
+								doc=doc,
+								scope=attr_val,
+							)
+						] = validate_attr(
+							attr_name=f'{attr_name}.{child_attr_val}',
+							attr_type=attr_type._args['dict']['__val'],
+							attr_val=attr_val[child_attr_val],
+							allow_opers=allow_opers,
+							allow_none=allow_none,
+							skip_events=skip_events,
+							env=env,
+							query=query,
+							doc=doc,
+							scope=attr_val,
+						)
+					if '__req' in attr_type._args['dict'].keys():
+						for req_key in attr_type._args['dict']['__req']:
+							if req_key not in shadow_attr_val.keys():
+								raise InvalidAttrException(
+									attr_name=attr_name,
+									attr_type=attr_type,
+									val_type=type(attr_val),
+								)
+					return return_valid_attr(
+						attr_val=shadow_attr_val, attr_oper=attr_oper
+					)
 				else:
-					return attr_val
-		elif type(attr_type) == str and attr_type.startswith('float'):
+					for child_attr_type in attr_type._args['dict'].keys():
+						if child_attr_type not in attr_val.keys():
+							attr_val[child_attr_type] = None
+						attr_val[child_attr_type] = validate_attr(
+							attr_name=f'{attr_name}.{child_attr_type}',
+							attr_type=attr_type._args['dict'][child_attr_type],
+							attr_val=attr_val[child_attr_type],
+							allow_opers=allow_opers,
+							allow_none=allow_none,
+							skip_events=skip_events,
+							env=env,
+							query=query,
+							doc=doc,
+							scope=attr_val,
+						)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'EMAIL':
+			if re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'FILE':
+			if type(attr_val) == list and attr_val.__len__():
+				try:
+					validate_attr(
+						attr_name=attr_name,
+						attr_type='file',
+						attr_val=attr_val[0],
+						allow_opers=allow_opers,
+						allow_none=allow_none,
+						skip_events=skip_events,
+						env=env,
+						query=query,
+						doc=doc,
+						scope=attr_val,
+					)
+					attr_val = attr_val[0]
+				except:
+					raise InvalidAttrException(
+						attr_name=attr_name,
+						attr_type=attr_type,
+						val_type=type(attr_val),
+					)
+			file_type = (
+				type(attr_val) == dict
+				and set(attr_val.keys())
+				== {'name', 'lastModified', 'type', 'size', 'content'}
+				and type(attr_val['name']) == str
+				and type(attr_val['lastModified']) == int
+				and type(attr_val['size']) == int
+				and type(attr_val['content']) in [binary.Binary, bytes]
+			)
+			if not file_type:
+				raise InvalidAttrException(
+					attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
+				)
+			if attr_type._args['types']:
+				for file_type in attr_type._args['types']:
+					if attr_val['type'].split('/')[0] == file_type.split('/')[0]:
+						if (
+							file_type.split('/')[1] == '*'
+							or attr_val['type'].split('/')[1] == file_type.split('/')[1]
+						):
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
+			else:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'FLOAT':
 			if type(attr_val) == str and re.match(r'^[0-9]+(\.[0-9]+)?$', attr_val):
 				attr_val = float(attr_val)
 			elif type(attr_val) == int:
 				attr_val = float(attr_val)
 
 			if type(attr_val) == float:
-				if attr_type != 'float':
-					vals_range = range(*[int(val) for val in attr_type[6:-1].split(':')])
-					if int(attr_val) in vals_range:
-						return attr_val
+				if attr_type._args['range']:
+					if int(attr_val) in attr_type._args['range']:
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
-					return attr_val
-		elif type(attr_type) == set:
-			if attr_val in attr_type:
-				return attr_val
-		elif attr_type == 'bool':
-			if type(attr_val) == bool:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'ip':
-			if re.match(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'email':
-			if re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type.startswith('phone'):
-			if attr_type != 'phone':
-				for phone_code in attr_type[6:-1].split(','):
-					if re.match(fr'^\+{phone_code}[0-9]+$', attr_val):
-						return attr_val
-			else:
-				if re.match(r'^\+[0-9]+$', attr_val):
-					return attr_val
-		elif type(attr_type) == str and attr_type == 'uri:web':
-			if re.match(r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+([\?\/].*)?$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'datetime':
-			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'date':
-			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'time':
-			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
-				return attr_val
-		elif type(attr_type) == str and attr_type.startswith('file'):
-			if type(attr_val) == list and attr_val.__len__():
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'GEO':
+			if (
+				type(attr_val) == dict
+				and list(attr_val.keys()) == ['type', 'coordinates']
+				and attr_val['type'] in ['Point']
+				and type(attr_val['coordinates']) == list
+				and attr_val['coordinates'].__len__() == 2
+				and type(attr_val['coordinates'][0]) in [int, float]
+				and type(attr_val['coordinates'][1]) in [int, float]
+			):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'ID':
+			if type(attr_val) == BaseModel or type(attr_val) == DictObj:
+				return return_valid_attr(attr_val=attr_val._id, attr_oper=attr_oper)
+			elif type(attr_val) == ObjectId:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+			elif type(attr_val) == str:
 				try:
-					validate_attr(attr_name=attr_name, attr_type='file', attr_val=attr_val[0])
-					attr_val = attr_val[0]
+					return return_valid_attr(
+						attr_val=ObjectId(attr_val), attr_oper=attr_oper
+					)
 				except:
-					raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-			file_type = type(attr_val) == dict and 'name' in attr_val.keys() and 'lastModified' in attr_val.keys() and 'type' in attr_val.keys() and 'size' in attr_val.keys() and 'content' in attr_val.keys()
-			if not file_type: raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-			if attr_type != 'file':
-				for file_type in attr_type[5:-1].split(','):
-					if attr_val['type'].split('/')[0] == file_type.split('/')[0]:
-						if attr_val['type'].split('/')[1] == file_type.split('/')[1] or file_type.split('/')[1] == '*':
-							return attr_val
-			else:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'bin':
-			if type(attr_val) == binary.Binary:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'geo':
-			if type(attr_val) == dict and 'type' in attr_val.keys() and 'coordinates' in attr_val.keys() and attr_val['type'] in ['Point'] and type(attr_val['coordinates']) == list and attr_val['coordinates'].__len__() == 2 and type(attr_val['coordinates'][0]) in [int, float] and type(attr_val['coordinates'][1]) in [int, float]:
-				return attr_val
-		elif type(attr_type) == str and attr_type == 'locales':
-			if attr_val in Config.locales:
-				return attr_val
-		elif attr_type == 'privileges':
-			if type(attr_val) == dict:
-				return attr_val
-		elif attr_type == 'attrs':
-			if type(attr_val) == dict:
-				return attr_val
-		elif type(attr_type) == dict:
-			if type(attr_val) == dict:
-				if '__key' in attr_type.keys():
-					if '__len' in attr_type.keys():
-						if len(attr_val.keys()) < attr_type['__len']:
-							raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-					shadow_attr_val = {}
-					for child_attr_val in attr_val.keys():
-						shadow_attr_val[validate_attr(attr_name=f'{attr_name}.{child_attr_val}', attr_type=attr_type['__key'], attr_val=child_attr_val)] = validate_attr(attr_name=f'{attr_name}.{child_attr_val}', attr_type=attr_type['__val'], attr_val=attr_val[child_attr_val])
-					if '__req' in attr_type.keys():
-						for req_key in attr_type['__req']:
-							if req_key not in shadow_attr_val.keys():
-								raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-					return shadow_attr_val
+					raise ConvertAttrException(
+						attr_name=attr_name,
+						attr_type=attr_type,
+						val_type=type(attr_val),
+					)
+
+		elif attr_type._type == 'INT':
+			if type(attr_val) == str and re.match(r'^[0-9]+$', attr_val):
+				attr_val = int(attr_val)
+
+			if type(attr_val) == int:
+				if attr_type._args['range']:
+					if attr_val in attr_type._args['range']:
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
-					for child_attr_type in attr_type.keys():
-						if child_attr_type not in attr_val.keys(): raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-						attr_val[child_attr_type] = validate_attr(attr_name=f'{attr_name}.{child_attr_type}', attr_type=attr_type[child_attr_type], attr_val=attr_val[child_attr_type])
-					return attr_val
-		elif type(attr_type) == str and attr_type == 'access':
-			if type(attr_val) == dict and 'anon' in attr_val.keys() and type(attr_val['anon']) == bool and 'users' in attr_val.keys() and type(attr_val['users']) == list and 'groups' in attr_val.keys() and type(attr_val['groups']) == list:
-				return attr_val
-		elif type(attr_type) == list:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'IP':
+			if re.match(
+				r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',
+				attr_val,
+			):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'LIST':
 			if type(attr_val) == list:
-				for i in range(0, len(attr_val)):
+				for i in range(len(attr_val)):
 					child_attr_val = attr_val[i]
 					child_attr_check = False
-					for child_attr_type in attr_type:
+					for child_attr_type in attr_type._args['list']:
 						try:
-							attr_val[i] = validate_attr(attr_name=attr_name, attr_type=child_attr_type, attr_val=child_attr_val)
+							attr_val[i] = validate_attr(
+								attr_name=attr_name,
+								attr_type=child_attr_type,
+								attr_val=child_attr_val,
+								allow_opers=allow_opers,
+								allow_none=allow_none,
+								skip_events=skip_events,
+								env=env,
+								query=query,
+								doc=doc,
+								scope=attr_val,
+							)
 							child_attr_check = True
 							break
 						except:
 							pass
 					if not child_attr_check:
-						raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-				return attr_val
-		elif type(attr_type) == tuple:
-			for child_attr in attr_type:
+						raise InvalidAttrException(
+							attr_name=attr_name,
+							attr_type=attr_type,
+							val_type=type(attr_val),
+						)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'LOCALE':
+			attr_val = validate_attr(
+				attr_name=attr_name,
+				attr_type=ATTR.DICT(
+					dict={
+						'__key': ATTR.LITERAL(
+							literal=[locale for locale in Config.locales]
+						),
+						'__val': ATTR.STR(),
+						'__len': 1,
+						'__req': [Config.locale],
+					}
+				),
+				attr_val=attr_val,
+				allow_opers=allow_opers,
+				allow_none=allow_none,
+				skip_events=skip_events,
+				env=env,
+				query=query,
+				doc=doc,
+				scope=attr_val,
+			)
+			attr_val = {
+				locale: attr_val[locale]
+				if locale in attr_val.keys()
+				else attr_val[Config.locale]
+				for locale in Config.locales
+			}
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'LOCALES':
+			if attr_val in Config.locales:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'PHONE':
+			if attr_type._args['codes']:
+				for phone_code in attr_type._args['codes']:
+					if re.match(fr'^\+{phone_code}[0-9]+$', attr_val):
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+			else:
+				if re.match(r'^\+[0-9]+$', attr_val):
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'STR':
+			if type(attr_val) == str:
+				if attr_type._args['pattern']:
+					if re.match(f'^{attr_type._args["pattern"]}$', attr_val):
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'TIME':
+			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'URI_WEB':
+			if re.match(
+				r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+([\?\/].*)?$', attr_val
+			):
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'LITERAL':
+			if attr_val in attr_type._args['literal']:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'UNION':
+			for child_attr in attr_type._args['union']:
 				try:
-					validate_attr(attr_name=attr_name, attr_type=child_attr, attr_val=attr_val)
+					validate_attr(
+						attr_name=attr_name,
+						attr_type=child_attr,
+						attr_val=attr_val,
+						allow_opers=allow_opers,
+						allow_none=allow_none,
+						skip_events=skip_events,
+						env=env,
+						query=query,
+						doc=doc,
+						scope=attr_val,
+					)
 				except:
 					continue
-				return attr_val
-		elif attr_type in Config.types.keys():
-			return Config.types[attr_type](attr_name=attr_name, attr_type=attr_type, attr_val=attr_val)
-		
-		raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
-	except:
-		raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'TYPE':
+			return return_valid_attr(
+				attr_val=Config.types[attr_type._args['type']](
+					attr_name=attr_name, attr_type=attr_type, attr_val=attr_val
+				),
+				attr_oper=attr_oper,
+			)
+
+	except Exception as e:
+		if type(e) in [InvalidAttrException, ConvertAttrException]:
+			if allow_none:
+				return None
+			elif attr_type._default != LIMP_VALUES.NONE_VALUE:
+				return attr_type._default
+			else:
+				raise e
+
+	raise InvalidAttrException(
+		attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
+	)
+
+
+def return_valid_attr(
+	*,
+	attr_val: Any,
+	attr_oper: Literal[
+		False, '$add', '$multiply', '$append', '$append__unique', '$remove'
+	],
+):
+	if not attr_oper:
+		return attr_val
+	elif attr_oper in ['$add', '$multiply', '$remove']:
+		return {attr_oper: attr_val}
+	elif attr_oper == '$append':
+		return {'$append': attr_val[0], '$unique': False}
+	elif attr_oper == '$append__unique':
+		return {'$append': attr_val[0], '$unique': True}
+
+
+def generate_attr(*, attr_type: ATTR) -> Any:
+	from config import Config
+
+	if attr_type._type == 'ANY':
+		return '__any'
+	elif attr_type._type == 'ACCESS':
+		return {'anon': True, 'users': [], 'groups': []}
+	elif attr_type._type == 'BOOL':
+		attr_val = random.choice([True, False])
+		return attr_val
+
+	elif attr_type._type == 'DATE':
+		attr_val = datetime.datetime.utcnow()
+		return attr_val.isoformat().split('T')[0]
+
+	elif attr_type._type == 'DATETIME':
+		attr_val = datetime.datetime.utcnow()
+		return attr_val.isoformat()
+
+	elif attr_type._type == 'DICT':
+		attr_val = {
+			child_attr: generate_attr(attr_type=attr_type._args['dict'][child_attr])
+			for child_attr in attr_type._args['dict'].keys()
+		}
+		return attr_val
+
+	elif attr_type._type == 'EMAIL':
+		return f'some-{math.ceil(random.random() * 10000)}@email.com'
+
+	elif attr_type._type == 'FILE':
+		attr_file_type = 'text/plain'
+		attr_file_extension = 'txt'
+		if attr_type._args['types']:
+			for file_type in attr_type._args['types']:
+				if '/' in file_type:
+					attr_file_type = file_type
+				if '*.' in file_type:
+					attr_file_extension = file_type.replace('*.', '')
+		file_name = f'__file-{math.ceil(random.random() * 10000)}.{attr_file_extension}'
+		return {
+			'name': file_name,
+			'lastModified': 100000,
+			'type': attr_file_type,
+			'size': 6,
+			'content': b'__file',
+		}
+
+	elif attr_type._type == 'FLOAT':
+		if attr_type._args['range']:
+			attr_val = random.choice([i for i in range(*attr_type._args['range'])])
+		else:
+			attr_val = math.ceil(random.random() * 10000)
+		return attr_val
+
+	elif attr_type._type == 'GEO':
+		return {
+			'type': 'Point',
+			'coordinates': [
+				math.ceil(random.random() * 100000) / 1000,
+				math.ceil(random.random() * 100000) / 1000,
+			],
+		}
+
+	elif attr_type._type == 'ID':
+		return ObjectId()
+
+	elif attr_type._type == 'INT':
+		if attr_type._args['range']:
+			attr_val = random.choice([i for i in range(*attr_type._args['range'])])
+		else:
+			attr_val = math.ceil(random.random() * 10000)
+		return attr_val
+
+	elif attr_type._type == 'IP':
+		return '127.0.0.1'
+
+	elif attr_type._type == 'LIST':
+		return [generate_attr(attr_type=random.choice(attr_type._args['list']))]
+
+	elif attr_type._type == 'LOCALE':
+		return {
+			locale: f'__locale-{math.ceil(random.random() * 10000)}'
+			for locale in Config.locales
+		}
+
+	elif attr_type._type == 'LOCALES':
+		from config import Config
+
+		return Config.locale
+
+	elif attr_type._type == 'PHONE':
+		attr_phone_code = '000'
+		if attr_type._args['codes']:
+			attr_phone_code = random.choice(attr_type._args['codes'])
+		return f'+{attr_phone_code}{math.ceil(random.random() * 10000)}'
+
+	elif attr_type._type == 'STR':
+		return f'__str-{math.ceil(random.random() * 10000)}'
+
+	elif attr_type._type == 'TIME':
+		attr_val = datetime.datetime.utcnow()
+		return attr_val.isoformat().split('T')[1]
+
+	elif attr_type._type == 'URI_WEB':
+		return f'https://some.uri-{math.ceil(random.random() * 10000)}.com'
+
+	elif attr_type._type == 'LITERAL':
+		attr_val = random.choice(attr_type._args['literal'])
+		return attr_val
+
+	elif attr_type._type == 'UNION':
+		attr_val = generate_attr(attr_type=random.choice(attr_type._args['union']))
+
+	raise Exception(f'Unkown generator attr \'{attr_type}\'')

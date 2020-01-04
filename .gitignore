@@ -53,6 +53,7 @@ __pycache
 certs/*
 tests/*
 logs/*
+refs/*
 modules/*
 !modules/core
 *~

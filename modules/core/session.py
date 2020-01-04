@@ -1,263 +1,521 @@
 from base_module import BaseModule, BaseModel
+from config import Config
 from enums import Event
+from classes import (
+	ATTR,
+	PERM,
+	EXTN,
+	Query,
+	ATTR_MOD,
+	Query,
+	LIMP_DOC,
+	LIMP_QUERY,
+	ANALYTIC,
+)
 from utils import DictObj, extract_attr
 
+from typing import List, Dict, Any, Union
 from bson import ObjectId
 
 import logging, jwt, secrets, copy, datetime
+
 logger = logging.getLogger('limp')
+
 
 class Session(BaseModule):
 	collection = 'sessions'
 	attrs = {
-		'user':'id',
-		'host_add':'ip',
-		'user_agent':'str',
-		'timestamp':'datetime',
-		'expiry':'datetime',
-		'token':'str'
+		'user': ATTR.ID(),
+		'groups': ATTR.LIST(list=[ATTR.ID()]),
+		'host_add': ATTR.IP(),
+		'user_agent': ATTR.STR(),
+		'expiry': ATTR.DATETIME(),
+		'token': ATTR.STR(),
+		'create_time': ATTR.DATETIME(),
 	}
-	extns = {
-		'user':['user', ['*'], True]
-	}
+	defaults = {'groups': []}
+	extns = {'user': EXTN(module='user', force=True)}
 	methods = {
-		'read':{
-			'permissions':[['read', {'user':'$__user'}, {}]]
+		'read': {
+			'permissions': [PERM(privilege='read', query_mod={'user': '$__user'})]
 		},
-		'create':{
-			'permissions':[['create', {}, {}]]
+		'create': {'permissions': [PERM(privilege='create')]},
+		'update': {
+			'permissions': [
+				PERM(
+					privilege='update',
+					query_mod={'user': '$__user'},
+					doc_mod={'user': None},
+				)
+			],
+			'query_args': {'_id': ATTR.ID()},
 		},
-		'update':{
-			'permissions':[['update', {'user':'$__user'}, {'user':None}]],
-			'query_args':{'_id':'id'}
+		'delete': {
+			'permissions': [PERM(privilege='delete', query_mod={'user': '$__user'})],
+			'query_args': {'_id': ATTR.ID()},
 		},
-		'delete':{
-			'permissions':[['delete', {'user':'$__user'}, {}]],
-			'query_args':{'_id':'id'}
+		'auth': {'permissions': [PERM(privilege='*')], 'doc_args': []},
+		'reauth': {
+			'permissions': [PERM(privilege='*')],
+			'query_args': [
+				{
+					'_id': ATTR.ID(),
+					'hash': ATTR.STR(),
+					'groups': ATTR.LIST(list=[ATTR.ID()]),
+				},
+				{'_id': ATTR.ID(), 'hash': ATTR.STR()},
+			],
 		},
-		'auth':{
-			'permissions':[['*', {}, {}]],
-			'doc_args':[]
+		'signout': {
+			'permissions': [PERM(privilege='*')],
+			'query_args': {'_id': ATTR.ID()},
 		},
-		'reauth':{
-			'permissions':[['*', {}, {}]],
-			'query_args':{'_id':'id', 'hash':'str'}
-		},
-		'signout':{
-			'permissions':[['*', {}, {}]],
-			'query_args':{'_id':'id'}
-		}
 	}
 
 	async def auth(self, skip_events=[], env={}, query=[], doc={}):
-		for attr in self.modules['user'].unique_attrs:
+		for attr in Config.modules['user'].unique_attrs:
 			if attr in doc.keys():
 				key = attr
 				break
-		user_results = await self.modules['user'].read(skip_events=[Event.__PERM__, Event.__ON__], env=env, query=[{key:doc[key], f'{key}_hash':doc['hash'], '$limit':1}])
+		user_query = [{key: doc[key], f'{key}_hash': doc['hash'], '$limit': 1}]
+		if 'groups' in doc.keys():
+			user_query.append(
+				[{'groups': {'$in': doc['groups']}}, {'privileges': {'*': ['*']}}]
+			)
+		user_results = await Config.modules['user'].read(
+			skip_events=[Event.PERM, Event.ON], env=env, query=user_query
+		)
 		if not user_results.args.count:
-			return {
-				'status':403,
-				'msg':'Wrong auth credentials.',
-				'args':{'code':'CORE_SESSION_INVALID_CREDS'}
-			}
+			return self.status(
+				status=403,
+				msg='Wrong auth credentials.',
+				args={'code': 'INVALID_CREDS'},
+			)
 		user = user_results.args.docs[0]
 
-		if Event.__ON__ not in skip_events:
+		if Event.ON not in skip_events:
 			if user.status in ['banned', 'deleted']:
-				return {
-					'status':403,
-					'msg':f'User is {user.status}.',
-					'args':{'code':'CORE_SESSION_INVALID_USER'}
-				}
+				return self.status(
+					status=403,
+					msg=f'User is {user.status}.',
+					args={'code': 'INVALID_USER'},
+				)
 			elif user.status == 'disabled_password':
-				return {
-					'status':403,
-					'msg':'User password is disabled.',
-					'args':{'code':'CORE_SESSION_INVALID_USER'}
-				}
+				return self.status(
+					status=403,
+					msg='User password is disabled.',
+					args={'code': 'INVALID_USER'},
+				)
 
 		token = secrets.token_urlsafe(32)
 		session = {
-			'user':user._id,
-			'host_add':env['REMOTE_ADDR'],
-			'user_agent':env['HTTP_USER_AGENT'],
-			'timestamp':datetime.datetime.utcnow().isoformat(),
-			'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat(),
-			'token':token
+			'user': user._id,
+			'groups': doc['groups'] if 'groups' in doc.keys() else [],
+			'host_add': env['REMOTE_ADDR'],
+			'user_agent': env['HTTP_USER_AGENT'],
+			'expiry': (
+				datetime.datetime.utcnow() + datetime.timedelta(days=30)
+			).isoformat(),
+			'token': token,
 		}
-		# logger.debug('creating session:%s', session)
-		results = await self.create(skip_events=[Event.__PERM__], env=env, doc=session)
+
+		results = await self.create(skip_events=[Event.PERM], env=env, doc=session)
 		if results.status != 200:
 			return results
 
 		session['_id'] = results.args.docs[0]._id
 		session['user'] = user
 		results.args.docs[0] = BaseModel(session)
-		
+
 		# [DOC] read user privileges and return them
-		user_results = await self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':user._id}])
+		user_results = await Config.modules['user'].read_privileges(
+			skip_events=[Event.PERM], env=env, query=[{'_id': user._id}]
+		)
 		if user_results.status != 200:
 			return user_results
 		results.args.docs[0]['user'] = user_results.args.docs[0]
 
-		return {
-			'status':200,
-			'msg':'You were succefully authed.',
-			'args':{'session':results.args.docs[0]}
-		}
-	
+		# [DOC] Create CONN_AUTH Analytic doc
+		if Config.analytics_events['session_conn_auth']:
+			analytic_doc = {
+				'event': 'CONN_AUTH',
+				'subevent': env['client_app'],
+				'args': {
+					'user': user_results.args.docs[0]._id,
+					'session': results.args.docs[0]._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+		# [DOC] Create USER_AUTH Analytic doc
+		if Config.analytics_events['session_user_auth']:
+			analytic_doc = {
+				'event': 'USER_AUTH',
+				'subevent': user_results.args.docs[0]._id,
+				'args': {
+					'session': results.args.docs[0]._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+					'client_app': env['client_app'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+
+		return self.status(
+			status=200,
+			msg='You were successfully authed.',
+			args={'session': results.args.docs[0]},
+		)
+
 	async def reauth(self, skip_events=[], env={}, query=[], doc={}):
 		if str(query['_id'][0]) == 'f00000000000000000000012':
-			return {
-				'status':400,
-				'msg':'Reauth is not required for \'__ANON\' user.',
-				'args':{'code':'CORE_SESSION_ANON_REAUTH'}
-			}
-		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+			return self.status(
+				status=400,
+				msg='Reauth is not required for \'__ANON\' user.',
+				args={'code': 'ANON_REAUTH'},
+			)
+		session_query = [{'_id': query['_id'][0]}]
+		if 'groups' in query:
+			session_query.append({'groups': {'$in': query['groups'][0]}})
+		results = await self.read(
+			skip_events=[Event.PERM], env=env, query=session_query
+		)
 		if not results.args.count:
-			return {
-				'status':403,
-				'msg':'Session is invalid.',
-				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
-			}
-		
-		if jwt.encode({'token':results.args.docs[0].token}, results.args.docs[0].token).decode('utf-8').split('.')[1] != query['hash'][0]:
-			return {
-				'status':403,
-				'msg':'Reauth token hash invalid.',
-				'args':{'code':'CORE_SESSION_INVALID_REAUTH_HASH'}
-			}
+			return self.status(
+				status=403, msg='Session is invalid.', args={'code': 'INVALID_SESSION'}
+			)
+
+		if (
+			jwt.encode(
+				{'token': results.args.docs[0].token}, results.args.docs[0].token
+			)
+			.decode('utf-8')
+			.split('.')[1]
+			!= query['hash'][0]
+		):
+			return self.status(
+				status=403,
+				msg='Reauth token hash invalid.',
+				args={'code': 'INVALID_REAUTH_HASH'},
+			)
 		if results.args.docs[0].expiry < datetime.datetime.utcnow().isoformat():
-			results = await self.delete(skip_events=[Event.__PERM__, Event.__SOFT__], env=env, query=[{'_id':env['session']._id}])
-			return {
-				'status':403,
-				'msg':'Session had expired.',
-				'args':{'code':'CORE_SESSION_SESSION_EXPIRED'}
-			}
+			results = await self.delete(
+				skip_events=[Event.PERM, Event.SOFT],
+				env=env,
+				query=[{'_id': env['session']._id}],
+			)
+			return self.status(
+				status=403, msg='Session had expired.', args={'code': 'SESSION_EXPIRED'}
+			)
 		# [DOC] update user's last_login timestamp
-		await self.modules['user'].update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user}], doc={'login_time':datetime.datetime.utcnow().isoformat()})
-		await self.update(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0]._id}], doc={'expiry':(datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat()})
+		await Config.modules['user'].update(
+			skip_events=[Event.PERM],
+			env=env,
+			query=[{'_id': results.args.docs[0].user}],
+			doc={'login_time': datetime.datetime.utcnow().isoformat()},
+		)
+		await self.update(
+			skip_events=[Event.PERM],
+			env=env,
+			query=[{'_id': results.args.docs[0]._id}],
+			doc={
+				'expiry': (
+					datetime.datetime.utcnow() + datetime.timedelta(days=30)
+				).isoformat()
+			},
+		)
 		# [DOC] read user privileges and return them
-		user_results = await self.modules['user'].read_privileges(skip_events=[Event.__PERM__], env=env, query=[{'_id':results.args.docs[0].user._id}])
+		user_results = await Config.modules['user'].read_privileges(
+			skip_events=[Event.PERM],
+			env=env,
+			query=[{'_id': results.args.docs[0].user._id}],
+		)
 		results.args.docs[0]['user'] = user_results.args.docs[0]
 
-		return {
-			'status':200,
-			'msg':'You were succefully reauthed.',
-			'args':{'session':results.args.docs[0]}
-		}
+		# [DOC] Create CONN_AUTH Analytic doc
+		if Config.analytics_events['session_conn_reauth']:
+			analytic_doc = {
+				'event': 'CONN_REAUTH',
+				'subevent': env['client_app'],
+				'args': {
+					'user': user_results.args.docs[0]._id,
+					'session': results.args.docs[0]._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+		# [DOC] Create USER_AUTH Analytic doc
+		if Config.analytics_events['session_user_reauth']:
+			analytic_doc = {
+				'event': 'USER_REAUTH',
+				'subevent': user_results.args.docs[0]._id,
+				'args': {
+					'session': results.args.docs[0]._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+					'client_app': env['client_app'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+
+		return self.status(
+			status=200,
+			msg='You were succefully reauthed.',
+			args={'session': results.args.docs[0]},
+		)
 
 	async def signout(self, skip_events=[], env={}, query=[], doc={}):
 		if str(query['_id'][0]) == 'f00000000000000000000012':
-			return {
-				'status':400,
-				'msg':'Singout is not allowed for \'__ANON\' user.',
-				'args':{'code':'CORE_SESSION_ANON_SIGNOUT'}
-			}
-		results = await self.read(skip_events=[Event.__PERM__], env=env, query=[{'_id':query['_id'][0]}])
+			return self.status(
+				status=400,
+				msg='Singout is not allowed for \'__ANON\' user.',
+				args={'code': 'ANON_SIGNOUT'},
+			)
+		results = await self.read(
+			skip_events=[Event.PERM], env=env, query=[{'_id': query['_id'][0]}]
+		)
 
 		if not results.args.count:
-			return {
-				'status':403,
-				'msg':'Session is invalid.',
-				'args':{'code':'CORE_SESSION_INVALID_SESSION'}
-			}
-		results = await self.delete(skip_events=[Event.__PERM__], env=env, query=[{'_id':env['session']._id}])
+			return self.status(
+				status=403, msg='Session is invalid.', args={'code': 'INVALID_SESSION'}
+			)
+		results = await self.delete(
+			skip_events=[Event.PERM], env=env, query=[{'_id': env['session']._id}]
+		)
 
-		return {
-			'status':200,
-			'msg':'You are succefully signed-out.',
-			'args':{'session':DictObj({'_id':'f00000000000000000000012'})}
-		}
-	
-	def check_permissions(self, session, module, permissions):
+		# [DOC] Create CONN_AUTH Analytic doc
+		if Config.analytics_events['session_conn_deauth']:
+			analytic_doc = {
+				'event': 'CONN_DEAUTH',
+				'subevent': env['client_app'],
+				'args': {
+					'user': env['session'].user._id,
+					'session': env['session']._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+		# [DOC] Create USER_AUTH Analytic doc
+		if Config.analytics_events['session_user_deauth']:
+			analytic_doc = {
+				'event': 'USER_DEAUTH',
+				'subevent': env['session'].user._id,
+				'args': {
+					'session': env['session']._id,
+					'REMOTE_ADDR': env['REMOTE_ADDR'],
+					'HTTP_USER_AGENT': env['HTTP_USER_AGENT'],
+					'client_app': env['client_app'],
+				},
+			}
+			analytic_results = await Config.modules['analytic'].create(
+				skip_events=[Event.PERM], env=env, doc=analytic_doc
+			)
+			if analytic_results.status != 200:
+				logger.error(
+					f'Failed to create \'Analytic\' doc: {analytic_doc}. Results: {analytic_results}'
+				)
+
+		return self.status(
+			status=200,
+			msg='You are successfully signed-out.',
+			args={'session': DictObj({'_id': 'f00000000000000000000012'})},
+		)
+
+	def check_permissions(
+		self,
+		skip_events: List[str],
+		env: Dict[str, Any],
+		query: Union[LIMP_QUERY, Query],
+		doc: LIMP_DOC,
+		module: BaseModule,
+		permissions: List[PERM],
+	):
 		module = module.module_name
-		user = session.user
+		user = env['session'].user
 
 		permissions = copy.deepcopy(permissions)
 
 		for permission in permissions:
-			logger.debug('checking permission: %s against: %s', permission, user.privileges)
+			logger.debug(
+				f'checking permission: {permission} against: {user.privileges}'
+			)
 			permission_pass = False
-			if permission[0] == '*':
+			if permission.privilege == '*':
 				permission_pass = True
-			
+
 			if not permission_pass:
-				if permission[0].find('.') == -1:
+				if permission.privilege.find('.') == -1:
 					permission_module = module
-					permission_attr = permission[0]
-				elif permission[0].find('.') != -1:
-					permission_module = permission[0].split('.')[0]
-					permission_attr = permission[0].split('.')[1]
-				
-				if '*' in user.privileges.keys() and permission_module not in user.privileges.keys():
+					permission_attr = permission.privilege
+				elif permission.privilege.find('.') != -1:
+					permission_module = permission.privilege.split('.')[0]
+					permission_attr = permission.privilege.split('.')[1]
+
+				if (
+					'*' in user.privileges.keys()
+					and permission_module not in user.privileges.keys()
+				):
 					user.privileges[permission_module] = user.privileges['*']
 				if permission_module in user.privileges.keys():
 					if user.privileges[permission_module] == '*':
 						user.privileges[permission_module] = self.privileges
-					if type(user.privileges[permission_module]) == list and '*' in user.privileges[permission_module]:
+					if (
+						type(user.privileges[permission_module]) == list
+						and '*' in user.privileges[permission_module]
+					):
 						user.privileges[permission_module] += self.privileges
-				if permission_module not in user.privileges.keys(): user.privileges[permission_module] = []
-				
+				if permission_module not in user.privileges.keys():
+					user.privileges[permission_module] = []
+
 				if permission_attr in user.privileges[permission_module]:
 					permission_pass = True
 
 			if permission_pass:
-				query = self.parse_permission_args(permission_args=permission[1], user=user)
-				doc = self.parse_permission_args(permission_args=permission[2], user=user)
-				return {
-					'query': query,
-					'doc': doc
-				}
+				query = self._parse_permission_args(
+					skip_events=skip_events,
+					env=env,
+					query=query,
+					doc=doc,
+					permission_args=permission.query_mod,
+				)
+				doc = self._parse_permission_args(
+					skip_events=skip_events,
+					env=env,
+					query=query,
+					doc=doc,
+					permission_args=permission.doc_mod,
+				)
+				return {'query': query, 'doc': doc}
 		# [DOC] If all permission checks fail
 		return False
 
-	def parse_permission_args(self, permission_args, user):
+	def _parse_permission_args(
+		self,
+		skip_events: List[str],
+		env: Dict[str, Any],
+		query: Union[LIMP_QUERY, Query],
+		doc: LIMP_DOC,
+		permission_args: Any,
+	):
+		user = env['session'].user
+
 		if type(permission_args) == list:
-			args_iter = range(0, len(permission_args))
+			args_iter = range(len(permission_args))
 		elif type(permission_args) == dict:
 			args_iter = list(permission_args.keys())
-		
+
 		for j in args_iter:
-			if type(permission_args[j]) == dict:
-				# [DOC] Check for optional attrs
-				if '__optional' in permission_args[j].keys():
-					# [TODO] Implement conditions
-					# [DOC] Convert None values to NONE_VALUE
-					# if permission_args[j]['__optional'] == None:
-					# 	permission_args[j]['__optional'] = NONE_VALUE
-					permission_args[j] = self.parse_permission_args(permission_args=[permission_args[j]['__optional']], user=user)[0]
-				else:
-					# [DOC] Check opers
-					for oper in ['$gt', '$lt', '$gte', '$lte', '$bet', '$not', '$regex', '$all', '$in']:
-						if oper in permission_args[j].keys():
-							if oper == '$bet':
-								permission_args[j]['$bet'] = self.parse_permission_args(permission_args=permission_args[j]['$bet'], user=user)
-							else:
-								permission_args[j][oper] = self.parse_permission_args(permission_args=[permission_args[j][oper]], user=user)[0]
-							# [DOC] Continue the iteration
-							continue
-					# [DOC] Child args, parse
-					permission_args[j] = self.parse_permission_args(permission_args=permission_args[j], user=user)
+			if type(permission_args[j]) == ATTR_MOD:
+				# [DOC] If attr is of type ATTR_MOD, call condition callable
+				if permission_args[j].condition(
+					skip_events=skip_events, env=env, query=query, doc=doc
+				):
+					# [DOC] If condition return is True, update attr value
+					if callable(permission_args[j].default):
+						permission_args[j] = permission_args[j].default(
+							skip_events=skip_events, env=env, query=query, doc=doc
+						)
+						if type(permission_args[j]) == Exception:
+							raise permission_args[j]
+					else:
+						permission_args[j] = permission_args[j].default
+			elif type(permission_args[j]) == dict:
+				# [DOC] Check opers
+				for oper in [
+					'$gt',
+					'$lt',
+					'$gte',
+					'$lte',
+					'$bet',
+					'$ne',
+					'$regex',
+					'$all',
+					'$in',
+				]:
+					if oper in permission_args[j].keys():
+						if oper == '$bet':
+							permission_args[j]['$bet'] = self._parse_permission_args(
+								skip_events=skip_events,
+								env=env,
+								query=query,
+								doc=doc,
+								permission_args=permission_args[j]['$bet'],
+							)
+						else:
+							permission_args[j][oper] = self._parse_permission_args(
+								skip_events=skip_events,
+								env=env,
+								query=query,
+								doc=doc,
+								permission_args=[permission_args[j][oper]],
+							)[0]
+						# [DOC] Continue the iteration
+						continue
+				# [DOC] Child args, parse
+				permission_args[j] = self._parse_permission_args(
+					skip_events=skip_events,
+					env=env,
+					query=query,
+					doc=doc,
+					permission_args=permission_args[j],
+				)
 			elif type(permission_args[j]) == list:
-				permission_args[j] = self.parse_permission_args(permission_args=permission_args[j], user=user)
+				permission_args[j] = self._parse_permission_args(
+					skip_events=skip_events,
+					env=env,
+					query=query,
+					doc=doc,
+					permission_args=permission_args[j],
+				)
 			elif type(permission_args[j]) == str:
 				# [DOC] Check for variables
 				if permission_args[j] == '$__user':
 					permission_args[j] = user._id
 				elif permission_args[j].startswith('$__user.'):
-					permission_args[j] = extract_attr(scope=user, attr_path=permission_args[j].replace('$__user.', '$__'))
+					permission_args[j] = extract_attr(
+						scope=user,
+						attr_path=permission_args[j].replace('$__user.', '$__'),
+					)
 				elif permission_args[j] == '$__access':
-					permission_args[j] = {
-						'$__user':user._id,
-						'$__groups':user.groups
-					}
+					permission_args[j] = {'$__user': user._id, '$__groups': user.groups}
 				elif permission_args[j] == '$__datetime':
 					permission_args[j] = datetime.datetime.utcnow().isoformat()
 				elif permission_args[j] == '$__date':
 					permission_args[j] = datetime.date.today().isoformat()
 				elif permission_args[j] == '$__time':
 					permission_args[j] = datetime.datetime.now().time().isoformat()
-		
+
 		return permission_args
