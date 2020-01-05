@@ -413,7 +413,7 @@ class Data:
 		# [DOC] Process doc attrs
 		for attr in attrs.keys():
 			if attrs[attr]._type == 'LOCALE':
-				if type(doc[attr]) == dict and Config.locale in doc[attr].keys():
+				if attr in doc.keys() and type(doc[attr]) == dict and Config.locale in doc[attr].keys():
 					doc[attr] = {
 						locale: doc[attr][locale]
 						if locale in doc[attr].keys()
@@ -440,6 +440,10 @@ class Data:
 	):
 		if not extn_models:
 			extn_models = {}
+
+		if attr_name not in scope.keys():
+			return
+		
 		if attr_type._type == 'DICT':
 			if scope[attr_name] and type(scope[attr_name]) == dict:
 				if '__key' in attr_type._args['dict'].keys():
@@ -610,7 +614,8 @@ class Data:
 
 		collection = env['conn'][Config.data_name][collection]
 		docs_total_results = collection.aggregate(
-			aggregate_query + [{'$count': '__docs_total'}]
+			aggregate_query + [{'$count': '__docs_total'}],
+			allowDiskUse=Config.data_disk_use
 		)
 		try:
 			async for doc in docs_total_results:
@@ -641,7 +646,7 @@ class Data:
 						break
 				if check_group:
 					del group_query[i]
-				group_query = collection.aggregate(group_query)
+				group_query = collection.aggregate(group_query, allowDiskUse=Config.data_disk_use)
 				groups[group_condition['by']] = [
 					{
 						'min': group['_id']['min'],
@@ -661,7 +666,8 @@ class Data:
 		logger.debug(f'final query: {collection}, {aggregate_query}.')
 
 		docs_count_results = collection.aggregate(
-			aggregate_query + [{'$count': '__docs_count'}]
+			aggregate_query + [{'$count': '__docs_count'}],
+			allowDiskUse=Config.data_disk_use
 		)
 		try:
 			async for doc in docs_count_results:
@@ -674,7 +680,7 @@ class Data:
 				'docs': [],
 				'groups': {} if not group else groups,
 			}
-		docs = collection.aggregate(aggregate_query)
+		docs = collection.aggregate(aggregate_query, allowDiskUse=Config.data_disk_use)
 		models = []
 		extn_models = {}
 		async for doc in docs:

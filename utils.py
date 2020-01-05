@@ -51,9 +51,14 @@ def import_modules(*, packages=None):
 					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
 				)
 			elif k == 'envs':
-				if Config.env and Config.env in v.keys():
-					for kk, vv in v[Config.env].items():
-						setattr(Config, kk, vv)
+				if Config.env:
+					if Config.env in v.keys():
+						for kk, vv in v[Config.env].items():
+							setattr(Config, kk, vv)
+					else:
+						logger.warning(
+							f'Package \'{pkgname.replace("modules.", "")}\' has \'envs\' Config Attr defined, but \'env\' defintion \'{Config.env}\' not found.'
+						)
 			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
 				user_config[k] = v
 				setattr(Config, k, v)

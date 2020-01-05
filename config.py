@@ -86,6 +86,7 @@ class Config:
 	data_ssl: bool = False
 	data_ca_name: str = None
 	data_ca: str = None
+	data_disk_use: bool = False
 
 	data_azure_mongo: bool = False
 
