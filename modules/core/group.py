@@ -5,15 +5,21 @@ from enums import Event
 
 
 class Group(BaseModule):
+	'''`Group` module provides data type and controller for groups in LIMP eco-system.'''
 	collection = 'groups'
 	attrs = {
-		'user': ATTR.ID(),
-		'name': ATTR.LOCALE(),
-		'desc': ATTR.LOCALE(),
+		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
+		'name': ATTR.LOCALE(desc='Name of the groups as `LOCALE`.'),
+		'desc': ATTR.LOCALE(desc='Description of the group as `LOCALE`. This can be used for dynamic generated groups that are meant to be exposed to end-users.'),
 		'privileges': ATTR.DICT(
+			desc='Privileges that any user is a member of the group has.',
 			dict={'__key': ATTR.STR(), '__val': ATTR.LIST(list=[ATTR.STR()])}
 		),
-		'settings': ATTR.DICT(dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}),
+		'settings': ATTR.DICT(
+			desc='`Setting` docs to be created, or required for members users when added to the group.',
+			dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}
+		),
+		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
 	}
 	defaults = {
 		'desc': {locale: '' for locale in Config.locales},

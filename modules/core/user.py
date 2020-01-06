@@ -7,17 +7,23 @@ from bson import ObjectId
 
 
 class User(BaseModule):
+	'''`User` module provides data type and controller for users in LIMP eco-system. This module is supposed to be used for internal calls only, however it has wide-access permissions in order to allow admins, proxy modules to easily expose the methods.'''
 	collection = 'users'
 	attrs = {
-		'name': ATTR.LOCALE(),
-		'locale': ATTR.LOCALES(),
-		'create_time': ATTR.DATETIME(),
-		'login_time': ATTR.DATETIME(),
-		'groups': ATTR.LIST(list=[ATTR.ID()]),
+		'name': ATTR.LOCALE(desc='Name of the user as `LOCALE`.'),
+		'locale': ATTR.LOCALES(desc='Default locale of the user.'),
+		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
+		'login_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the last login.'),
+		'groups': ATTR.LIST(
+			desc='List of `_id` for every group the user is member of.',
+			list=[ATTR.ID(desc='`_id` of Group doc the user is member of.')]
+		),
 		'privileges': ATTR.DICT(
+			desc='Privileges of the user. These privileges are always available to the user regardless of whether groups user is part of have them or not.',
 			dict={'__key': ATTR.STR(), '__val': ATTR.LIST(list=[ATTR.STR()])}
 		),
 		'status': ATTR.LITERAL(
+			desc='Status of the user to determine whether user has access to the app or not.',
 			literal=['active', 'banned', 'deleted', 'disabled_password']
 		),
 	}

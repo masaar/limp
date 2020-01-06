@@ -76,7 +76,7 @@ parser.add_argument(
 )
 parser.add_argument(
 	'--generate-ref',
-	help='Generate API referene for loaded packages',
+	help='Generate API reference for loaded packages',
 	action='store_true',
 )
 args = parser.parse_args()

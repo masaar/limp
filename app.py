@@ -782,7 +782,7 @@ async def run_app(packages, port):
                 'path': res['endpoint'].split('/'),
             }
 
-            if request['path'].__len__() != 2:
+            if len(request['path']) != 2:
                 await env['ws'].send_str(
                     JSONEncoder().encode(
                         {

@@ -18,25 +18,29 @@ import datetime
 
 
 class Analytic(BaseModule):
+	'''`Analytic` module provides data type and controller from `Analytics Workflow` and accompanying analytics docs. It uses `pre_create` handler to assure no events duplications occur and all occurrences of the same event are recorded in one doc.'''
 	collection = 'analytics'
 	attrs = {
-		'user': ATTR.ID(),
-		'event': ATTR.STR(),
-		'subevent': ATTR.ANY(),
-		'occurances': ATTR.LIST(
+		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
+		'event': ATTR.STR(desc='Analytics event name.'),
+		'subevent': ATTR.ANY(desc='Analytics subevent distinguishing attribute. This is usually `STR`, or `ID` but it is introduced in the module as `ANY` to allow wider use-cases by developers.'),
+		'occurrences': ATTR.LIST(
+			desc='All occurrences of the event as list.',
 			list=[
 				ATTR.DICT(
+					desc='Single occurrence of the event details.',
 					dict={
 						'args': ATTR.DICT(
+							desc='Key-value `dict` containing event args, if any.',
 							dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}
 						),
-						'score': ATTR.INT(),
-						'create_time': ATTR.DATETIME(),
+						'score': ATTR.INT(desc='Numerical score for occurrence of the event.'),
+						'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the occurrence of the event.'),
 					}
 				)
 			]
 		),
-		'score': ATTR.INT(),
+		'score': ATTR.INT(desc='Total score of all scores of all occurrences of the event. This can be used for data analysis.'),
 	}
 	unique_attrs = [('user', 'event', 'subevent')]
 	methods = {
@@ -72,7 +76,7 @@ class Analytic(BaseModule):
 				env=env,
 				query=[{'_id': analytic_results.args.docs[0]._id}],
 				doc={
-					'occurances': {
+					'occurrences': {
 						'$append': {
 							'args': doc['args'],
 							'score': doc['score'] if 'score' in doc.keys() else 0,
@@ -87,7 +91,7 @@ class Analytic(BaseModule):
 			doc = {
 				'event': doc['event'],
 				'subevent': doc['subevent'],
-				'occurances': [
+				'occurrences': [
 					{
 						'args': doc['args'],
 						'score': doc['score'] if 'score' in doc.keys() else 0,

@@ -173,7 +173,10 @@ def generate_ref(
 			Config._api_ref += '#### Attrs\n'
 			# [DOC] Iterate over module attrs to add attrs types, defaults (if any)
 			for attr in modules[module].attrs.keys():
-				attr_ref = f'* {attr}:\n  * Type: `{modules[module].attrs[attr]}`\n'
+				attr_ref = f'* {attr}:\n'
+				if modules[module].attrs[attr]._desc:
+					attr_ref += f'  * {modules[module].attrs[attr]._desc}\n'
+				attr_ref += f'  * Type: `{modules[module].attrs[attr]}`\n'
 				for default_attr in modules[module].defaults.keys():
 					if (
 						default_attr == attr
@@ -579,8 +582,15 @@ def validate_attr(
 		elif attr_type._type == 'DICT':
 			if type(attr_val) == dict:
 				if '__key' in attr_type._args['dict'].keys():
-					if '__len' in attr_type._args['dict'].keys():
-						if len(attr_val.keys()) < attr_type._args['dict']['__len']:
+					if '__min' in attr_type._args['dict'].keys():
+						if len(attr_val.keys()) < attr_type._args['dict']['__min']:
+							raise InvalidAttrException(
+								attr_name=attr_name,
+								attr_type=attr_type,
+								val_type=type(attr_val),
+							)
+					if '__max' in attr_type._args['dict'].keys():
+						if len(attr_val.keys()) > attr_type._args['dict']['__max']:
 							raise InvalidAttrException(
 								attr_name=attr_name,
 								attr_type=attr_type,
@@ -647,7 +657,7 @@ def validate_attr(
 				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'FILE':
-			if type(attr_val) == list and attr_val.__len__():
+			if type(attr_val) == list and len(attr_val):
 				try:
 					validate_attr(
 						attr_name=attr_name,
@@ -713,7 +723,7 @@ def validate_attr(
 				and list(attr_val.keys()) == ['type', 'coordinates']
 				and attr_val['type'] in ['Point']
 				and type(attr_val['coordinates']) == list
-				and attr_val['coordinates'].__len__() == 2
+				and len(attr_val['coordinates']) == 2
 				and type(attr_val['coordinates'][0]) in [int, float]
 				and type(attr_val['coordinates'][1]) in [int, float]
 			):
@@ -794,7 +804,7 @@ def validate_attr(
 							literal=[locale for locale in Config.locales]
 						),
 						'__val': ATTR.STR(),
-						'__len': 1,
+						'__min': 1,
 						'__req': [Config.locale],
 					}
 				),

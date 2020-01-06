@@ -6,12 +6,16 @@ from config import Config
 
 
 class Setting(BaseModule):
+	'''`Setting` module module provides data type and controller for settings in LIMP eco-system. This is used by `User` module tp provide additional user-wise settings. It also allows for global-typed settings.'''
 	collection = 'settings'
 	attrs = {
-		'user': ATTR.ID(),
-		'var': ATTR.STR(),
-		'val': ATTR.ANY(),
-		'type': ATTR.LITERAL(literal=['global', 'user', 'user_sys']),
+		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
+		'var': ATTR.STR(desc='Name of the setting. This is unique for every `user` in the module.'),
+		'val': ATTR.ANY(desc='Value of the setting.'),
+		'type': ATTR.LITERAL(
+			desc='Type of the setting. This sets whether setting is global, or belong to user, and whether use can update it or not.',
+			literal=['global', 'user', 'user_sys']
+		),
 	}
 	diff = True
 	unique_attrs = [('user', 'var')]

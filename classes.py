@@ -739,7 +739,7 @@ class Query(list):
 	def _create_index(self, query: LIMP_QUERY, path=[]):
 		if not path:
 			self._index = {}
-		for i in range(query.__len__()):
+		for i in range(len(query)):
 			if type(query[i]) == dict:
 				del_attrs = []
 				for attr in query[i].keys():
@@ -751,7 +751,7 @@ class Query(list):
 					else:
 						if (
 							type(query[i][attr]) == dict
-							and query[i][attr].keys().__len__() == 1
+							and len(query[i][attr].keys()) == 1
 							and list(query[i][attr].keys())[0][0] == '$'
 						):
 							attr_oper = list(query[i][attr].keys())[0]
@@ -865,7 +865,7 @@ class Query(list):
 				]
 				indexes += [
 					i
-					for i in range(self._index[index_attr].__len__())
+					for i in range(len(self._index[index_attr]))
 					if not oper_filter
 					or (
 						oper_filter
@@ -947,7 +947,7 @@ class QueryAttrList(list):
 
 	def __setitem__(self, item: Union[Literal['*'], int], val: Any):
 		if item == '*':
-			for i in range(self._vals.__len__()):
+			for i in range(len(self._vals)):
 				self.__setitem__(i, val)
 		else:
 			instance_attr = self._query._query
@@ -958,7 +958,7 @@ class QueryAttrList(list):
 
 	def __delitem__(self, item: Union[Literal['*'], int]):
 		if item == '*':
-			for i in range(self._vals.__len__()):
+			for i in range(len(self._vals)):
 				self.__delitem__(i)
 		else:
 			instance_attr = self._query._query
@@ -969,7 +969,7 @@ class QueryAttrList(list):
 
 	def replace_attr(self, item: Union[Literal['*'], int], new_attr: str):
 		if item == '*':
-			for i in range(self._vals.__len__()):
+			for i in range(len(self._vals)):
 				self.replace_attr(i, new_attr)
 		else:
 			instance_attr = self._query._query

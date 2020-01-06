@@ -23,15 +23,19 @@ logger = logging.getLogger('limp')
 
 
 class Session(BaseModule):
+	'''`Session` module provides data type and controller for sessions in LIMP eco-system. CRUD methods of the module are supposed to used for internal calls only, while methods `auth`, `reauth`, and `signout` are available for use by API as well as internal calls when needed.'''
 	collection = 'sessions'
 	attrs = {
-		'user': ATTR.ID(),
-		'groups': ATTR.LIST(list=[ATTR.ID()]),
-		'host_add': ATTR.IP(),
-		'user_agent': ATTR.STR(),
-		'expiry': ATTR.DATETIME(),
-		'token': ATTR.STR(),
-		'create_time': ATTR.DATETIME(),
+		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
+		'groups': ATTR.LIST(
+			desc='List of `_id` for every group the session is authenticated against. This attr is set by `auth` method when called with `groups` Doc Arg for Controller Auth Sequence.',
+			list=[ATTR.ID(desc='`_id` of Group doc the session is authenticated against.')]
+		),
+		'host_add': ATTR.IP(desc='IP of the host the user used to authenticate.'),
+		'user_agent': ATTR.STR(desc='User-agent of the app the user used to authenticate.'),
+		'expiry': ATTR.DATETIME(desc='Python `datetime` ISO format of session expiry.'),
+		'token': ATTR.STR(desc='System-generated session token.'),
+		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
 	}
 	defaults = {'groups': []}
 	extns = {'user': EXTN(module='user', force=True)}
