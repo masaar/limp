@@ -315,28 +315,28 @@ class ATTR:
 		cls,
 		*,
 		desc: str = None,
-		list: List['ATTR'] = None,
+		list: List['ATTR'],
 		min: int = None,
 		max: int = None,
 	):
 		return ATTR(attr_type='LIST', desc=desc, list=list, min=min, max=max)
 
 	@classmethod
-	def DICT(cls, *, desc: str = None, dict: Dict[str, 'ATTR'] = None):
+	def DICT(cls, *, desc: str = None, dict: Dict[str, 'ATTR']):
 		return ATTR(attr_type='DICT', desc=desc, dict=dict)
 
 	@classmethod
 	def LITERAL(
-		cls, *, desc: str = None, literal: List[Union[str, int, float, bool]] = None
+		cls, *, desc: str = None, literal: List[Union[str, int, float, bool]]
 	):
 		return ATTR(attr_type='LITERAL', desc=desc, literal=literal)
 
 	@classmethod
-	def UNION(cls, *, desc: str = None, union: List['ATTR'] = None):
+	def UNION(cls, *, desc: str = None, union: List['ATTR']):
 		return ATTR(attr_type='UNION', desc=desc, union=union)
 
 	@classmethod
-	def TYPE(cls, *, desc: str = None, type: str = None):
+	def TYPE(cls, *, desc: str = None, type: str):
 		return ATTR(attr_type='TYPE', desc=desc, type=type)
 
 	@classmethod

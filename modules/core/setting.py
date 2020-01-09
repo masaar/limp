@@ -62,7 +62,12 @@ class Setting(BaseModule):
 				},
 				{
 					'var': ATTR.STR(),
-					'type': ATTR.LITERAL(literal=['global', 'user', 'user_sys']),
+					'type': ATTR.LITERAL(literal=['global']),
+				},
+				{
+					'var': ATTR.STR(),
+					'user': ATTR.ID(),
+					'type': ATTR.LITERAL(literal=['user', 'user_sys']),
 				},
 			],
 		},
@@ -81,7 +86,21 @@ class Setting(BaseModule):
 					doc_mod={'type': None},
 				),
 			],
-			'query_args': {'var': ATTR.STR()},
+			'query_args': [
+				{
+					'_id': ATTR.ID(),
+					'type': ATTR.LITERAL(literal=['global', 'user', 'user_sys']),
+				},
+				{
+					'var': ATTR.STR(),
+					'type': ATTR.LITERAL(literal=['global']),
+				},
+				{
+					'var': ATTR.STR(),
+					'user': ATTR.ID(),
+					'type': ATTR.LITERAL(literal=['user', 'user_sys']),
+				},
+			],
 			'doc_args': {'val': ATTR.ANY()},
 		},
 		'delete': {
@@ -103,6 +122,12 @@ class Setting(BaseModule):
 		):
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, query, doc, payload)
+	
+	async def on_create(self, results, skip_events, env, query, doc, payload):
+		if doc['type'] in ['user', 'user_sys']:
+			if doc['user'] == env['session'].user._id:
+				env['session'].user.settings[doc['var']] = doc['val']
+		return (results, skip_events, env, query, doc, payload)
 
 	async def pre_update(self, skip_events, env, query, doc, payload):
 		if (
@@ -113,3 +138,18 @@ class Setting(BaseModule):
 		):
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, query, doc, payload)
+	
+	async def on_update(self, results, skip_events, env, query, doc, payload):
+		if query['type'][0] in ['user', 'user_sys']:
+			if query['user'][0] == env['session'].user._id:
+				if type(doc['val']) == dict and '$add' in doc['val'].keys():
+					env['session'].user.settings[query['var'][0]] += doc['val']['$add']
+				elif type(doc['val']) == dict and '$multiply' in doc['val'].keys():
+					env['session'].user.settings[query['var'][0]] *= doc['val']['$multiply']
+				elif type(doc['val']) == dict and '$append' in doc['val'].keys():
+					env['session'].user.settings[query['var'][0]].append(doc['val']['$append'])
+				elif type(doc['val']) == dict and '$remove' in doc['val'].keys():
+					env['session'].user.settings[query['var'][0]].remove(doc['val']['$remove'])
+				else:
+					env['session'].user.settings[query['var'][0]] = doc['val']
+		return (results, skip_events, env, query, doc, payload)

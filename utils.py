@@ -133,12 +133,12 @@ def import_modules(*, packages=None):
 		)
 	modules['user'].defaults.update(user_config['user_attrs_defaults'])
 	# [DOC] Call update_modules, effectively finalise initlising modules
+	Config.modules = modules
 	for module in modules.values():
 		module._initialise()
 	# [DOC] Write api_ref if generate_ref mode
 	if Config.generate_ref:
 		generate_ref(modules_packages=modules_packages, modules=modules)
-	return modules
 
 
 def extract_lambda_body(lambda_func):

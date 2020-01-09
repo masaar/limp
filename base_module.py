@@ -41,7 +41,7 @@ class BaseModule:
 	collection: Union[str, bool]
 	proxy: str
 	attrs: Dict[str, ATTR]
-	diff: bool
+	diff: Union[bool, ATTR_MOD]
 	defaults: Dict[str, Any]
 	unique_attrs: List[str]
 	extns: Dict[str, EXTN]
@@ -190,6 +190,12 @@ class BaseModule:
 					)
 		# [DOC] Abstract methods as BaseMethod objects
 		for method in self.methods.keys():
+			# [DOC] Check for existence of at least single permissions set per method
+			if not len(self.methods[method]['permissions']):
+				logger.error(
+					f'No permissions sets for method \'{method}\' of module \'{self.module_name}\'. Exiting.'
+				)
+				exit()
 			# [DOC] Check method query_args attr, set it or update it if required.
 			if 'query_args' not in self.methods[method].keys():
 				if method == 'create_file':
@@ -375,6 +381,7 @@ class BaseModule:
 			if type(pre_read) in [DictObj, dict]:
 				return pre_read
 			skip_events, env, query, doc, payload = pre_read
+		else: payload = {}
 		# [DOC] Check for cache workflow instructins
 		if self.cache:
 			results = False
@@ -531,6 +538,7 @@ class BaseModule:
 			if type(pre_watch) in [DictObj, dict]:
 				yield pre_watch
 			skip_events, env, query, doc, payload = pre_watch
+		else: payload = {}
 
 		logger.debug('Preparing async loop at BaseModule')
 		async for results in Data.watch(
@@ -642,6 +650,7 @@ class BaseModule:
 			if type(pre_create) in [DictObj, dict]:
 				return pre_create
 			skip_events, env, query, doc, payload = pre_create
+		else: payload = {}
 		# [DOC] Deleted all extra doc args
 		doc = {
 			attr: doc[attr]
@@ -815,6 +824,7 @@ class BaseModule:
 			if type(pre_update) in [DictObj, dict]:
 				return pre_update
 			skip_events, env, query, doc, payload = pre_update
+		else: payload = {}
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
 			validate_doc(
@@ -957,19 +967,26 @@ class BaseModule:
 			results, skip_events, env, query, doc, payload = on_update
 		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
 		if results['count'] and self.diff and Event.DIFF not in skip_events:
-			# [DOC] If diff is a list, make sure the updated fields are not in the execluded list.
-			if type(self.diff) == list:
-				for attr in doc.keys():
-					# [DOC] If at least on attr is not in the execluded list, create diff doc.
-					if attr not in self.diff:
-						diff_results = await Config.modules['diff'].methods['create'](
-							skip_events=[Event.PERM],
-							env=env,
-							query=query,
-							doc={'module': self.module_name, 'vars': doc},
+			# [DOC] If diff is a ATTR_MOD, Check condition for valid diff case
+			if type(self.diff) == ATTR_MOD:
+				self.diff: ATTR_MOD
+				if self.diff.condition(skip_events=skip_events, env=env, query=query, doc=doc):
+					# [DOC] if condition passed, create Diff doc with default callable
+					diff_vars = doc
+					if self.diff.default and callable(self.diff.default):
+						diff_vars = self.diff.default(
+							skip_events=skip_events, env=env, query=query, doc=doc
 						)
-						logger.debug(f'diff results: {diff_results}')
-						break
+					diff_results = await Config.modules['diff'].methods['create'](
+						skip_events=[Event.PERM],
+						env=env,
+						query=query,
+						doc={'module': self.module_name, 'vars': diff_vars},
+					)
+					if diff_results.status != 200:
+						logger.error(f'Failed to create Diff doc, results: {diff_results}')
+				else:
+					logger.debug(f'Skipped Diff Workflow due to failed condition.')
 			else:
 				diff_results = await Config.modules['diff'].methods['create'](
 					skip_events=[Event.PERM],
@@ -977,10 +994,11 @@ class BaseModule:
 					query=query,
 					doc={'module': self.module_name, 'vars': doc},
 				)
-				logger.debug(f'diff results: {diff_results}')
+				if diff_results.status != 200:
+					logger.error(f'Failed to create Diff doc, results: {diff_results}')
 		else:
 			logger.debug(
-				f'diff skipped: {results["count"]}, {self.diff}, {Event.DIFF not in skip_events}'
+				f'Skipped Diff Workflow due to: {results["count"]}, {self.diff}, {Event.DIFF not in skip_events}'
 			)
 
 		# [DOC] Module collection is updated, delete_cache
@@ -1043,6 +1061,7 @@ class BaseModule:
 			if type(pre_delete) in [DictObj, dict]:
 				return pre_delete
 			skip_events, env, query, doc, payload = pre_delete
+		else: payload = {}
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] Pick delete strategy based on skip_events
 		strategy = DELETE_STRATEGY.SOFT_SKIP_SYS
@@ -1145,6 +1164,7 @@ class BaseModule:
 			if type(pre_create_file) in [DictObj, dict]:
 				return pre_create_file
 			skip_events, env, query, doc, payload = pre_create_file
+		else: payload = {}
 
 		if (
 			query['attr'][0] not in self.attrs.keys()
@@ -1218,6 +1238,7 @@ class BaseModule:
 			if type(pre_delete_file) in [DictObj, dict]:
 				return pre_delete_file
 			skip_events, env, query, doc, payload = pre_delete_file
+		else: payload = {}
 
 		if (
 			query['attr'][0] not in self.attrs.keys()
@@ -1333,6 +1354,7 @@ class BaseModule:
 			if type(pre_retrieve_file) in [DictObj, dict]:
 				return pre_retrieve_file
 			skip_events, env, query, doc, payload = pre_retrieve_file
+		else: payload = {}
 
 		attr_name = query['attr'][0]
 		filename = query['filename'][0]

@@ -495,7 +495,7 @@ class Data:
 						extn=extn_set['__extn'],
 						extn_models=extn_models,
 					)
-				else:
+				elif type(extn_set['__val']) == list:
 					scope[attr_name] = [
 						await cls._extend_doc(
 							env=env,
@@ -518,7 +518,7 @@ class Data:
 					extn=attr_type._extn,
 					extn_models=extn_models,
 				)
-			else:
+			elif type(scope[attr_name]) == list:
 				scope[attr_name] = [
 					await cls._extend_doc(
 						env=env,
@@ -776,6 +776,7 @@ class Data:
 		# [DOC] Perform update query on matching docs
 		collection = env['conn'][Config.data_name][collection]
 		results = None
+		doc = copy.deepcopy(doc)
 		update_doc = {'$set': doc}
 		# [DOC] Check for increament oper
 		del_attrs = []

@@ -7,7 +7,13 @@ from typing import List, Dict, Union, Tuple, Literal, Any
 
 import logging, traceback, datetime, os, json, copy
 
-logger = logging.getLogger('limp')
+logger = logging.getLogger('test')
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [TEST] [%(levelname)s]  %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+logger.setLevel(logging.DEBUG)
 
 
 class InvalidTestStepException(Exception):
@@ -412,9 +418,14 @@ class Test:
 				call_results=call_results,
 			)
 			for measure in acceptance.keys():
-				results_measure = extract_attr(
-					scope=call_results['results'], attr_path=f'$__{measure}'
-				)
+				if measure.startswith('session.'):
+					results_measure = extract_attr(
+						scope=cls.session, attr_path=f'$__{measure.replace("session.", "")}'
+					)
+				else:
+					results_measure = extract_attr(
+						scope=call_results['results'], attr_path=f'$__{measure}'
+					)
 				if results_measure != call_results['acceptance'][measure]:
 					call_results['status'] = False
 					cls.break_debugger(locals(), call_results)
@@ -487,6 +498,8 @@ class Test:
 			elif type(obj[j]) == str and obj[j].startswith('$__'):
 				if obj[j] == '$__session':
 					obj[j] = cls.session
+				elif obj[j].startswith('$__session.'):
+					obj[j] = extract_attr(scope=cls.session, attr_path=obj[j].replace('session.', ''))
 				else:
 					obj[j] = extract_attr(scope=results, attr_path=obj[j])
 			elif callable(obj[j]):
