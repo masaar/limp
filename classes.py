@@ -122,6 +122,264 @@ class L10N(dict):
 	pass
 
 
+class LIMP_MODULE:
+	collection: Union[str, bool]
+	proxy: str
+	attrs: Dict[str, 'ATTR']
+	diff: Union[bool, 'ATTR_MOD']
+	defaults: Dict[str, Any]
+	unique_attrs: List[str]
+	extns: Dict[str, 'EXTN']
+	privileges: List[str]
+	methods: TypedDict(
+		'METHODS',
+		permissions=List['PERM'],
+		query_args=Dict[str, Union['ATTR', 'ATTR_MOD']],
+		doc_args=Dict[str, Union['ATTR', 'ATTR_MOD']],
+		get_method=bool,
+		post_method=bool,
+		watch_method=bool
+	)
+	cache: List['CACHE']
+	analytics: List['ANALYTIC']
+	package_name: str
+	module_name: str
+
+	async def pre_read(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_read(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def read(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+	
+	async def pre_create(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_create(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def create(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+
+	async def pre_update(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_update(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def update(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+
+	async def pre_delete(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_delete(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def delete(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+
+	async def pre_create_file(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_create_file(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def create_file(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+
+	async def pre_delete_file(
+		self,
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		LIMP_EVENTS, LIMP_ENV, Union[LIMP_QUERY, 'Query'], LIMP_DOC, Dict[str, Any]
+	]:
+		pass
+
+	async def on_delete_file(
+		self,
+		results: Dict[str, Any],
+		skip_events: LIMP_EVENTS,
+		env: LIMP_ENV,
+		query: Union[LIMP_QUERY, 'Query'],
+		doc: LIMP_DOC,
+		payload: Dict[str, Any],
+	) -> Tuple[
+		Dict[str, Any],
+		LIMP_EVENTS,
+		LIMP_ENV,
+		Union[LIMP_QUERY, 'Query'],
+		LIMP_DOC,
+		Dict[str, Any],
+	]:
+		pass
+
+	async def delete_file(
+		self,
+		skip_events: LIMP_EVENTS = [],
+		env: LIMP_ENV = {},
+		query: Union[LIMP_QUERY, 'Query'] = [],
+		doc: LIMP_DOC = {},
+	) -> 'DictObj':
+		pass
+
+
 class InvalidAttrTypeException(Exception):
 	def __init__(self, *, attr_type: str):
 		self.attr_type = attr_type
@@ -439,7 +697,7 @@ class ATTR:
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
 			for arg_val_child in arg_val:
-				if type(arg_val) != ATTR:
+				if type(arg_val_child) != ATTR:
 					raise InvalidAttrTypeArgException(
 						arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 					)

@@ -441,7 +441,7 @@ class Data:
 		if not extn_models:
 			extn_models = {}
 
-		if attr_name not in scope.keys():
+		if type(scope) == dict and attr_name not in scope.keys():
 			return
 		
 		if attr_type._type == 'DICT':
@@ -466,15 +466,40 @@ class Data:
 							env=env,
 							extn_models=extn_models,
 						)
-			elif attr_type._type == 'LIST':
-				if scope[attr_name] and type(scope[attr_name]) == list:
-					for i in range(len(attr_type._args['list'])):
-						for ii in range(len(scope[attr_name])):
+		
+		elif attr_type._type == 'LIST':
+			if scope[attr_name] and type(scope[attr_name]) == list:
+				for child_attr in attr_type._args['list']:
+					if child_attr._type == 'DICT':
+						for child_scope in scope[attr_name]:
+							if type(child_scope) == dict:
+								if '__key' in child_attr._args['dict'].keys():
+									for child_child_attr in child_scope.keys():
+										await cls._extend_attr(
+											doc=doc,
+											scope=child_scope,
+											attr_name=child_child_attr,
+											attr_type=child_attr._args['dict']['__val'],
+											env=env,
+											extn_models=extn_models,
+										)
+								else:
+									for child_child_attr in child_attr._args['dict'].keys():
+										await cls._extend_attr(
+											doc=doc,
+											scope=child_scope,
+											attr_name=child_child_attr,
+											attr_type=child_attr._args['dict'][child_child_attr],
+											env=env,
+											extn_models=extn_models,
+										)
+					elif child_attr._type == 'ID':
+						for i in range(len(scope[attr_name])):
 							await cls._extend_attr(
 								doc=doc,
-								scope=scope[attr_name][ii],
+								scope=scope[attr_name],
 								attr_name=i,
-								attr_type=attr_type._args['list'][i],
+								attr_type=child_attr,
 								env=env,
 								extn_models=extn_models,
 							)
@@ -587,9 +612,9 @@ class Data:
 		extn_doc = copy.deepcopy(extn_models[str(extn_id)])
 		# [DOC] delete all unneeded keys from the resulted doc
 		if extn_doc:
-			extn_doc = {
+			extn_doc = BaseModel({
 				attr: extn_doc[attr] for attr in extn_attrs.keys() if attr in extn_doc
-			}
+			})
 		return extn_doc
 
 	@classmethod

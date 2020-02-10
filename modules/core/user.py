@@ -152,7 +152,7 @@ class User(BaseModule):
 			for privilege in group.privileges.keys():
 				if privilege not in user.privileges.keys():
 					user.privileges[privilege] = []
-				for i in range(0, len(group.privileges[privilege])):
+				for i in range(len(group.privileges[privilege])):
 					if group.privileges[privilege][i] not in user.privileges[privilege]:
 						user.privileges[privilege].append(
 							group.privileges[privilege][i]

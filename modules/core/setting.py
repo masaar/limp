@@ -18,7 +18,7 @@ class Setting(BaseModule):
 		),
 	}
 	diff = True
-	unique_attrs = [('user', 'var')]
+	unique_attrs = [('user', 'var', 'type')]
 	extns = {
 		'val': ATTR_MOD(
 			condition=lambda skip_events, env, query, doc, scope: type(scope) == dict
@@ -45,7 +45,7 @@ class Setting(BaseModule):
 							condition=lambda skip_events, env, query, doc: 'type'
 							in doc.keys()
 							and doc['type'] == 'user_sys',
-							default=InvalidAttrException(
+							default=lambda skip_events, env, query, doc: InvalidAttrException(
 								attr_name='type',
 								attr_type=ATTR.LITERAL(literal=['global', 'user']),
 								val_type=str,

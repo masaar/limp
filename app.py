@@ -44,6 +44,7 @@ async def run_app(packages, port):
 					else:
 						get_args = ''
 					if Config.realm:
+						get_args = get_args.replace('/{realm}', '')
 						get_routes.append(
 							f'/{{realm}}/{module.module_name}/{method.method}{get_args}'
 						)
@@ -58,6 +59,7 @@ async def run_app(packages, port):
 					else:
 						post_args = ''
 					if Config.realm:
+						post_args = post_args.replace('/{realm}', '')
 						post_routes.append(
 							f'/{{realm}}/{module.module_name}/{method.method}{post_args}'
 						)
@@ -83,6 +85,36 @@ async def run_app(packages, port):
 
 	sessions: List[Dict[int, Any]] = []
 	ip_quota: Dict[str, Dict[str, Union[int, datetime.datetime]]] = {}
+
+	async def not_found_handler(request):
+		headers = [
+			('Server', 'limpd'),
+			('Powered-By', 'Masaar, https://masaar.com'),
+			('Access-Control-Allow-Origin', '*'),
+			('Access-Control-Allow-Methods', 'GET,POST'),
+			('Access-Control-Allow-Headers', 'Content-Type'),
+			('Access-Control-Expose-Headers', 'Content-Disposition'),
+		]
+		return aiohttp.web.Response(
+			status=404,
+			headers=headers,
+			body=JSONEncoder().encode({'status': 404, 'msg': '404 NOT FOUND'}),
+		)
+	
+	async def not_allowed_handler(request):
+		headers = [
+			('Server', 'limpd'),
+			('Powered-By', 'Masaar, https://masaar.com'),
+			('Access-Control-Allow-Origin', '*'),
+			('Access-Control-Allow-Methods', '*'),
+			('Access-Control-Allow-Headers', 'Content-Type'),
+			('Access-Control-Expose-Headers', 'Content-Disposition'),
+		]
+		return aiohttp.web.Response(
+			status=405,
+			headers=headers,
+			body=JSONEncoder().encode({'status': 405, 'msg': '404 NOT ALLOWED'}),
+		)
 
 	async def root_handler(request: aiohttp.web.Request):
 		headers = [
@@ -152,10 +184,7 @@ async def run_app(packages, port):
 		request_args = dict(request.match_info.items())
 
 		# [DOC] Extract Args Sets based on request.method
-		if request.method == 'GET':
-			args_sets = Config.modules[module].methods[method].get_args
-		elif request.method == 'POST':
-			args_sets = Config.modules[module].methods[method].post_args
+		args_sets = Config.modules[module].methods[method].query_args
 
 		# [DOC] Attempt to validate query as doc
 		for args_set in args_sets:
@@ -1120,8 +1149,28 @@ async def run_app(packages, port):
 			except Exception:
 				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
 
+	def create_error_middleware(overrides):
+		@aiohttp.web.middleware
+		async def error_middleware(request, handler):
+			try:
+				response = await handler(request)
+				override = overrides.get(response.status)
+				if override:
+					return await override(request)
+				return response
+			except aiohttp.web.HTTPException as ex:
+				override = overrides.get(ex.status)
+				if override:
+					return await override(request)
+				raise
+		return error_middleware
+
 	async def web_loop():
 		app = aiohttp.web.Application()
+		app.middlewares.append(create_error_middleware({
+			404: not_found_handler,
+			405: not_allowed_handler,
+		}))
 		app.router.add_route('GET', '/', root_handler)
 		if Config.realm:
 			app.router.add_route('*', '/ws/{realm}', websocket_handler)

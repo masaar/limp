@@ -25,10 +25,11 @@ from classes import (
 	ATTR_MOD,
 	CACHE,
 	CACHED_QUERY,
+	ANALYTIC
 )
 from base_method import BaseMethod
 
-from typing import List, Dict, Union, Tuple, Callable, Any
+from typing import List, Dict, Union, Tuple, Callable, Any, TypedDict
 
 from PIL import Image
 from bson import ObjectId
@@ -46,9 +47,17 @@ class BaseModule:
 	unique_attrs: List[str]
 	extns: Dict[str, EXTN]
 	privileges: List[str]
-	methods: Dict[str, 'BaseMethod']
+	methods: TypedDict(
+		'METHODS',
+		permissions=List[PERM],
+		query_args=Dict[str, Union[ATTR, ATTR_MOD]],
+		doc_args=Dict[str, Union[ATTR, ATTR_MOD]],
+		get_method=bool,
+		post_method=bool,
+		watch_method=bool
+	)
 	cache: List[CACHE]
-	analytics: Any
+	analytics: List[ANALYTIC]
 
 	package_name: str
 	module_name: str
@@ -180,7 +189,7 @@ class BaseModule:
 					or extn.startswith(f'{attr}:')
 				):
 					logger.debug(
-						f'Updating extn value for attr \'{attr}\' to: \'{self.extns[extn]}\''
+						f'Updating extn value for attr \'{extn}\' to: \'{self.extns[extn]}\''
 					)
 					update_attr_values(
 						attr=ATTR.DICT(dict=self.attrs),
@@ -277,7 +286,9 @@ class BaseModule:
 				if self.methods[method][f'{arg_set}_args']:
 					for args_set in self.methods[method][f'{arg_set}_args']:
 						for attr in args_set.keys():
-							if ATTR.validate_type(attr_type=args_set[attr]):
+							try:
+								ATTR.validate_type(attr_type=args_set[attr])
+							except:
 								logger.error(
 									f'Invalid \'{arg_set}_args\' attr type for \'{attr}\' of set \'{args_set}\' of method \'{method}\' of module \'{self.module_name}\'. Exiting.'
 								)
@@ -390,7 +401,7 @@ class BaseModule:
 					cache_set.condition(skip_events=skip_events, env=env, query=query)
 					== True
 				):
-					cache_key = str(query._query) + str(query._special)
+					cache_key = f'{str(query._query)}____{str(query._special)}'
 					if cache_key in cache_set.queries.keys():
 						if cache_set.period:
 							if (
@@ -764,8 +775,8 @@ class BaseModule:
 			)
 			results = results['args']
 
-		# [DOC] Module collection is updated, delete_cache
-		await self.delete_cache()
+		# [DOC] Module collection is updated, update_cache
+		await self.update_cache(env=env)
 
 		return self.status(
 			status=200, msg=f'Created {results["count"]} docs.', args=results
@@ -857,8 +868,8 @@ class BaseModule:
 		# [DOC] Delete all attrs not belonging to the doc, checking against top level attrs only
 		doc = {
 			attr: doc[attr]
-			for attr in ['_id', *self.attrs.keys()]
-			if attr.split('.')[0] in doc.keys() and doc[attr] != None
+			for attr in ['_id', *doc.keys()]
+			if attr.split('.')[0] in self.attrs.keys() and doc[attr] != None
 		}
 		# [DOC] Check if there is anything yet to update
 		if not len(doc.keys()):
@@ -1001,8 +1012,8 @@ class BaseModule:
 				f'Skipped Diff Workflow due to: {results["count"]}, {self.diff}, {Event.DIFF not in skip_events}'
 			)
 
-		# [DOC] Module collection is updated, delete_cache
-		await self.delete_cache()
+		# [DOC] Module collection is updated, update_cache
+		await self.update_cache(env=env)
 
 		return self.status(
 			status=200, msg=f'Updated {results["count"]} docs.', args=results
@@ -1113,8 +1124,8 @@ class BaseModule:
 				return on_delete
 			results, skip_events, env, query, doc, payload = on_delete
 
-		# [DOC] Module collection is updated, delete_cache
-		await self.delete_cache()
+		# [DOC] Module collection is updated, update_cache
+		await self.update_cache(env=env)
 
 		return self.status(
 			status=200, msg=f'Deleted {results["count"]} docs.', args=results
@@ -1453,7 +1464,7 @@ class BaseModule:
 				args={'code': 'NOT_FOUND', 'return': 'json'},
 			)
 
-	async def delete_cache(
+	async def update_cache(
 		self,
 		skip_events: LIMP_EVENTS = [],
 		env: LIMP_ENV = {},
@@ -1462,5 +1473,18 @@ class BaseModule:
 	) -> DictObj:
 		if self.cache:
 			for cache_set in self.cache:
-				cache_set.queries = {}
+				for cache_key in cache_set.queries.keys():
+					cache_set.queries[cache_key] = None
+					cache_query: LIMP_QUERY = eval(cache_key.split('____')[0])
+					cache_special: LIMP_QUERY = eval(cache_key.split('____')[1])
+					cache_query.append(cache_special)
+					results = await Data.read(
+							env=env,
+							collection=self.collection,
+							attrs=self.attrs,
+							query=Query(cache_query),
+						)
+					cache_set.queries[cache_key] = CACHED_QUERY(
+						results=results
+					)
 		return self.status(status=200, msg='Cache deleted.', args={})

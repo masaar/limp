@@ -50,6 +50,11 @@ parser.add_argument(
 	'--packages', help='List of packages separated by commas to be loaded', nargs='*'
 )
 parser.add_argument('-p', '--port', help='Set custom port [default 8081]')
+parser.add_argument(
+	'--force-admin-check',
+	help='Force ADMIN doc checked and updated, if ADMIN doc is changed.',
+	action='store_true',
+)
 parser.add_argument('--test', help='Run specified test')
 parser.add_argument(
 	'--test-skip-flush',
@@ -167,6 +172,7 @@ Config.test_env = args.test_env
 Config.test_breakpoint = args.test_breakpoint
 Config.test_collections = args.test_collections
 Config.env = args.env or os.getenv('ENV') or None
+Config.force_admin_check = args.force_admin_check or os.getenv('LIMP_ADMIN_CHECK') or False
 
 # [DOC] Check for generate_ref mode
 Config.generate_ref = args.generate_ref

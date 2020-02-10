@@ -1,6 +1,6 @@
 from enums import Event
 from utils import generate_attr
-from classes import DictObj, BaseModel, LIMP_DOC
+from classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR
 
 from typing import List, Dict, Callable, Any, Union, Set, Tuple, Literal, TypedDict
 
@@ -38,6 +38,7 @@ class Config:
 	tests: Dict[str, List['STEP']] = {}
 
 	emulate_test: bool = False
+	force_admin_check: bool = False
 
 	generate_ref: bool = False
 	_api_ref: str = None
@@ -124,7 +125,7 @@ class Config:
 
 	types: Dict[str, Callable] = {}
 
-	modules: Dict[str, 'BaseModule'] = {}
+	modules: Dict[str, LIMP_MODULE] = {}
 
 	@classmethod
 	async def config_data(cls) -> None:
@@ -133,11 +134,15 @@ class Config:
 			logger.warning(
 				'No API-level sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding API-level to eliminate specs mismatch.'
 			)
+		elif type(cls.api_level) != str:
+			logger.warning(
+				'Skipping API-level check due to incompatible \'api_level\' Config Attr value type.'
+			)
 		else:
 			limp_level = '.'.join(cls._limp_version.split('.')[0:2])
-			if cls.api_level != '.'.join(cls._limp_version.split('.')[0:2]):
+			if cls.api_level != limp_level:
 				logger.error(
-					f'LIMPd is on version \'{cls._limp_version}\', but the app requires API-level \'{cls.api_level}\'. Exiting.'
+					f'LIMPd is on API-level \'{limp_level}\', but the app requires API-level \'{cls.api_level}\'. Exiting.'
 				)
 				exit()
 			try:
@@ -318,7 +323,7 @@ class Config:
 			for module in cls.modules.keys():
 				if module != 'realm':
 					logger.debug(f'Updating module \'{module}\' for realm mode.')
-					cls.modules[module].attrs['realm'] = 'str'
+					cls.modules[module].attrs['realm'] = ATTR.STR()
 					for method in cls.modules[module].methods.keys():
 						# [DOC] Attempt required changes to query_args to add realm query_arg
 						if not cls.modules[module].methods[method].query_args:
@@ -332,7 +337,7 @@ class Config:
 						for query_args_set in (
 							cls.modules[module].methods[method].query_args
 						):
-							query_args_set['realm'] = 'str'
+							query_args_set['realm'] = ATTR.STR()
 						# [DOC] Attempt required changes to doc_args to add realm doc_arg
 						if not cls.modules[module].methods[method].doc_args:
 							cls.modules[module].methods[method].doc_args = [{}]
@@ -343,7 +348,7 @@ class Config:
 						for doc_args_set in (
 							cls.modules[module].methods[method].doc_args
 						):
-							doc_args_set['realm'] = 'str'
+							doc_args_set['realm'] = ATTR.STR()
 			# [DOC] Query all realms to provide access to available realms and to add realm docs to _sys_docs
 			realm_results = await cls.modules['realm'].read(
 				skip_events=[Event.PERM, Event.ARGS], env=cls._sys_env
@@ -419,8 +424,10 @@ class Config:
 			if admin_results.status != 200:
 				logger.error('Config step failed. Exiting.')
 				exit()
+		elif not cls.force_admin_check:
+			logger.warning('ADMIN user found, skipping check due to force_admin_check Config Attr.')
 		else:
-			logger.debug('ADMIN user found, checking it.')
+			logger.warning('ADMIN user found, checking it due to force_admin_check Config Attr.')
 			admin_doc = user_results.args.docs[0]
 			admin_doc_update = {}
 			for attr in cls.admin_doc.keys():

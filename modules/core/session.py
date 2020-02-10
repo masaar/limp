@@ -367,7 +367,6 @@ class Session(BaseModule):
 		module: BaseModule,
 		permissions: List[PERM],
 	):
-		module = module.module_name
 		user = env['session'].user
 
 		permissions = copy.deepcopy(permissions)
@@ -382,7 +381,7 @@ class Session(BaseModule):
 
 			if not permission_pass:
 				if permission.privilege.find('.') == -1:
-					permission_module = module
+					permission_module = module.module_name
 					permission_attr = permission.privilege
 				elif permission.privilege.find('.') != -1:
 					permission_module = permission.privilege.split('.')[0]
@@ -392,15 +391,13 @@ class Session(BaseModule):
 					'*' in user.privileges.keys()
 					and permission_module not in user.privileges.keys()
 				):
-					user.privileges[permission_module] = user.privileges['*']
+					user.privileges[permission_module] = copy.deepcopy(user.privileges['*'])
 				if permission_module in user.privileges.keys():
-					if user.privileges[permission_module] == '*':
-						user.privileges[permission_module] = self.privileges
 					if (
 						type(user.privileges[permission_module]) == list
 						and '*' in user.privileges[permission_module]
 					):
-						user.privileges[permission_module] += self.privileges
+						user.privileges[permission_module] += copy.deepcopy(module.privileges)
 				if permission_module not in user.privileges.keys():
 					user.privileges[permission_module] = []
 

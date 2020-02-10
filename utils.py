@@ -661,7 +661,7 @@ def validate_attr(
 				try:
 					validate_attr(
 						attr_name=attr_name,
-						attr_type='file',
+						attr_type=attr_type,
 						attr_val=attr_val[0],
 						allow_opers=allow_opers,
 						allow_none=allow_none,

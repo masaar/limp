@@ -104,13 +104,13 @@ class BaseMethod:
 		doc: LIMP_DOC = None,
 		call_id: str = None,
 	) -> DictObj:
-		if not skip_events:
+		if skip_events == None:
 			skip_events = []
-		if not env:
+		if env == None:
 			env = {}
-		if not query:
+		if query == None:
 			query = []
-		if not doc:
+		if doc == None:
 			doc = {}
 		# [DOC] Convert list query to Query object
 		query = Query(copy.deepcopy(query))

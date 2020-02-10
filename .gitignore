@@ -44,6 +44,7 @@ Thumbs.db
 # Python cache
 *.pyc
 __pycache
+.mypy_cache
 
 # VSTS
 .vs
