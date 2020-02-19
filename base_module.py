@@ -33,7 +33,7 @@ from typing import List, Dict, Union, Tuple, Callable, Any, TypedDict
 
 from PIL import Image
 from bson import ObjectId
-import traceback, logging, datetime, re, sys, io, copy
+import traceback, logging, datetime, re, sys, io, copy, asyncio
 
 logger = logging.getLogger('limp')
 
@@ -776,7 +776,7 @@ class BaseModule:
 			results = results['args']
 
 		# [DOC] Module collection is updated, update_cache
-		await self.update_cache(env=env)
+		asyncio.create_task(self.update_cache(env=env))
 
 		return self.status(
 			status=200, msg=f'Created {results["count"]} docs.', args=results
@@ -1013,7 +1013,7 @@ class BaseModule:
 			)
 
 		# [DOC] Module collection is updated, update_cache
-		await self.update_cache(env=env)
+		asyncio.create_task(self.update_cache(env=env))
 
 		return self.status(
 			status=200, msg=f'Updated {results["count"]} docs.', args=results
@@ -1125,7 +1125,7 @@ class BaseModule:
 			results, skip_events, env, query, doc, payload = on_delete
 
 		# [DOC] Module collection is updated, update_cache
-		await self.update_cache(env=env)
+		asyncio.create_task(self.update_cache(env=env))
 
 		return self.status(
 			status=200, msg=f'Deleted {results["count"]} docs.', args=results
