@@ -18,6 +18,7 @@ from bson import ObjectId, binary
 from aiohttp.web import WebSocketResponse
 
 import logging, re, datetime, time, json, copy
+from dataclasses import dataclass, field
 
 logger = logging.getLogger('limp')
 
@@ -848,6 +849,68 @@ class ANALYTIC:
 	):
 		self.condition = condition
 		self.doc = doc
+
+
+@dataclass
+class CONFIG:
+	envs: Dict[str, 'CONFIG'] = None
+	api_level: str = None
+	packages_versions: Dict[str, str] = None
+	emulate_test: bool = None
+	realm: bool = None
+	vars: Dict[str, Any] = None
+	client_apps: Dict[
+		str,
+		TypedDict(
+			'CLIENT_APP',
+			name=str,
+			type=Literal['web', 'ios', 'android'],
+			origin=List[str],
+			hash=str,
+		),
+	] = None
+	analytics_events: TypedDict(
+		'ANALYTICS_EVENTS',
+		app_conn_verified=bool,
+		session_conn_auth=bool,
+		session_user_auth=bool,
+		session_conn_reauth=bool,
+		session_user_reauth=bool,
+		session_conn_deauth=bool,
+		session_user_deauth=bool,
+	) = None
+	conn_timeout: int = None
+	quota_anon_min: int = None
+	quota_auth_min: int = None
+	quota_ip_min: int = None
+	data_server: str = None
+	data_name: str = None
+	data_ssl: bool = None
+	data_ca_name: str = None
+	data_ca: str = None
+	data_disk_use: bool = None
+	data_azure_mongo: bool = None
+	email_auth: Dict[str, str] = None
+	locales: List[str] = None
+	locale: str = None
+	admin_doc: LIMP_DOC = None
+	admin_password: str = None
+	anon_token: str = None
+	anon_privileges: Dict[str, List[str]] = None
+	user_attrs: Dict[str, 'ATTRS_TYPES'] = None
+	user_auth_attrs: List[str] = None
+	user_attrs_defaults: Dict[str, Any] = None
+	user_settings: Dict[
+		str, Dict[Literal['type', 'val'], Union[Literal['user', 'user_sys'], Any]]
+	] = None
+	user_doc_settings: List[str] = None
+	groups: List[Dict[str, Any]] = None
+	default_privileges: Dict[str, List[str]] = None
+	data_indexes: List[Dict[str, Any]] = None
+	docs: List[Dict[str, Any]] = None
+	jobs: List[Dict[str, Any]] = None
+	gateways: Dict[str, Callable] = None
+	types: Dict[str, Callable] = None
 
 
 class JSONEncoder(json.JSONEncoder):

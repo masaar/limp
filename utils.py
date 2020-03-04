@@ -374,6 +374,7 @@ def extract_attr(*, scope: Dict[str, Any], attr_path: str):
 	for i in range(len(attr_path)):
 		child_attr = attr_path[i]
 		try:
+			logger.debug(f'Attempting to extract {child_attr} from {attr}.')
 			if ':' in child_attr:
 				child_attr = child_attr.split(':')
 				attr = attr[child_attr[0]][int(child_attr[1])]
