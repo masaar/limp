@@ -16,8 +16,9 @@ from utils import DictObj, extract_attr
 
 from typing import List, Dict, Any, Union
 from bson import ObjectId
+from passlib.hash import pbkdf2_sha512
 
-import logging, jwt, secrets, copy, datetime
+import logging, secrets, copy, datetime
 
 logger = logging.getLogger('limp')
 
@@ -34,7 +35,7 @@ class Session(BaseModule):
 		'host_add': ATTR.IP(desc='IP of the host the user used to authenticate.'),
 		'user_agent': ATTR.STR(desc='User-agent of the app the user used to authenticate.'),
 		'expiry': ATTR.DATETIME(desc='Python `datetime` ISO format of session expiry.'),
-		'token': ATTR.STR(desc='System-generated session token.'),
+		'token_hash': ATTR.STR(desc='Hashed system-generated session token.'),
 		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
 	}
 	defaults = {'groups': []}
@@ -64,10 +65,10 @@ class Session(BaseModule):
 			'query_args': [
 				{
 					'_id': ATTR.ID(),
-					'hash': ATTR.STR(),
+					'token': ATTR.STR(),
 					'groups': ATTR.LIST(list=[ATTR.ID()]),
 				},
-				{'_id': ATTR.ID(), 'hash': ATTR.STR()},
+				{'_id': ATTR.ID(), 'token': ATTR.STR()},
 			],
 		},
 		'signout': {
@@ -81,7 +82,7 @@ class Session(BaseModule):
 			if attr in doc.keys():
 				key = attr
 				break
-		user_query = [{key: doc[key], f'{key}_hash': doc['hash'], '$limit': 1}]
+		user_query = [{key: doc[key], '$limit': 1}]
 		if 'groups' in doc.keys():
 			user_query.append(
 				[{'groups': {'$in': doc['groups']}}, {'privileges': {'*': ['*']}}]
@@ -89,7 +90,8 @@ class Session(BaseModule):
 		user_results = await Config.modules['user'].read(
 			skip_events=[Event.PERM, Event.ON], env=env, query=user_query
 		)
-		if not user_results.args.count:
+		if not user_results.args.count or \
+			not pbkdf2_sha512.verify(doc['hash'], user_results.args.docs[0][f'{key}_hash']):
 			return self.status(
 				status=403,
 				msg='Wrong auth credentials.',
@@ -120,7 +122,7 @@ class Session(BaseModule):
 			'expiry': (
 				datetime.datetime.utcnow() + datetime.timedelta(days=30)
 			).isoformat(),
-			'token': token,
+			'token_hash': pbkdf2_sha512.using(rounds=100000).hash(token),
 		}
 
 		results = await self.create(skip_events=[Event.PERM], env=env, doc=session)
@@ -129,6 +131,8 @@ class Session(BaseModule):
 
 		session['_id'] = results.args.docs[0]._id
 		session['user'] = user
+		del session['token_hash']
+		session['token'] = token
 		results.args.docs[0] = BaseModel(session)
 
 		# [DOC] read user privileges and return them
@@ -203,18 +207,16 @@ class Session(BaseModule):
 			)
 
 		if (
-			jwt.encode(
-				{'token': results.args.docs[0].token}, results.args.docs[0].token
-			)
-			.decode('utf-8')
-			.split('.')[1]
-			!= query['hash'][0]
+			not pbkdf2_sha512.verify(query['token'][0], results.args.docs[0].token_hash)
 		):
 			return self.status(
 				status=403,
 				msg='Reauth token hash invalid.',
 				args={'code': 'INVALID_REAUTH_HASH'},
 			)
+		del results.args.docs[0]['token_hash']
+		results.args.docs[0]['token'] = query['token'][0]
+
 		if results.args.docs[0].expiry < datetime.datetime.utcnow().isoformat():
 			results = await self.delete(
 				skip_events=[Event.PERM, Event.SOFT],

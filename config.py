@@ -7,8 +7,9 @@ from typing import List, Dict, Callable, Any, Union, Set, Tuple, Literal, TypedD
 from croniter import croniter
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
+from passlib.hash import pbkdf2_sha512
 
-import os, jwt, logging, datetime, time, requests
+import os, logging, datetime, time, requests
 
 logger = logging.getLogger('limp')
 
@@ -97,7 +98,7 @@ class Config:
 	locale: str = 'ar_AE'
 
 	admin_doc: LIMP_DOC = {}
-	admin_password: str = '__ADMIN'
+	admin_password: str = '__ADMINx0'
 
 	anon_token: str = '__ANON_TOKEN_f00000000000000000000012'
 	anon_privileges: Dict[str, List[str]] = {}
@@ -158,7 +159,9 @@ class Config:
 				version_detected = ''
 				for version in versions:
 					if version.startswith(f'{limp_level}.'):
-						if version_detected and int(version.split('.')[-1]) < int(version_detected.split('.')[-1]):
+						if version_detected and int(version.split('.')[-1]) < int(
+							version_detected.split('.')[-1]
+						):
 							continue
 						version_detected = version
 				if version_detected and version_detected != cls._limp_version:
@@ -202,10 +205,15 @@ class Config:
 		# [DOC] Check default values
 		security_warning = '[SECURITY WARNING] {config_attr} is not explicitly set. It has been defaulted to \'{val}\' but in production environment you should consider setting it to your own to protect your app from breaches.'
 		if cls.admin_password == '__ADMIN':
-			logger.warning(security_warning.format(config_attr='Admin password', val='__ADMIN'))
+			logger.warning(
+				security_warning.format(config_attr='Admin password', val='__ADMIN')
+			)
 		if cls.anon_token == '__ANON_TOKEN_f00000000000000000000012':
 			logger.warning(
-				security_warning.format(config_attr='Anon token', val='__ANON_TOKEN_f00000000000000000000012')
+				security_warning.format(
+					config_attr='Anon token',
+					val='__ANON_TOKEN_f00000000000000000000012',
+				)
 			)
 
 		# [DOC] Check for env data variables
@@ -398,20 +406,12 @@ class Config:
 			admin_doc.update(cls.admin_doc)
 
 			for auth_attr in cls.user_auth_attrs:
-				admin_doc[f'{auth_attr}_hash'] = (
-					jwt.encode(
-						{
-							'hash': [
-								auth_attr,
-								admin_doc[auth_attr],
-								cls.admin_password,
-								cls.anon_token,
-							]
-						},
-						cls.admin_password,
+				admin_doc[f'{auth_attr}_hash'] = pbkdf2_sha512.using(
+					rounds=100000
+				).hash(
+					f'{auth_attr}{admin_doc[auth_attr]}{cls.admin_password}{cls.anon_token}'.encode(
+						'utf-8'
 					)
-					.decode('utf-8')
-					.split('.')[1]
 				)
 			if cls.realm:
 				admin_doc['realm'] = '__global'
@@ -425,9 +425,13 @@ class Config:
 				logger.error('Config step failed. Exiting.')
 				exit()
 		elif not cls.force_admin_check:
-			logger.warning('ADMIN user found, skipping check due to force_admin_check Config Attr.')
+			logger.warning(
+				'ADMIN user found, skipping check due to force_admin_check Config Attr.'
+			)
 		else:
-			logger.warning('ADMIN user found, checking it due to force_admin_check Config Attr.')
+			logger.warning(
+				'ADMIN user found, checking it due to force_admin_check Config Attr.'
+			)
 			admin_doc = user_results.args.docs[0]
 			admin_doc_update = {}
 			for attr in cls.admin_doc.keys():
@@ -455,20 +459,12 @@ class Config:
 					)
 					admin_doc_update[attr] = cls.admin_doc[attr]
 			for auth_attr in cls.user_auth_attrs:
-				auth_attr_hash = (
-					jwt.encode(
-						{
-							'hash': [
-								auth_attr,
-								admin_doc[auth_attr],
-								cls.admin_password,
-								cls.anon_token,
-							]
-						},
-						cls.admin_password,
+				auth_attr_hash = pbkdf2_sha512.using(
+					rounds=100000
+				).hash(
+					f'{auth_attr}{admin_doc[auth_attr]}{cls.admin_password}{cls.anon_token}'.encode(
+						'utf-8'
 					)
-					.decode('utf-8')
-					.split('.')[1]
 				)
 				if (
 					f'{auth_attr}_hash' not in admin_doc
@@ -810,7 +806,9 @@ class Config:
 			'timestamp': '1970-01-01T00:00:00',
 			'expiry': '1970-01-01T00:00:00',
 			'token': cls.anon_token,
+			'token_hash': cls.anon_token,
 		}
 		if cls.realm:
 			session_doc['realm'] = '__global'
 		return session_doc
+
