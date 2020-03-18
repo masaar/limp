@@ -319,31 +319,35 @@ def update_attr_values(
 	setattr(attr, f'_{value}', value_val)
 
 
-def process_file_obj(*, doc, files):
-	for attr in doc.keys():
-		if attr in files.keys():
-			doc[attr] = []
-			for file in files[attr].values():
-				doc[attr].append(
-					{
-						'name': file['name'],
-						'lastModified': file['lastModified'],
-						'type': file['type'],
-						'size': file['size'],
-						'content': binary.Binary(
-							bytes([int(byte) for byte in file['content'].split(',')])
-						),
-					}
-				)
-			del files[attr]
-	return doc
+async def process_file_obj(*, doc: LIMP_DOC, modules: Dict[str, LIMP_MODULE], env: LIMP_ENV):
+	if type(doc) == dict:
+		doc_iter = doc.keys()
+	elif type(doc) == list:
+		doc_iter = range(len(doc))
+	for j in doc_iter:
+		if type(doc[j]) == dict:
+			if '__file' in doc[j].keys():
+				file_id = doc[j]['__file']
+				logger.debug(f'Detected file in doc. Retrieving file from File module with _id: \'{file_id}\'.')
+				try:
+					file_results = await modules['file'].read(skip_events=[Event.PERM], env=env, query=[{
+						'_id': file_id
+					}])
+					doc[j] = file_results.args.docs[0].file
+					file_results = await modules['file'].delete(skip_events=[Event.PERM, Event.SOFT], env=env, query=[{
+						'_id': file_id
+					}])
+					if file_results.status != 200 or file_results.args.count != 1:
+						logger.warning(f'Filed to delete doc _id \'{file_id}\' from File module after retrieving.')
+				except Exception as e:
+					logger.error(f'Failed to retrieve doc _id \'{file_id}\', with error:')
+					logger.error(e)
+					doc[j] = None
+			else:
+				await process_file_obj(doc=doc[j], modules=modules, env=env)
+		elif type(doc[j]) == list:
+			await process_file_obj(doc=doc[j], modules=modules, env=env)
 
-
-def sigtime():
-	sigtime.time = 0
-
-
-sigtime()
 
 
 def signal_handler(signum, frame):
