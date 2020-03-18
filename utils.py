@@ -8,8 +8,10 @@ from classes import (
 	Query,
 	LIMP_QUERY,
 	L10N,
+	LIMP_MODULE,
+	LIMP_ENV,
 )
-from enums import LIMP_VALUES
+from enums import Event, LIMP_VALUES
 
 from typing import Dict, Union, Literal, List, Any
 from bson import ObjectId, binary
@@ -94,7 +96,7 @@ def import_modules(*, packages=None):
 					and issubclass(getattr(module, clsname), BaseModule)
 				):
 					# [DOC] Deny loading LIMPd-reserved named LIMP modules
-					if clsname.lower() in ['conn', 'heart', 'file', 'watch']:
+					if clsname.lower() in ['conn', 'heart', 'watch']:
 						logger.error(
 							f'Module with LIMPd-reserved name \'{clsname.lower()}\' was found. Exiting.'
 						)
@@ -356,23 +358,23 @@ class SignalHandler:
 	def sigint_handler(signum, frame):
 		if time.time() - SignalHandler.time > 3:
 			SignalHandler.time = time.time()
-		logger.warn('Interrupt again within 3 seconds to exit.')
-	else:
-		if time.localtime().tm_hour >= 21 or time.localtime().tm_hour <= 4:
-			msg = 'night'
-		elif time.localtime().tm_hour >= 18:
-			msg = 'evening'
-		elif time.localtime().tm_hour >= 12:
-			msg = 'afternoon'
-		elif time.localtime().tm_hour >= 5:
-			msg = 'morning'
-		logger.info(f'Have a great {msg}!')
-		import os
-
-		if os.name == 'nt':
-			os.kill(os.getpid(), 9)
+			logger.warn('Interrupt again within 3 seconds to exit.')
 		else:
-			exit()
+			if time.localtime().tm_hour >= 21 or time.localtime().tm_hour <= 4:
+				msg = 'night'
+			elif time.localtime().tm_hour >= 18:
+				msg = 'evening'
+			elif time.localtime().tm_hour >= 12:
+				msg = 'afternoon'
+			elif time.localtime().tm_hour >= 5:
+				msg = 'morning'
+			logger.info(f'Have a great {msg}!')
+			import os
+
+			if os.name == 'nt':
+				os.kill(os.getpid(), 9)
+			else:
+				exit()
 
 
 def process_multipart(rfile, boundary):
@@ -710,6 +712,7 @@ def validate_attr(
 				and set(attr_val.keys())
 				== {'name', 'lastModified', 'type', 'size', 'content'}
 				and type(attr_val['name']) == str
+				and type(attr_val['type']) == str
 				and type(attr_val['lastModified']) == int
 				and type(attr_val['size']) == int
 				and type(attr_val['content']) in [binary.Binary, bytes]

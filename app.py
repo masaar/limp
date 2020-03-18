@@ -358,7 +358,7 @@ async def run_app(packages, port):
 					multipart_boundary = request.headers['Content-Type'][request.headers['Content-Type'].index('=')+1:].encode('utf-8')
 					doc = process_multipart(doc, multipart_boundary)
 				except Exception as e:
-				doc = {}
+					doc = {}
 
 		results = await Config.modules[module].methods[method](
 			env=env, query=[request_args], doc=doc
@@ -554,7 +554,7 @@ async def run_app(packages, port):
 		return ws
 
 	async def handle_msg(
-		env: Dict[str, Any],
+		env: LIMP_ENV,
 		msg: aiohttp.WSMessage,
 		decline_quota: str = None,
 	):
@@ -829,50 +829,6 @@ async def run_app(packages, port):
 				return
 
 			module = request['path'][0].lower()
-			if module == 'file' and request['path'][1].lower() == 'upload':
-				logger.debug(
-					'Received file chunk for %s, index %s, %s out of %s',
-					request['doc']['attr'],
-					request['doc']['index'],
-					request['doc']['chunk'],
-					request['doc']['total'],
-				)
-				if request['doc']['attr'] not in env['files'].keys():
-					# [DOC] File attr first file, prepare files dict.
-					env['files'][request['doc']['attr']] = {}
-				if request['doc']['chunk'] == 1:
-					# [DOC] First Chunk received, prepare files dict to accept it.
-					env['files'][request['doc']['attr']][
-						request['doc']['index']
-					] = request['doc']['file']
-				else:
-					# [DOC] Past-first chunk received, append more bytes to it.
-					env['files'][request['doc']['attr']][request['doc']['index']][
-						'content'
-					] += (',' + request['doc']['file']['content'])
-				if request['doc']['chunk'] == request['doc']['total']:
-					# [DOC] Last chunk received, convert file to bytes and update the client.
-					await env['ws'].send_str(
-						JSONEncoder().encode(
-							{
-								'status': 200,
-								'msg': 'Last chunk accepted',
-								'args': {'call_id': request['call_id']},
-							}
-						)
-					)
-				else:
-					# [DOC] More chunks expeceted, update the client
-					await env['ws'].send_str(
-						JSONEncoder().encode(
-							{
-								'status': 200,
-								'msg': 'Chunk accepted',
-								'args': {'call_id': request['call_id']},
-							}
-						)
-					)
-				return
 
 			if module == 'watch' and request['path'][1].lower() == 'delete':
 				logger.debug(
@@ -982,7 +938,8 @@ async def run_app(packages, port):
 
 			method = Config.modules[module].methods[request['path'][1].lower()]
 			query = request['query']
-			doc = process_file_obj(doc=request['doc'], files=env['files'])
+			doc = request['doc']
+			await process_file_obj(doc=doc, modules=Config.modules, env=env)
 			asyncio.create_task(
 				method(
 					skip_events=[],

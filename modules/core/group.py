@@ -49,9 +49,6 @@ class Group(BaseModule):
 		},
 	}
 
-	async def pre_create(self, skip_events, env, query, doc, payload):
-		return (skip_events, env, query, doc, payload)
-
 	async def pre_update(self, skip_events, env, query, doc, payload):
 		# [DOC] Make sure no attrs overwriting would happen
 		if 'attrs' in doc.keys():
