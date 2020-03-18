@@ -349,10 +349,13 @@ async def process_file_obj(*, doc: LIMP_DOC, modules: Dict[str, LIMP_MODULE], en
 			await process_file_obj(doc=doc[j], modules=modules, env=env)
 
 
+class SignalHandler:
+	time = 0
 
-def signal_handler(signum, frame):
-	if time.time() - sigtime.time > 3:
-		sigtime.time = time.time()
+	@staticmethod
+	def sigint_handler(signum, frame):
+		if time.time() - SignalHandler.time > 3:
+			SignalHandler.time = time.time()
 		logger.warn('Interrupt again within 3 seconds to exit.')
 	else:
 		if time.localtime().tm_hour >= 21 or time.localtime().tm_hour <= 4:
