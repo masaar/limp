@@ -4,13 +4,14 @@ from typing import Dict, Any, Union, List
 async def run_app(packages, port):
 	from utils import (
 		import_modules,
-		signal_handler,
+		SignalHandler,
+		process_multipart,
 		process_file_obj,
 		validate_doc,
 		InvalidAttrException,
 		ConvertAttrException,
 	)
-	from classes import JSONEncoder, DictObj
+	from classes import JSONEncoder, DictObj, LIMP_ENV
 	from base_module import BaseModule
 	from enums import Event
 	from config import Config
@@ -22,7 +23,7 @@ async def run_app(packages, port):
 
 	nest_asyncio.apply()
 
-	signal.signal(signal.SIGINT, signal_handler)
+	signal.signal(signal.SIGINT, SignalHandler.sigint_handler)
 
 	logger = logging.getLogger('limp')
 
@@ -349,9 +350,14 @@ async def run_app(packages, port):
 		if request.method == 'GET':
 			doc = {}
 		elif request.method == 'POST':
+			doc = await request.content.read()
 			try:
-				doc = json.loads(await request.content.read())
+				doc = json.loads(doc)
 			except:
+				try:
+					multipart_boundary = request.headers['Content-Type'][request.headers['Content-Type'].index('=')+1:].encode('utf-8')
+					doc = process_multipart(doc, multipart_boundary)
+				except Exception as e:
 				doc = {}
 
 		results = await Config.modules[module].methods[method](
