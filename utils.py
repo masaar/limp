@@ -368,6 +368,25 @@ def signal_handler(signum, frame):
 			exit()
 
 
+def process_multipart(rfile, boundary):
+	boundary = b'--' + boundary
+	rfile = re.compile(boundary+b'(?:\r\n|\n)').split(rfile.replace(b'\r\n'+boundary+b'--', b'').replace(b'\n'+boundary+b'--', b''))
+	pattern = b'Content-Disposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\r\n|\n)Content-Type: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+)(?:\r\n|\n)|(?:\r\n|\n))(?:\r\n|\n)(.+)'
+	multipart = {}
+	for part in rfile:
+		try:
+			multipart_key = re.match(pattern, part, re.DOTALL).group(1)
+			multipart[multipart_key] = [group for group in re.match(pattern, part, re.DOTALL).groups()]
+			if multipart[multipart_key][3][-2] == 13 and multipart[multipart_key][3][-1] == 10:
+				multipart[multipart_key][3] = multipart[multipart_key][3][:-2]
+			elif multipart[multipart_key][3][-1] == 10:
+				multipart[multipart_key][3][:-1]
+		except:
+			continue
+	return multipart
+
+
+
 def extract_attr(*, scope: Dict[str, Any], attr_path: str):
 	attr_path = attr_path[3:].split('.')
 	attr = scope
