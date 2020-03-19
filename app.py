@@ -101,7 +101,7 @@ async def run_app(packages, port):
 			headers=headers,
 			body=JSONEncoder().encode({'status': 404, 'msg': '404 NOT FOUND'}),
 		)
-	
+
 	async def not_allowed_handler(request):
 		headers = [
 			('Server', 'limpd'),
@@ -137,12 +137,21 @@ async def run_app(packages, port):
 			('Server', 'limpd'),
 			('Powered-By', 'Masaar, https://masaar.com'),
 			('Access-Control-Allow-Origin', '*'),
-			('Access-Control-Allow-Methods', 'GET,POST'),
-			('Access-Control-Allow-Headers', 'Content-Type'),
+			('Access-Control-Allow-Methods', 'GET,POST,OPTIONS'),
+			('Access-Control-Allow-Headers', 'Content-Type,X-Auth-Bearer,X-Auth-Token'),
 			('Access-Control-Expose-Headers', 'Content-Disposition'),
 		]
 
 		logger.debug(f'Received new {request.method} request: {request.match_info}')
+
+		if request.method == 'OPTIONS':
+			return aiohttp.web.Response(
+				status=200,
+				headers=headers,
+				body=JSONEncoder().encode(
+					{'status': 200, 'msg': 'OPTIONS request is allowed.',}
+				),
+			)
 
 		# [DOC] Check for IP quota
 		if str(request.remote) not in ip_quota:
@@ -240,11 +249,13 @@ async def run_app(packages, port):
 		if Config.realm:
 			env['realm'] = request.url.parts[1].lower()
 
-		if 'x-auth-bearer' in request.headers or 'x-auth-token' in request.headers:
+		if 'X-Auth-Bearer' in request.headers or 'X-Auth-Token' in request.headers:
+			logger.debug('Detected \'X-Auth\' header[s].')
 			if (
-				'x-auth-bearer' not in request.headers
-				or 'x-auth-token' not in request.headers
+				'X-Auth-Bearer' not in request.headers
+				or 'X-Auth-Token' not in request.headers
 			):
+				logger.debug('Denying request due to missing \'X-Auth\' header.')
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
 				return aiohttp.web.Response(
 					status=400,
@@ -264,8 +275,8 @@ async def run_app(packages, port):
 					env=env,
 					query=[
 						{
-							'user': request.headers['x-auth-bearer'],
-							'token': request.headers['x-auth-token'],
+							'user': request.headers['X-Auth-Bearer'],
+							'token': request.headers['X-Auth-Token'],
 						},
 						{'$limit': 1},
 					],
@@ -302,6 +313,9 @@ async def run_app(packages, port):
 					)
 
 			if not session_results.args.count:
+				logger.debug(
+					'Denying request due to missing failed Call Authorisation.'
+				)
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
 				return aiohttp.web.Response(
 					status=403,
@@ -321,15 +335,9 @@ async def run_app(packages, port):
 				session_results = await Config.modules['session'].reauth(
 					skip_events=[Event.PERM],
 					env=env,
-					query=[
-						{
-							'_id': session._id,
-							'hash': jwt.encode({'token': session.token}, session.token)
-							.decode('utf-8')
-							.split('.')[1],
-						}
-					],
+					query=[{'_id': session._id, 'hash': session.token,}],
 				)
+				logger.debug('Denying request due to fail to reauth.')
 				if session_results.status != 200:
 					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(
@@ -347,18 +355,17 @@ async def run_app(packages, port):
 
 		env['session'] = session
 
-		if request.method == 'GET':
-			doc = {}
-		elif request.method == 'POST':
-			doc = await request.content.read()
+		doc = await request.content.read()
+		try:
+			doc = json.loads(doc)
+		except:
 			try:
-				doc = json.loads(doc)
-			except:
-				try:
-					multipart_boundary = request.headers['Content-Type'][request.headers['Content-Type'].index('=')+1:].encode('utf-8')
-					doc = process_multipart(doc, multipart_boundary)
-				except Exception as e:
-					doc = {}
+				multipart_boundary = request.headers['Content-Type'][
+					request.headers['Content-Type'].index('=') + 1 :
+				].encode('utf-8')
+				doc = process_multipart(doc, multipart_boundary)
+			except Exception as e:
+				doc = {}
 
 		results = await Config.modules[module].methods[method](
 			env=env, query=[request_args], doc=doc
@@ -511,11 +518,7 @@ async def run_app(packages, port):
 								f'Denying Websocket request from \'{request.remote}\' for hitting IP quota.'
 							)
 							asyncio.create_task(
-								handle_msg(
-									env=env,
-									msg=msg,
-									decline_quota='ip',
-								)
+								handle_msg(env=env, msg=msg, decline_quota='ip',)
 							)
 							continue
 						else:
@@ -535,18 +538,12 @@ async def run_app(packages, port):
 				else:
 					if env['quota']['counter'] - 1 <= 0:
 						asyncio.create_task(
-							handle_msg(
-								env=env,
-								msg=msg,
-								decline_quota='session',
-							)
+							handle_msg(env=env, msg=msg, decline_quota='session',)
 						)
 						continue
 					else:
 						env['quota']['counter'] -= 1
-						asyncio.create_task(
-							handle_msg(env=env, msg=msg)
-						)
+						asyncio.create_task(handle_msg(env=env, msg=msg))
 
 		if 'id' in env.keys():
 			await close_session(env['id'])
@@ -554,9 +551,7 @@ async def run_app(packages, port):
 		return ws
 
 	async def handle_msg(
-		env: LIMP_ENV,
-		msg: aiohttp.WSMessage,
-		decline_quota: str = None,
+		env: LIMP_ENV, msg: aiohttp.WSMessage, decline_quota: str = None,
 	):
 		try:
 			env['last_call'] = datetime.datetime.utcnow()
@@ -1060,8 +1055,7 @@ async def run_app(packages, port):
 						if job['type'] == 'job':
 							logger.debug('-Type of job: job.')
 							job['job'](
-								env=Config._sys_env,
-								session=Config._jobs_session,
+								env=Config._sys_env, session=Config._jobs_session,
 							)
 						elif job['type'] == 'call':
 							logger.debug('-Type of job: call.')
@@ -1082,7 +1076,9 @@ async def run_app(packages, port):
 								session = session_results.args.docs[0]
 							else:
 								session = Config._jobs_session
-							job_resuls = Config.modules[job['module']].methods[job['method']](
+							job_resuls = Config.modules[job['module']].methods[
+								job['method']
+							](
 								env=Config._sys_env,
 								session=session,
 								query=job['query'],
@@ -1126,14 +1122,14 @@ async def run_app(packages, port):
 				if override:
 					return await override(request)
 				raise
+
 		return error_middleware
 
 	async def web_loop():
 		app = aiohttp.web.Application()
-		app.middlewares.append(create_error_middleware({
-			404: not_found_handler,
-			405: not_allowed_handler,
-		}))
+		app.middlewares.append(
+			create_error_middleware({404: not_found_handler, 405: not_allowed_handler,})
+		)
 		app.router.add_route('GET', '/', root_handler)
 		if Config.realm:
 			app.router.add_route('*', '/ws/{realm}', websocket_handler)
@@ -1143,6 +1139,7 @@ async def run_app(packages, port):
 			app.router.add_route('GET', route, http_handler)
 		for route in post_routes:
 			app.router.add_route('POST', route, http_handler)
+			app.router.add_route('OPTIONS', route, http_handler)
 		logger.info('Welcome to LIMPd.')
 		await aiohttp.web.run_app(app, host='0.0.0.0', port=port)
 
