@@ -2,6 +2,7 @@ from base_module import BaseModule
 from enums import Event
 from classes import ATTR, PERM
 from config import Config
+from utils import extract_attr, validate_attr
 
 from bson import ObjectId
 
@@ -33,17 +34,40 @@ class File(BaseModule):
 		return (results, skip_events, env, query, doc, payload)
 
 	async def pre_create(self, skip_events, env, query, doc, payload):
-		file_content = doc[b'content'][3].decode('utf-8')
-		file_content = base64.decodebytes(
-			file_content[file_content.index('base64,') + 7 :].encode('utf-8')
-		)
-		doc = {
-			'file': {
-				'name': doc[b'name'][3].decode('utf-8'),
-				'type': doc[b'type'][3].decode('utf-8'),
-				'size': int(doc[b'size'][3].decode('utf-8')),
-				'lastModified': int(doc[b'lastModified'][3].decode('utf-8')),
-				'content': file_content,
-			},
-		}
+		if (module := doc[b'__module'][3].decode('utf-8')) not in Config.modules.keys():
+			return self.status(
+				status=400,
+				msg=f'Invalid module \'{module}\'',
+				args={'code':'INVALID_MODULE'}
+			)
+		try:
+			attr_type = extract_attr(scope=Config.modules[module].attrs, attr_path='$__' + (attr := doc[b'__attr'][3].decode('utf-8')))
+			file_content = doc[b'content'][3].decode('utf-8')
+			file_content = base64.decodebytes(
+				file_content[file_content.index('base64,') + 7 :].encode('utf-8')
+			)
+			doc = {
+				'file': {
+					'name': doc[b'name'][3].decode('utf-8'),
+					'type': doc[b'type'][3].decode('utf-8'),
+					'size': int(doc[b'size'][3].decode('utf-8')),
+					'lastModified': int(doc[b'lastModified'][3].decode('utf-8')),
+					'content': file_content,
+				},
+			}
+			try:
+				validate_attr(attr_name=attr, attr_type=attr_type, attr_val=doc['file'])
+			except:
+				return self.status(
+					status=400,
+					msg=f'Invalid file for \'{attr}\' of module \'{module}\'',
+					args={'code':'INVALID_FILE'}
+				)
+		except Exception as e:
+			breakpoint()
+			return self.status(
+				status=400,
+				msg=f'Invalid attr \'{attr}\' of module \'{module}\'',
+				args={'code':'INVALID_ATTR'}
+			)
 		return (skip_events, env, query, doc, payload)
