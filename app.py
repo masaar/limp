@@ -19,6 +19,8 @@ async def run_app(packages, port):
 	from test import Test
 
 	from bson import ObjectId
+	from passlib.hash import pbkdf2_sha512
+
 	import aiohttp.web, asyncio, nest_asyncio, traceback, jwt, argparse, json, re, signal, urllib.parse, os, datetime, logging
 
 	nest_asyncio.apply()
@@ -138,7 +140,7 @@ async def run_app(packages, port):
 			('Powered-By', 'Masaar, https://masaar.com'),
 			('Access-Control-Allow-Origin', '*'),
 			('Access-Control-Allow-Methods', 'GET,POST,OPTIONS'),
-			('Access-Control-Allow-Headers', 'Content-Type,X-Auth-Bearer,X-Auth-Token'),
+			('Access-Control-Allow-Headers', 'Content-Type,X-Auth-Bearer,X-Auth-Token,X-Auth-App'),
 			('Access-Control-Expose-Headers', 'Content-Disposition'),
 		]
 
@@ -241,9 +243,11 @@ async def run_app(packages, port):
 				break
 
 		conn = Data.create_conn()  # pylint: disable=no-value-for-parameter
-		env = {'conn': conn, 'REMOTE_ADDR': request.remote, 'ws': None}
+		env = {'conn': conn, 'REMOTE_ADDR': request.remote, 'ws': None, 'client_app': '__public'}
+		
 		try:
 			env['HTTP_USER_AGENT'] = request.headers['user-agent']
+			env['HTTP_ORIGIN'] = request.headers['origin']
 		except:
 			env['HTTP_USER_AGENT'] = ''
 		if Config.realm:
@@ -254,6 +258,7 @@ async def run_app(packages, port):
 			if (
 				'X-Auth-Bearer' not in request.headers
 				or 'X-Auth-Token' not in request.headers
+				or 'X-Auth-App' not in request.headers
 			):
 				logger.debug('Denying request due to missing \'X-Auth\' header.')
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
@@ -269,17 +274,40 @@ async def run_app(packages, port):
 					)
 					.encode('utf-8'),
 				)
+			if len(Config.client_apps.keys()) and (
+				request.headers['X-Auth-App'] not in Config.client_apps.keys()
+				or (
+					Config.client_apps[request.headers['X-Auth-App']]['type'] == 'web'
+					and env['HTTP_ORIGIN']
+					not in Config.client_apps[request.headers['X-Auth-App']]['hosts']
+				)
+			):
+				logger.debug(
+					'Denying request due to unaithorised client_app.'
+				)
+				headers.append(('Content-Type', 'application/json; charset=utf-8'))
+				return aiohttp.web.Response(
+					status=403,
+					headers=headers,
+					body=JSONEncoder()
+					.encode(
+						{
+							'status': 403,
+							'msg': 'X-Auth headers could not be verified.',
+							'args': {'code': 'CORE_SESSION_INVALID_XAUTH'},
+						}
+					)
+					.encode('utf-8'),
+				)
 			try:
 				session_results = await Config.modules['session'].read(
 					skip_events=[Event.PERM],
 					env=env,
 					query=[
 						{
-							'user': request.headers['X-Auth-Bearer'],
-							'token': request.headers['X-Auth-Token'],
-						},
-						{'$limit': 1},
-					],
+							'_id': request.headers['X-Auth-Bearer'],
+						}
+					]
 				)
 			except:
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
@@ -312,7 +340,7 @@ async def run_app(packages, port):
 						.encode('utf-8'),
 					)
 
-			if not session_results.args.count:
+			if not session_results.args.count or not pbkdf2_sha512.verify(request.headers['X-Auth-Token'], session_results.args.docs[0].token_hash):
 				logger.debug(
 					'Denying request due to missing failed Call Authorisation.'
 				)
@@ -335,7 +363,7 @@ async def run_app(packages, port):
 				session_results = await Config.modules['session'].reauth(
 					skip_events=[Event.PERM],
 					env=env,
-					query=[{'_id': session._id, 'hash': session.token,}],
+					query=[{'_id': request.headers['X-Auth-Bearer'], 'token': request.headers['X-Auth-Token'],}],
 				)
 				logger.debug('Denying request due to fail to reauth.')
 				if session_results.status != 200:
