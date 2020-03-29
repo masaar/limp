@@ -42,17 +42,13 @@ class File(BaseModule):
 			)
 		try:
 			attr_type = extract_attr(scope=Config.modules[module].attrs, attr_path='$__' + (attr := doc[b'__attr'][3].decode('utf-8')))
-			file_content = doc[b'content'][3].decode('utf-8')
-			file_content = base64.decodebytes(
-				file_content[file_content.index('base64,') + 7 :].encode('utf-8')
-			)
 			doc = {
 				'file': {
-					'name': doc[b'name'][3].decode('utf-8'),
-					'type': doc[b'type'][3].decode('utf-8'),
-					'size': int(doc[b'size'][3].decode('utf-8')),
+					'name': doc[b'file'][1].decode('utf-8'),
+					'type': doc[b'file'][2].decode('utf-8'),
+					'size': len(doc[b'file'][3]),
 					'lastModified': int(doc[b'lastModified'][3].decode('utf-8')),
-					'content': file_content,
+					'content': doc[b'file'][3],
 				},
 			}
 			try:
