@@ -44,8 +44,8 @@ class File(BaseModule):
 			attr_type = extract_attr(scope=Config.modules[module].attrs, attr_path='$__' + (attr := doc[b'__attr'][3].decode('utf-8')))
 			doc = {
 				'file': {
-					'name': doc[b'file'][1].decode('utf-8'),
-					'type': doc[b'file'][2].decode('utf-8'),
+					'name': doc[b'name'][3].decode('utf-8'),
+					'type': doc[b'type'][3].decode('utf-8'),
 					'size': len(doc[b'file'][3]),
 					'lastModified': int(doc[b'lastModified'][3].decode('utf-8')),
 					'content': doc[b'file'][3],
