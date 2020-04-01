@@ -24,6 +24,7 @@ class Analytic(BaseModule):
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
 		'event': ATTR.STR(desc='Analytics event name.'),
 		'subevent': ATTR.ANY(desc='Analytics subevent distinguishing attribute. This is usually `STR`, or `ID` but it is introduced in the module as `ANY` to allow wider use-cases by developers.'),
+		'date': ATTR.DATE(desc='Analytics event date. This allows clustering of events occurances to limit doc size.'),
 		'occurrences': ATTR.LIST(
 			desc='All occurrences of the event as list.',
 			list=[
@@ -66,6 +67,7 @@ class Analytic(BaseModule):
 					'user': env['session'].user._id,
 					'event': doc['event'],
 					'subevent': doc['subevent'],
+					'date': datetime.date.today().isoformat(),
 				},
 				{'$limit': 1},
 			],
@@ -91,6 +93,7 @@ class Analytic(BaseModule):
 			doc = {
 				'event': doc['event'],
 				'subevent': doc['subevent'],
+				'date': datetime.date.today().isoformat(),
 				'occurrences': [
 					{
 						'args': doc['args'],
