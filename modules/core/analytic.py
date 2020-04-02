@@ -43,7 +43,7 @@ class Analytic(BaseModule):
 		),
 		'score': ATTR.INT(desc='Total score of all scores of all occurrences of the event. This can be used for data analysis.'),
 	}
-	unique_attrs = [('user', 'event', 'subevent')]
+	unique_attrs = [('user', 'event', 'subevent', 'date')]
 	methods = {
 		'read': {'permissions': [PERM(privilege='read')]},
 		'create': {
