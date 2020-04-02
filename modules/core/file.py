@@ -60,7 +60,6 @@ class File(BaseModule):
 					args={'code':'INVALID_FILE'}
 				)
 		except Exception as e:
-			breakpoint()
 			return self.status(
 				status=400,
 				msg=f'Invalid attr \'{attr}\' of module \'{module}\'',
