@@ -82,6 +82,7 @@ class Config:
 	quota_anon_min: int = 40
 	quota_auth_min: int = 100
 	quota_ip_min: int = 500
+	file_upload_limit: int = -1
 
 	data_server: str = 'mongodb://localhost'
 	data_name: str = 'limp_data'
