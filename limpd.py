@@ -2,18 +2,9 @@
 
 import argparse, os, logging, datetime, sys
 
-if sys.version_info.major != 3 or sys.version_info.minor not in [7, 8]:
-	print('LIMPd can only run with Python3.7 or Python3.8. Exiting.')
+if sys.version_info.major != 3 or sys.version_info.minor != 8:
+	print('LIMPd can only run with Python3.8. Exiting.')
 	exit()
-
-if sys.version_info.minor == 7:
-	try:
-		import typing, typing_extensions  # noqa
-
-		typing.Literal = typing_extensions.Literal
-		typing.TypedDict = typing_extensions.TypedDict
-	except:
-		only_install_deps = True
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -134,15 +125,6 @@ if args.install_deps:
 				+ [os.path.join(__location__, 'modules', package, 'requirements.txt')]
 			)
 	exit()
-else:
-	try:
-		only_install_deps
-		logger.error(
-			'You are running Python 3.7, and some libraries used in LIMP require backport libraries to run. You should start LIMPd with install_deps flag. Exiting.'
-		)
-		exit()
-	except:
-		pass
 
 # [DOC] Check for logging options
 if args.log:
