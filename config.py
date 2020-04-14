@@ -22,7 +22,6 @@ class Config:
 	_sys_env: Dict[str, Any]
 	_sys_docs: Dict[str, Dict[str, str]] = {}
 	_realms: Dict[str, BaseModel] = {}
-	_jobs_session: BaseModel
 	_jobs_base: datetime
 
 	_limp_version: str = None
@@ -177,10 +176,6 @@ class Config:
 
 		# [DOC] Check for jobs
 		if cls.jobs:
-			# [DOC] Create _jobs_env
-			cls._jobs_session = DictObj(
-				{**cls.compile_anon_session(), 'user': DictObj(cls.compile_anon_user())}
-			)
 			# [DOC] Check jobs schedule validity
 			cls._jobs_base = datetime.datetime.utcnow()
 			for job in cls.jobs:
