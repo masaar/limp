@@ -1113,8 +1113,8 @@ async def run_app(packages, port):
 							job_resuls = Config.modules[job['module']].methods[
 								job['method']
 							](
+								skip_events=job['skip_events'],
 								env=Config._sys_env,
-								session=session,
 								query=job['query'],
 								doc=job['doc'],
 							)
@@ -1141,7 +1141,7 @@ async def run_app(packages, port):
 						logger.debug('-Not yet due.')
 			except Exception:
 				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
-
+			
 			try:
 				logger.debug('Time to check for files timeout!')
 				files_results = Config.modules['file'].delete(skip_events=[Event.PERM], env=Config._sys_env, query=[
