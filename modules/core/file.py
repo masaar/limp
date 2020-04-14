@@ -34,6 +34,16 @@ class File(BaseModule):
 		return (results, skip_events, env, query, doc, payload)
 
 	async def pre_create(self, skip_events, env, query, doc, payload):
+		if Config.file_upload_limit != -1 and len(doc[b'file'][3]) > Config.file_upload_limit:
+			return self.status(
+				status=400,
+				msg=f'File size is beyond allowed limit.',
+				args={
+					'code':'INVALID_SIZE',
+					'attr':doc[b'__attr'][3].decode('utf-8'),
+					'name':doc[b'name'][3].decode('utf-8'),
+				}
+			)
 		if (module := doc[b'__module'][3].decode('utf-8')) not in Config.modules.keys():
 			return self.status(
 				status=400,
@@ -59,7 +69,7 @@ class File(BaseModule):
 					msg=f'Invalid file for \'{attr}\' of module \'{module}\'',
 					args={'code':'INVALID_FILE'}
 				)
-		except Exception as e:
+		except:
 			return self.status(
 				status=400,
 				msg=f'Invalid attr \'{attr}\' of module \'{module}\'',
