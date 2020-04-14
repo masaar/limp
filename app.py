@@ -1048,7 +1048,10 @@ async def run_app(packages, port):
 							f'Session #\'{session["id"]}\' with REMOTE_ADDR \'{session["REMOTE_ADDR"]}\' HTTP_USER_AGENT: \'{session["HTTP_USER_AGENT"]}\' is idle. Closing.'
 						)
 						await close_session(i)
+			except Exception:
+				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
 
+			try:
 				# [DOC] Calls Quota Workflow - Cleanup Sequence
 				logger.debug('Time to check for IPs quotas!')
 				del_ip_quota = []
@@ -1062,7 +1065,10 @@ async def run_app(packages, port):
 						del_ip_quota.append(ip)
 				for ip in del_ip_quota:
 					del ip_quota[ip]
+			except Exception:
+				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
 
+			try:
 				# [DOC] Jobs Workflow
 				current_time = datetime.datetime.utcnow().isoformat()[:16]
 				logger.debug('Time to check for jobs!')
@@ -1133,6 +1139,22 @@ async def run_app(packages, port):
 									)
 					else:
 						logger.debug('-Not yet due.')
+			except Exception:
+				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+
+			try:
+				logger.debug('Time to check for files timeout!')
+				files_results = Config.modules['file'].delete(skip_events=[Event.PERM], env=Config._sys_env, query=[
+					{
+						'create_time':{
+							'$lt': (datetime.datetime.utcnow() - datetime.timedelta(seconds=Config.file_upload_timeout)).isoformat()
+						}
+					}
+				])
+				logger.debug('Files timeout results:')
+				logger.debug(f'-status: {files_results.status}')
+				logger.debug(f'-msg: {files_results.msg}')
+				logger.debug(f'-args.docs: {files_results.args.docs}')
 			except Exception:
 				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
 
