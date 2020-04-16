@@ -7,6 +7,7 @@ from utils import (
 	MissingAttrException,
 	ConvertAttrException,
 	update_attr_values,
+	expand_attr,
 )
 from classes import (
 	DictObj,
@@ -662,6 +663,8 @@ class BaseModule:
 				return pre_create
 			skip_events, env, query, doc, payload = pre_create
 		else: payload = {}
+		# [DOC] Expant dot-notated keys onto dicts
+		doc = expand_attr(doc=doc)
 		# [DOC] Deleted all extra doc args
 		doc = {
 			attr: doc[attr]
