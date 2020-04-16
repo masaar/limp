@@ -99,9 +99,9 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	'PHONE': {'codes': List[str]},
 	'IP': {},
 	'URI_WEB': {'allowed_domains': List[str], 'disallowed_domains': List[str]},
-	'DATETIME': {'ranges': List[List[str]]},
-	'DATE': {'ranges': List[List[str]]},
-	'TIME': {'ranges': List[List[str]]},
+	'DATETIME': {'ranges': List[List[datetime.datetime]]},
+	'DATE': {'ranges': List[List[datetime.date]]},
+	'TIME': {'ranges': List[List[datetime.time]]},
 	'FILE': {
 		'types': List[str],
 		'max_ratio': List[int],
@@ -139,7 +139,7 @@ class LIMP_MODULE:
 		doc_args=Dict[str, Union['ATTR', 'ATTR_MOD']],
 		get_method=bool,
 		post_method=bool,
-		watch_method=bool
+		watch_method=bool,
 	)
 	cache: List['CACHE']
 	analytics: List['ANALYTIC']
@@ -184,7 +184,7 @@ class LIMP_MODULE:
 		doc: LIMP_DOC = {},
 	) -> 'DictObj':
 		pass
-	
+
 	async def pre_create(
 		self,
 		skip_events: LIMP_EVENTS,
@@ -571,12 +571,7 @@ class ATTR:
 
 	@classmethod
 	def LIST(
-		cls,
-		*,
-		desc: str = None,
-		list: List['ATTR'],
-		min: int = None,
-		max: int = None,
+		cls, *, desc: str = None, list: List['ATTR'], min: int = None, max: int = None,
 	):
 		return ATTR(attr_type='LIST', desc=desc, list=list, min=min, max=max)
 
@@ -585,9 +580,7 @@ class ATTR:
 		return ATTR(attr_type='DICT', desc=desc, dict=dict)
 
 	@classmethod
-	def LITERAL(
-		cls, *, desc: str = None, literal: List[Union[str, int, float, bool]]
-	):
+	def LITERAL(cls, *, desc: str = None, literal: List[Union[str, int, float, bool]]):
 		return ATTR(attr_type='LITERAL', desc=desc, literal=literal)
 
 	@classmethod
@@ -702,6 +695,27 @@ class ATTR:
 					raise InvalidAttrTypeArgException(
 						arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 					)
+			return
+		elif arg_type == datetime.date:
+			if not re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', arg_val) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
+				raise InvalidAttrTypeArgException(
+					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+				)
+			return
+		elif arg_type == datetime.datetime:
+			if not re.match(
+				r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$',
+				arg_val,
+			) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
+				raise InvalidAttrTypeArgException(
+					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+				)
+			return
+		elif arg_type == datetime.time:
+			if not re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', arg_val) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
+				raise InvalidAttrTypeArgException(
+					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+				)
 			return
 		elif arg_type._name == 'List':
 			if type(arg_val) != list:
@@ -1302,3 +1316,4 @@ class QueryAttrList(list):
 			del instance_attr[self._attrs[item].split(':')[0]]
 			# [DOC] Update index
 			self._query._create_index(self._query._query)
+

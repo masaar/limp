@@ -220,7 +220,9 @@ def generate_ref(
 									else:
 										Config._api_ref += f'		  * ATTR_MOD default: {permission.query_mod[i][attr].default}\n'
 								else:
-									Config._api_ref += f'		* {attr}: {permission.query_mod[i][attr]}\n'
+									Config._api_ref += (
+										f'		* {attr}: {permission.query_mod[i][attr]}\n'
+									)
 					else:
 						Config._api_ref += f'	* Query Modifier: None\n'
 					# [DOC] Add Doc Modifier
@@ -239,7 +241,9 @@ def generate_ref(
 									else:
 										Config._api_ref += f'		  * ATTR_MOD default: {permission.doc_mod[i][attr].default}\n'
 								else:
-									Config._api_ref += f'		* {attr}: {permission.doc_mod[i][attr]}\n'
+									Config._api_ref += (
+										f'		* {attr}: {permission.doc_mod[i][attr]}\n'
+									)
 					else:
 						Config._api_ref += f'	* Doc Modifier: None\n'
 				# [DOC] Add Query Args
@@ -321,7 +325,9 @@ def update_attr_values(
 	setattr(attr, f'_{value}', value_val)
 
 
-async def process_file_obj(*, doc: LIMP_DOC, modules: Dict[str, LIMP_MODULE], env: LIMP_ENV):
+async def process_file_obj(
+	*, doc: LIMP_DOC, modules: Dict[str, LIMP_MODULE], env: LIMP_ENV
+):
 	if type(doc) == dict:
 		doc_iter = doc.keys()
 	elif type(doc) == list:
@@ -330,19 +336,27 @@ async def process_file_obj(*, doc: LIMP_DOC, modules: Dict[str, LIMP_MODULE], en
 		if type(doc[j]) == dict:
 			if '__file' in doc[j].keys():
 				file_id = doc[j]['__file']
-				logger.debug(f'Detected file in doc. Retrieving file from File module with _id: \'{file_id}\'.')
+				logger.debug(
+					f'Detected file in doc. Retrieving file from File module with _id: \'{file_id}\'.'
+				)
 				try:
-					file_results = await modules['file'].read(skip_events=[Event.PERM], env=env, query=[{
-						'_id': file_id
-					}])
+					file_results = await modules['file'].read(
+						skip_events=[Event.PERM], env=env, query=[{'_id': file_id}]
+					)
 					doc[j] = file_results.args.docs[0].file
-					file_results = await modules['file'].delete(skip_events=[Event.PERM, Event.SOFT], env=env, query=[{
-						'_id': file_id
-					}])
+					file_results = await modules['file'].delete(
+						skip_events=[Event.PERM, Event.SOFT],
+						env=env,
+						query=[{'_id': file_id}],
+					)
 					if file_results.status != 200 or file_results.args.count != 1:
-						logger.warning(f'Filed to delete doc _id \'{file_id}\' from File module after retrieving.')
+						logger.warning(
+							f'Filed to delete doc _id \'{file_id}\' from File module after retrieving.'
+						)
 				except Exception as e:
-					logger.error(f'Failed to retrieve doc _id \'{file_id}\', with error:')
+					logger.error(
+						f'Failed to retrieve doc _id \'{file_id}\', with error:'
+					)
 					logger.error(e)
 					doc[j] = None
 			else:
@@ -379,21 +393,29 @@ class SignalHandler:
 
 def process_multipart(rfile, boundary):
 	boundary = b'--' + boundary
-	rfile = re.compile(boundary+b'(?:\r\n|\n)').split(rfile.replace(b'\r\n'+boundary+b'--', b'').replace(b'\n'+boundary+b'--', b''))
+	rfile = re.compile(boundary + b'(?:\r\n|\n)').split(
+		rfile.replace(b'\r\n' + boundary + b'--', b'').replace(
+			b'\n' + boundary + b'--', b''
+		)
+	)
 	pattern = b'[Cc]ontent-[Dd]isposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\r\n|\n)[Cc]ontent-[Tt]ype: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+)(?:\r\n|\n)|(?:\r\n|\n))(?:\r\n|\n)(.+)'
 	multipart = {}
 	for part in rfile:
 		try:
 			multipart_key = re.match(pattern, part, re.DOTALL).group(1)
-			multipart[multipart_key] = [group for group in re.match(pattern, part, re.DOTALL).groups()]
-			if multipart[multipart_key][3][-2] == 13 and multipart[multipart_key][3][-1] == 10:
+			multipart[multipart_key] = [
+				group for group in re.match(pattern, part, re.DOTALL).groups()
+			]
+			if (
+				multipart[multipart_key][3][-2] == 13
+				and multipart[multipart_key][3][-1] == 10
+			):
 				multipart[multipart_key][3] = multipart[multipart_key][3][:-2]
 			elif multipart[multipart_key][3][-1] == 10:
 				multipart[multipart_key][3][:-1]
 		except:
 			continue
 	return multipart
-
 
 
 def extract_attr(*, scope: Dict[str, Any], attr_path: str):
@@ -435,8 +457,9 @@ def set_attr(*, scope: Dict[str, Any], attr_path: str, value: Any):
 		attr[attr_path[-1]] = value
 
 
-def expand_attr(*, doc: Dict[str, Any], expanded_doc: Dict[str, Any]=None):
-	if not expanded_doc: expanded_doc = {}
+def expand_attr(*, doc: Dict[str, Any], expanded_doc: Dict[str, Any] = None):
+	if not expanded_doc:
+		expanded_doc = {}
 	for attr in doc.keys():
 		if type(doc[attr]) == dict:
 			doc[attr] = expand_attr(doc=doc[attr])
@@ -620,14 +643,85 @@ def validate_attr(
 
 		elif attr_type._type == 'DATE':
 			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr_val):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				if attr_type._args['ranges']:
+					for date_range in attr_type._args['ranges']:
+						date_range = copy.deepcopy(date_range)
+						for i in [0, 1]:
+							if date_range[i][0] in ['+', '-']:
+								date_range_delta = {}
+								if date_range[i][-1] == 'd':
+									date_range_delta = {'days': int(date_range[i][:-1])}
+								elif date_range[i][-1] == 's':
+									date_range_delta = {
+										'seconds': int(date_range[i][:-1])
+									}
+								elif date_range[i][-1] == 'm':
+									date_range_delta = {
+										'minutes': int(date_range[i][:-1])
+									}
+								elif date_range[i][-1] == 'h':
+									date_range_delta = {
+										'hours': int(date_range[i][:-1])
+									}
+								elif date_range[i][-1] == 'w':
+									date_range_delta = {
+										'weeks': int(date_range[i][:-1])
+									}
+								date_range[i] = (
+									datetime.date.today()
+									+ datetime.timedelta(**date_range_delta)
+								).isoformat()
+						if attr_val > date_range[0] and attr_val < date_range[1]:
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'DATETIME':
 			if re.match(
 				r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$',
 				attr_val,
 			):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				if attr_type._args['ranges']:
+					for datetime_range in attr_type._args['ranges']:
+						datetime_range = copy.deepcopy(datetime_range)
+						for i in [0, 1]:
+							if datetime_range[i][0] in ['+', '-']:
+								datetime_range_delta = {}
+								if datetime_range[i][-1] == 'd':
+									datetime_range_delta = {
+										'days': int(datetime_range[i][:-1])
+									}
+								elif datetime_range[i][-1] == 's':
+									datetime_range_delta = {
+										'seconds': int(datetime_range[i][:-1])
+									}
+								elif datetime_range[i][-1] == 'm':
+									datetime_range_delta = {
+										'minutes': int(datetime_range[i][:-1])
+									}
+								elif datetime_range[i][-1] == 'h':
+									datetime_range_delta = {
+										'hours': int(datetime_range[i][:-1])
+									}
+								elif datetime_range[i][-1] == 'w':
+									datetime_range_delta = {
+										'weeks': int(datetime_range[i][:-1])
+									}
+								datetime_range[i] = (
+									datetime.date.today()
+									+ datetime.timedelta(**datetime_range_delta)
+								).isoformat()
+						if (
+							attr_val > datetime_range[0]
+							and attr_val < datetime_range[1]
+						):
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'DICT':
 			if type(attr_val) == dict:
@@ -899,7 +993,40 @@ def validate_attr(
 
 		elif attr_type._type == 'TIME':
 			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				if attr_type._args['ranges']:
+					for time_range in attr_type._args['ranges']:
+						time_range = copy.deepcopy(time_range)
+						for i in [0, 1]:
+							if time_range[i][0] in ['+', '-']:
+								time_range_delta = {}
+								if time_range[i][-1] == 'd':
+									time_range_delta = {'days': int(time_range[i][:-1])}
+								elif time_range[i][-1] == 's':
+									time_range_delta = {
+										'seconds': int(time_range[i][:-1])
+									}
+								elif time_range[i][-1] == 'm':
+									time_range_delta = {
+										'minutes': int(time_range[i][:-1])
+									}
+								elif time_range[i][-1] == 'h':
+									time_range_delta = {
+										'hours': int(time_range[i][:-1])
+									}
+								elif time_range[i][-1] == 'w':
+									time_range_delta = {
+										'weeks': int(time_range[i][:-1])
+									}
+								time_range[i] = (
+									datetime.date.today()
+									+ datetime.timedelta(**time_range_delta)
+								).isoformat()
+						if attr_val > time_range[0] and attr_val < time_range[1]:
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'URI_WEB':
 			if re.match(
@@ -1083,3 +1210,4 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		attr_val = generate_attr(attr_type=random.choice(attr_type._args['union']))
 
 	raise Exception(f'Unkown generator attr \'{attr_type}\'')
+
