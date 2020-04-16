@@ -435,6 +435,27 @@ def set_attr(*, scope: Dict[str, Any], attr_path: str, value: Any):
 		attr[attr_path[-1]] = value
 
 
+def expand_attr(*, doc: Dict[str, Any], expanded_doc: Dict[str, Any]=None):
+	if not expanded_doc: expanded_doc = {}
+	for attr in doc.keys():
+		if type(doc[attr]) == dict:
+			doc[attr] = expand_attr(doc=doc[attr])
+		if '.' in attr:
+			attr_path = attr.split('.')
+			scope = expanded_doc
+			for i in range(len(attr_path) - 1):
+				try:
+					if type(scope[attr_path[i]]) != dict:
+						scope[attr_path[i]] = {}
+				except KeyError:
+					scope[attr_path[i]] = {}
+				scope = scope[attr_path[i]]
+			scope[attr_path[-1]] = doc[attr]
+		else:
+			expanded_doc[attr] = doc[attr]
+	return expanded_doc
+
+
 class MissingAttrException(Exception):
 	def __init__(self, *, attr_name):
 		self.attr_name = attr_name
