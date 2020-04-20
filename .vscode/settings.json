@@ -12,10 +12,9 @@
     "python.formatting.blackArgs": ["-S"],
 	"editor.insertSpaces": false,
 	"python.pythonPath": "/usr/local/bin/python3.8",
-	"python.testing.cwd": "/home/coder",
+	"python.testing.cwd": "/home/coder/project/tests",
 	"python.testing.pytestArgs": [
-		"--rootdir",
-		"/home/coder"
+		"."
 	],
 	"python.testing.unittestEnabled": false,
 	"python.testing.nosetestsEnabled": false,
