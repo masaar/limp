@@ -1,0 +1,30 @@
+{
+    "editor.minimap.enabled": false,
+    "editor.wordWrap": "on",
+    "workbench.colorTheme": "Tomorrow Night Operator Mono",
+	"editor.fontFamily": "'Operator Mono', Consolas, 'Courier New', monospace",
+    "files.autoSave": "off",
+    "editor.detectIndentation": false,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.mypyEnabled": true,
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": ["-S"],
+	"editor.insertSpaces": false,
+	"python.pythonPath": "/usr/local/bin/python3.8",
+	"python.testing.cwd": "/home/coder",
+	"python.testing.pytestArgs": [
+		"--rootdir",
+		"/home/coder"
+	],
+	"python.testing.unittestEnabled": false,
+	"python.testing.nosetestsEnabled": false,
+	"python.testing.pytestEnabled": true,
+	"python.testing.unittestArgs": [
+		"-v",
+		"-s",
+		".",
+		"-p",
+		"test_*.py"
+	],
+}

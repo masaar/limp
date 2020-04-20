@@ -628,7 +628,8 @@ def validate_attr(
 
 	try:
 		if attr_type._type == 'ANY':
-			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+			if attr_val != None:
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'ACCESS':
 			if (
