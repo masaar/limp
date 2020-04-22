@@ -4,7 +4,7 @@ import utils
 import pytest
 
 
-def test_validate_attr_DATE_None(mocker):
+def test_validate_attr_DATE_None():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
@@ -14,7 +14,7 @@ def test_validate_attr_DATE_None(mocker):
 			allow_none=False,
 		)
 
-def test_validate_attr_DATE_int(mocker):
+def test_validate_attr_DATE_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
@@ -24,7 +24,7 @@ def test_validate_attr_DATE_int(mocker):
 			allow_none=False,
 		)
 
-def test_validate_attr_DATE_str_invalid(mocker):
+def test_validate_attr_DATE_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
@@ -34,30 +34,29 @@ def test_validate_attr_DATE_str_invalid(mocker):
 			allow_none=False,
 		)
 
-def test_validate_attr_DATE_date(mocker):
-	mocker.patch('utils.return_valid_attr')
-	utils.validate_attr(
+def test_validate_attr_DATE_date():
+	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val='2020-02-02',
 		allow_opers=False,
 		allow_none=False,
 	)
-	utils.return_valid_attr.assert_called_once_with(attr_val='2020-02-02', attr_oper=False)
+	assert attr_val == '2020-02-02'
 
-def test_validate_attr_DATE_None_allow_none(mocker):
-	test = utils.validate_attr(
+def test_validate_attr_DATE_None_allow_none():
+	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val=None,
 		allow_opers=True,
 		allow_none=True,
 	)
-	assert test == None
+	assert attr_val == None
 
-def test_validate_attr_DATE_default_None(mocker):
-	attr_type = ATTR.BOOL()
-	attr_type._default = '2020-02-02'
+def test_validate_attr_DATE_default_None():
+	attr_type = ATTR.DATE()
+	attr_type._default = 'test_validate_attr_DATE'
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
@@ -65,16 +64,28 @@ def test_validate_attr_DATE_default_None(mocker):
 		allow_opers=False,
 		allow_none=False,
 	)
-	assert attr_val == '2020-02-02'
+	assert attr_val == 'test_validate_attr_DATE'
 
-def test_validate_attr_DATE_default_int_allow_none(mocker):
+def test_validate_attr_DATE_default_int():
 	attr_type = ATTR.DATE()
-	attr_type._default = True
-	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
-			attr_name='test_validate_attr_DATE',
-			attr_type=attr_type,
-			attr_val=1,
-			allow_opers=True,
-			allow_none=True,
-		)
+	attr_type._default = 'test_validate_attr_DATE'
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_DATE',
+		attr_type=attr_type,
+		attr_val=1,
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'test_validate_attr_DATE'
+
+def test_validate_attr_DATE_default_int_allow_none():
+	attr_type = ATTR.DATE()
+	attr_type._default = 'test_validate_attr_DATE'
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_DATE',
+		attr_type=attr_type,
+		attr_val=1,
+		allow_opers=True,
+		allow_none=True,
+	)
+	assert attr_val == None
