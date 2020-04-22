@@ -64,6 +64,36 @@ def test_validate_attr_INT_int_as_str():
 	)
 	assert attr_val == 1
 
+def test_validate_attr_INT_range_int_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		utils.validate_attr(
+			attr_name='test_validate_attr_INT',
+			attr_type=ATTR.INT(ranges=[[0, 10]]),
+			attr_val=10,
+			allow_opers=False,
+			allow_none=False,
+		)
+
+def test_validate_attr_INT_range_int():
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_INT',
+		attr_type=ATTR.INT(ranges=[[0, 10]]),
+		attr_val=0,
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 0
+
+def test_validate_attr_INT_range_int_as_str():
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_INT',
+		attr_type=ATTR.INT(ranges=[[0, 10]]),
+		attr_val='0',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 0
+
 def test_validate_attr_INT_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_INT',

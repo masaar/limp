@@ -34,6 +34,26 @@ def test_validate_attr_STR_str():
 	)
 	assert attr_val == 'test_validate_attr_STR'
 
+def test_validate_attr_STR_pattern_str_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		utils.validate_attr(
+			attr_name='test_validate_attr_STR',
+			attr_type=ATTR.STR(pattern=r'[a-z_]+'),
+			attr_val='test_validate_attr_STR',
+			allow_opers=False,
+			allow_none=False,
+		)
+
+def test_validate_attr_STR_pattern_str():
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_STR',
+		attr_type=ATTR.STR(pattern=r'[a-zA-Z_]+'),
+		attr_val='test_validate_attr_STR',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'test_validate_attr_STR'
+
 def test_validate_attr_STR_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_STR',

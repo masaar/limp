@@ -53,6 +53,23 @@ def test_validate_attr_FILE_file():
 	)
 	assert attr_val == file_attr_val
 
+def test_validate_attr_FILE_file_list():
+	file_attr_val = {
+		'name': '__filename',
+		'type': 'mime/type',
+		'lastModified': 0,
+		'size': 6,
+		'content': b'__file'
+	}
+	attr_val = utils.validate_attr(
+		attr_name='test_validate_attr_FILE',
+		attr_type=ATTR.FILE(),
+		attr_val=[file_attr_val],
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == file_attr_val
+
 def test_validate_attr_FILE_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
