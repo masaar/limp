@@ -1,11 +1,11 @@
-from classes import ATTR
-import utils
+from ....classes import ATTR
+from .... import utils
 
 import pytest
 
 
 def test_validate_attr_LOCALE_None(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	with pytest.raises(utils.InvalidAttrException):
@@ -18,7 +18,7 @@ def test_validate_attr_LOCALE_None(monkeypatch):
 		)
 
 def test_validate_attr_LOCALE_dict_invalid(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	with pytest.raises(utils.InvalidAttrException):
@@ -33,7 +33,7 @@ def test_validate_attr_LOCALE_dict_invalid(monkeypatch):
 		)
 
 def test_validate_attr_LOCALE_locale_all(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	locale_attr_val = {
@@ -51,7 +51,7 @@ def test_validate_attr_LOCALE_locale_all(monkeypatch):
 	assert attr_val == locale_attr_val
 
 def test_validate_attr_LOCALE_locale_min(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	locale_attr_val = {
@@ -71,7 +71,7 @@ def test_validate_attr_LOCALE_locale_min(monkeypatch):
 	assert attr_val == locale_attr_val
 
 def test_validate_attr_LOCALE_locale_extra(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	with pytest.raises(utils.InvalidAttrException):
@@ -87,7 +87,7 @@ def test_validate_attr_LOCALE_locale_extra(monkeypatch):
 		)
 
 def test_validate_attr_LOCALE_None_allow_none(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	attr_val = utils.validate_attr(
@@ -100,7 +100,7 @@ def test_validate_attr_LOCALE_None_allow_none(monkeypatch):
 	assert attr_val == None
 
 def test_validate_attr_LOCALE_default_None(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	attr_type = ATTR.LOCALE()
@@ -115,7 +115,7 @@ def test_validate_attr_LOCALE_default_None(monkeypatch):
 	assert attr_val == 'test_validate_attr_LOCALE'
 
 def test_validate_attr_LOCALE_default_int(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	attr_type = ATTR.LOCALE()
@@ -130,7 +130,7 @@ def test_validate_attr_LOCALE_default_int(monkeypatch):
 	assert attr_val == 'test_validate_attr_LOCALE'
 
 def test_validate_attr_LOCALE_default_int_allow_none(monkeypatch):
-	from config import Config
+	from ....config import Config
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
 	attr_type = ATTR.LOCALE()

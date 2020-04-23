@@ -1,5 +1,5 @@
-from classes import ATTR
-import utils
+from ....classes import ATTR
+from .... import utils
 
 import pytest
 

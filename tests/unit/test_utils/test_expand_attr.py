@@ -1,4 +1,4 @@
-from utils import expand_attr
+from ....utils import expand_attr
 
 
 def test_expand_attr():
