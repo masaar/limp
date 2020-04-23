@@ -856,8 +856,9 @@ def validate_attr(
 				attr_val = float(attr_val)
 
 			if type(attr_val) == float:
-				if attr_type._args['range']:
-					if int(attr_val) in attr_type._args['range']:
+				if attr_type._args['ranges']:
+					for _range in attr_type._args['ranges']:
+						if attr_val in range(*_range):
 						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
@@ -896,8 +897,9 @@ def validate_attr(
 				attr_val = int(attr_val)
 
 			if type(attr_val) == int:
-				if attr_type._args['range']:
-					if attr_val in attr_type._args['range']:
+				if attr_type._args['ranges']:
+					for _range in attr_type._args['ranges']:
+						if attr_val in range(*_range):
 						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)

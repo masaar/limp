@@ -90,8 +90,8 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	'ACCESS': {},
 	'ID': {},
 	'STR': {'pattern': str},
-	'INT': {'range': List[int]},
-	'FLOAT': {'range': List[int]},
+	'INT': {'ranges': List[List[int]]},
+	'FLOAT': {'ranges': List[List[float]]},
 	'BOOL': {},
 	'LOCALE': {},
 	'LOCALES': {},
@@ -473,12 +473,12 @@ class ATTR:
 		return ATTR(attr_type='STR', desc=desc, pattern=pattern)
 
 	@classmethod
-	def INT(cls, *, desc: str = None, range: List[int] = None):
-		return ATTR(attr_type='INT', desc=desc, range=range)
+	def INT(cls, *, desc: str = None, ranges: List[List[int]] = None):
+		return ATTR(attr_type='INT', desc=desc, ranges=ranges)
 
 	@classmethod
-	def FLOAT(cls, *, desc: str = None, range: List[int] = None):
-		return ATTR(attr_type='FLOAT', desc=desc, range=range)
+	def FLOAT(cls, *, desc: str = None, ranges: List[List[int]] = None):
+		return ATTR(attr_type='FLOAT', desc=desc, ranges=ranges)
 
 	@classmethod
 	def BOOL(cls, *, desc: str = None):
@@ -664,6 +664,12 @@ class ATTR:
 			return
 		elif arg_type == int:
 			if type(arg_val) != int:
+				raise InvalidAttrTypeArgException(
+					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+				)
+			return
+		elif arg_type == float:
+			if type(arg_val) not in [float, int]:
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
