@@ -623,6 +623,9 @@ def validate_attr(
 			attr_oper = '$remove'
 			attr_val = attr_val['$remove']
 
+	# [DOC] Deepcopy attr_val to eliminate changes in in original object
+	attr_val = copy.deepcopy(attr_val)
+
 	try:
 		if attr_type._type == 'ANY':
 			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
@@ -779,6 +782,12 @@ def validate_attr(
 						attr_val=shadow_attr_val, attr_oper=attr_oper
 					)
 				else:
+					if set(attr_val.keys()) != set(attr_type._args['dict'].keys()):
+						raise InvalidAttrException(
+							attr_name=attr_name,
+							attr_type=attr_type,
+							val_type=type(attr_val),
+						)
 					for child_attr_type in attr_type._args['dict'].keys():
 						if child_attr_type not in attr_val.keys():
 							attr_val[child_attr_type] = None
@@ -797,13 +806,13 @@ def validate_attr(
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'EMAIL':
-			if re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
+			if type(attr_val) == str and re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
 				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'FILE':
 			if type(attr_val) == list and len(attr_val):
 				try:
-					validate_attr(
+					attr_val = validate_attr(
 						attr_name=attr_name,
 						attr_type=attr_type,
 						attr_val=attr_val[0],
@@ -815,7 +824,6 @@ def validate_attr(
 						doc=doc,
 						scope=attr_val,
 					)
-					attr_val = attr_val[0]
 				except:
 					raise InvalidAttrException(
 						attr_name=attr_name,
@@ -913,6 +921,20 @@ def validate_attr(
 
 		elif attr_type._type == 'LIST':
 			if type(attr_val) == list:
+				if attr_type._args['min']:
+					if len(attr_val) < attr_type._args['min']:
+						raise InvalidAttrException(
+							attr_name=attr_name,
+							attr_type=attr_type,
+							val_type=type(attr_val),
+						)
+				if attr_type._args['max']:
+					if len(attr_val) > attr_type._args['max']:
+						raise InvalidAttrException(
+							attr_name=attr_name,
+							attr_type=attr_type,
+							val_type=type(attr_val),
+						)
 				for i in range(len(attr_val)):
 					child_attr_val = attr_val[i]
 					child_attr_check = False
@@ -1043,7 +1065,7 @@ def validate_attr(
 		elif attr_type._type == 'UNION':
 			for child_attr in attr_type._args['union']:
 				try:
-					validate_attr(
+					attr_val = validate_attr(
 						attr_name=attr_name,
 						attr_type=child_attr,
 						attr_val=attr_val,
@@ -1068,6 +1090,13 @@ def validate_attr(
 			)
 
 	except Exception as e:
+		pass
+	try:
+		e
+	except:
+		e = InvalidAttrException(
+			attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
+		)
 		if type(e) in [InvalidAttrException, ConvertAttrException]:
 			if allow_none:
 				return None
@@ -1075,10 +1104,6 @@ def validate_attr(
 				return attr_type._default
 			else:
 				raise e
-
-	raise InvalidAttrException(
-		attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
-	)
 
 
 def return_valid_attr(
