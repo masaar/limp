@@ -726,15 +726,15 @@ def validate_attr(
 		elif attr_type._type == 'DICT':
 			if type(attr_val) == dict:
 				if '__key' in attr_type._args['dict'].keys():
-					if '__min' in attr_type._args['dict'].keys():
-						if len(attr_val.keys()) < attr_type._args['dict']['__min']:
+					if attr_type._args['min']:
+						if len(attr_val.keys()) < attr_type._args['min']:
 							raise InvalidAttrException(
 								attr_name=attr_name,
 								attr_type=attr_type,
 								val_type=type(attr_val),
 							)
-					if '__max' in attr_type._args['dict'].keys():
-						if len(attr_val.keys()) > attr_type._args['dict']['__max']:
+					if attr_type._args['max']:
+						if len(attr_val.keys()) > attr_type._args['max']:
 							raise InvalidAttrException(
 								attr_name=attr_name,
 								attr_type=attr_type,
@@ -767,8 +767,8 @@ def validate_attr(
 							doc=doc,
 							scope=attr_val,
 						)
-					if '__req' in attr_type._args['dict'].keys():
-						for req_key in attr_type._args['dict']['__req']:
+					if attr_type._args['req']:
+						for req_key in attr_type._args['req']:
 							if req_key not in shadow_attr_val.keys():
 								raise InvalidAttrException(
 									attr_name=attr_name,

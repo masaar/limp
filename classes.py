@@ -576,8 +576,22 @@ class ATTR:
 		return ATTR(attr_type='LIST', desc=desc, list=list, min=min, max=max)
 
 	@classmethod
-	def DICT(cls, *, desc: str = None, dict: Dict[str, 'ATTR']):
-		return ATTR(attr_type='DICT', desc=desc, dict=dict)
+	def DICT(
+		cls,
+		*,
+		desc: str = None,
+		dict: Dict[str, 'ATTR'],
+		min: int = None,
+		max: int = None,
+		req: List[str] = None,
+	):
+		if (min or max or req) and '__key' not in dict.keys():
+			raise InvalidAttrTypeArgException(
+				arg_name='min' if min else 'max' if max else 'req',
+				arg_type=None,
+				arg_val=min or max or req,
+			)
+		return ATTR(attr_type='DICT', desc=desc, dict=dict, min=min, max=max, req=req)
 
 	@classmethod
 	def LITERAL(cls, *, desc: str = None, literal: List[Union[str, int, float, bool]]):
