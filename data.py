@@ -1,7 +1,7 @@
-from config import Config
-from enums import Event, DELETE_STRATEGY
-from classes import DictObj, BaseModel, Query, EXTN, ATTR, ATTR_MOD, LIMP_DOC
-from utils import extract_attr, set_attr
+from .config import Config
+from .enums import Event, DELETE_STRATEGY
+from .classes import DictObj, BaseModel, Query, EXTN, ATTR, ATTR_MOD, LIMP_DOC
+from .utils import extract_attr, set_attr
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId

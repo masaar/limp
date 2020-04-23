@@ -1,6 +1,6 @@
-from enums import Event
-from utils import generate_attr
-from classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR
+from .enums import Event
+from .utils import generate_attr
+from .classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR
 
 from typing import List, Dict, Callable, Any, Union, Set, Tuple, Literal, TypedDict
 
@@ -253,7 +253,7 @@ class Config:
 			with open(os.path.join(__location__, 'certs', cls.data_ca_name), 'w') as f:
 				f.write(cls.data_ca)
 
-		from data import Data
+		from .data import Data
 
 		# [DOC] Create default env dict
 		anon_user = cls.compile_anon_user()
@@ -762,7 +762,7 @@ class Config:
 
 		# [DOC] Check for test mode
 		if cls.test:
-			from test import Test
+			from .test import Test
 
 			logger.debug('Running tests')
 			anon_session = cls.compile_anon_session()

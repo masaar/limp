@@ -1,8 +1,8 @@
-from bson import ObjectId
-from enums import Event
-from classes import ATTR, JSONEncoder, Query, LIMP_QUERY, LIMP_DOC
-from utils import extract_attr, validate_attr
+from .enums import Event
+from .classes import ATTR, JSONEncoder, Query, LIMP_QUERY, LIMP_DOC
+from .utils import extract_attr, validate_attr
 
+from bson import ObjectId
 from typing import List, Dict, Union, Tuple, Literal, Any
 
 import logging, traceback, datetime, os, json, copy
@@ -81,7 +81,7 @@ class STEP:
 
 	@classmethod
 	def validate_step(cls, *, step: 'STEP'):
-		from config import Config
+		from .config import Config
 
 		logger.debug(f'Attempting to validate test step: {step}')
 		if step._step == 'AUTH':
@@ -222,8 +222,8 @@ class Test:
 	async def run_test(
 		cls, test_name: str, steps: List[STEP] = None
 	) -> Union[None, Dict[str, Any]]:
-		from config import Config
-		from utils import DictObj
+		from .config import Config
+		from .utils import DictObj
 
 		if test_name not in Config.tests.keys():
 			logger.error('Specified test is not defined in loaded config.')
@@ -392,7 +392,7 @@ class Test:
 		doc: LIMP_DOC,
 		acceptance: Dict[str, Any],
 	):
-		from config import Config
+		from .config import Config
 
 		call_results = {
 			'step': 'call',
@@ -463,7 +463,7 @@ class Test:
 		call_results: 'DictObj' = None,
 	) -> Union[Dict[str, Any], List[Any]]:
 		logger.debug(f'Attempting to process object: {obj}')
-		from utils import extract_attr, generate_attr
+		from .utils import extract_attr, generate_attr
 
 		if type(obj) == dict:
 			obj_iter = obj.keys()
@@ -512,7 +512,7 @@ class Test:
 	def break_debugger(
 		cls, scope: Dict[str, Any], call_results: Dict[str, Any]
 	) -> None:
-		from config import Config
+		from .config import Config
 
 		if Config.test_breakpoint:
 			logger.debug(

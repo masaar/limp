@@ -1,4 +1,4 @@
-from classes import (
+from .classes import (
 	LIMP_DOC,
 	ATTR,
 	ATTR_MOD,
@@ -11,7 +11,7 @@ from classes import (
 	LIMP_MODULE,
 	LIMP_ENV,
 )
-from enums import Event, LIMP_VALUES
+from .enums import Event, LIMP_VALUES
 
 from typing import Dict, Union, Literal, List, Any
 from bson import ObjectId, binary
@@ -23,9 +23,9 @@ logger = logging.getLogger('limp')
 
 def import_modules(*, packages=None):
 	import modules as package
-	from base_module import BaseModule
-	from config import Config
-	from test import TEST
+	from .base_module import BaseModule
+	from .config import Config
+	from .test import TEST
 
 	# [DOC] Assign required variables
 	modules: Dict[str, BaseModule] = {}
@@ -155,8 +155,8 @@ def extract_lambda_body(lambda_func):
 def generate_ref(
 	*, modules_packages: Dict[str, List[str]], modules: List['BaseModule']
 ):
-	from config import Config
-	from base_module import BaseModule
+	from .config import Config
+	from .base_module import BaseModule
 
 	modules: List[BaseModule]
 	# [DOC] Initialise _api_ref Config Attr
@@ -590,7 +590,7 @@ def validate_attr(
 	doc: LIMP_DOC = None,
 	scope: LIMP_DOC = None,
 ):
-	from config import Config
+	from .config import Config
 
 	try:
 		return validate_default(
@@ -867,7 +867,7 @@ def validate_attr(
 				if attr_type._args['ranges']:
 					for _range in attr_type._args['ranges']:
 						if attr_val in range(*_range):
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
@@ -908,7 +908,7 @@ def validate_attr(
 				if attr_type._args['ranges']:
 					for _range in attr_type._args['ranges']:
 						if attr_val in range(*_range):
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
@@ -1097,13 +1097,13 @@ def validate_attr(
 		e = InvalidAttrException(
 			attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
 		)
-		if type(e) in [InvalidAttrException, ConvertAttrException]:
-			if allow_none:
-				return None
-			elif attr_type._default != LIMP_VALUES.NONE_VALUE:
-				return attr_type._default
-			else:
-				raise e
+	if type(e) in [InvalidAttrException, ConvertAttrException]:
+		if allow_none:
+			return None
+		elif attr_type._default != LIMP_VALUES.NONE_VALUE:
+			return attr_type._default
+		else:
+			raise e
 
 
 def return_valid_attr(
@@ -1124,7 +1124,7 @@ def return_valid_attr(
 
 
 def generate_attr(*, attr_type: ATTR) -> Any:
-	from config import Config
+	from .config import Config
 
 	if attr_type._type == 'ANY':
 		return '__any'
@@ -1209,7 +1209,7 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		}
 
 	elif attr_type._type == 'LOCALES':
-		from config import Config
+		from .config import Config
 
 		return Config.locale
 

@@ -2,7 +2,7 @@ from typing import Dict, Any, Union, List
 
 
 async def run_app(packages, port):
-	from utils import (
+	from .utils import (
 		import_modules,
 		SignalHandler,
 		process_multipart,
@@ -11,12 +11,12 @@ async def run_app(packages, port):
 		InvalidAttrException,
 		ConvertAttrException,
 	)
-	from classes import JSONEncoder, DictObj, LIMP_ENV
-	from base_module import BaseModule
-	from enums import Event
-	from config import Config
-	from data import Data
-	from test import Test
+	from .classes import JSONEncoder, DictObj, LIMP_ENV
+	from .base_module import BaseModule
+	from .enums import Event
+	from .config import Config
+	from .data import Data
+	from .test import Test
 
 	from bson import ObjectId
 	from passlib.hash import pbkdf2_sha512

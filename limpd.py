@@ -143,7 +143,7 @@ if args.log:
 	logger.setLevel(logging.DEBUG)
 
 # [DOC] Update Config with LIMPd args
-from config import Config
+from .config import Config
 
 Config._limp_version = __version__
 Config._limp_location = __location__
@@ -175,6 +175,6 @@ if packages:
 	packages = args.packages + ['core']
 
 import asyncio
-from app import run_app
+from .app import run_app
 
 asyncio.run(run_app(packages, port))

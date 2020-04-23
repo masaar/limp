@@ -1,7 +1,7 @@
-from config import Config
-from enums import Event, DELETE_STRATEGY
-from data import Data
-from utils import (
+from .config import Config
+from .enums import Event, DELETE_STRATEGY
+from .data import Data
+from .utils import (
 	validate_doc,
 	InvalidAttrException,
 	MissingAttrException,
@@ -9,7 +9,7 @@ from utils import (
 	update_attr_values,
 	expand_attr,
 )
-from classes import (
+from .classes import (
 	DictObj,
 	BaseModel,
 	Query,
@@ -28,7 +28,7 @@ from classes import (
 	CACHED_QUERY,
 	ANALYTIC
 )
-from base_method import BaseMethod
+from .base_method import BaseMethod
 
 from typing import List, Dict, Union, Tuple, Callable, Any, TypedDict
 

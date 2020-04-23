@@ -1,4 +1,4 @@
-from config import Config
+from .config import Config
 
 from typing import Literal, List, TypedDict, Any
 

@@ -1,4 +1,4 @@
-from enums import Event, LIMP_VALUES
+from .enums import Event, LIMP_VALUES
 
 from typing import (
 	Union,
@@ -112,7 +112,7 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	},
 	'GEO': {},
 	'LIST': {'list': List['ATTR'], 'min': int, 'max': int},
-	'DICT': {'dict': Dict[str, 'ATTR']},
+	'DICT': {'dict': Dict[str, 'ATTR'], 'min': int, 'max': int, 'req': List[str]},
 	'LITERAL': {'literal': List[Union[str, int, float, bool]]},
 	'UNION': {'union': List['ATTR']},
 	'TYPE': {'type': str},
@@ -607,7 +607,7 @@ class ATTR:
 
 	@classmethod
 	def validate_type(cls, *, attr_type: 'ATTR', skip_type: bool = False):
-		from config import Config
+		from .config import Config
 
 		if type(attr_type) != ATTR:
 			raise InvalidAttrTypeException(attr_type=attr_type)
@@ -717,7 +717,9 @@ class ATTR:
 					)
 			return
 		elif arg_type == datetime.date:
-			if not re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', arg_val) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
+			if not re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', arg_val) and not re.match(
+				r'^[\-\+][0-9]+[dsmhw]$', arg_val
+			):
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
@@ -732,7 +734,9 @@ class ATTR:
 				)
 			return
 		elif arg_type == datetime.time:
-			if not re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', arg_val) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
+			if not re.match(
+				r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', arg_val
+			) and not re.match(r'^[\-\+][0-9]+[dsmhw]$', arg_val):
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
