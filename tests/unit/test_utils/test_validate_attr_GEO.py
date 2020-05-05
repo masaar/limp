@@ -14,6 +14,7 @@ def test_validate_attr_GEO_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_GEO_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -24,23 +25,20 @@ def test_validate_attr_GEO_int():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_GEO_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
-			attr_val={
-				'key': 'value'
-			},
+			attr_val={'key': 'value'},
 			allow_opers=False,
 			allow_none=False,
 		)
 
+
 def test_validate_attr_GEO_geo():
-	geo_attr_val = {
-		'type': 'Point',
-		'coordinates': [21.422507, 39.826181]
-	}
+	geo_attr_val = {'type': 'Point', 'coordinates': [21.422507, 39.826181]}
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=ATTR.GEO(),
@@ -50,18 +48,17 @@ def test_validate_attr_GEO_geo():
 	)
 	assert attr_val == geo_attr_val
 
+
 def test_validate_attr_GEO_geo_as_str():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
-			attr_val={
-				'type': 'Point',
-				'coordinates': ['21.422507', '39.826181']
-			},
+			attr_val={'type': 'Point', 'coordinates': ['21.422507', '39.826181']},
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_GEO_None_allow_none():
 	attr_val = utils.validate_attr(
@@ -72,6 +69,7 @@ def test_validate_attr_GEO_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_GEO_default_None():
 	attr_type = ATTR.GEO()
@@ -85,6 +83,7 @@ def test_validate_attr_GEO_default_None():
 	)
 	assert attr_val == 'test_validate_attr_GEO'
 
+
 def test_validate_attr_GEO_default_int():
 	attr_type = ATTR.GEO()
 	attr_type._default = 'test_validate_attr_GEO'
@@ -96,6 +95,7 @@ def test_validate_attr_GEO_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_GEO'
+
 
 def test_validate_attr_GEO_default_int_allow_none():
 	attr_type = ATTR.GEO()

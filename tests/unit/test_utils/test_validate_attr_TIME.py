@@ -14,6 +14,7 @@ def test_validate_attr_TIME_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_TIME_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_TIME_int():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_TIME_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
@@ -34,6 +36,7 @@ def test_validate_attr_TIME_str_invalid():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_TIME_datetime_short():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_TIME',
@@ -43,6 +46,7 @@ def test_validate_attr_TIME_datetime_short():
 		allow_none=False,
 	)
 	assert attr_val == '00:00'
+
 
 def test_validate_attr_TIME_datetime_medium():
 	attr_val = utils.validate_attr(
@@ -54,6 +58,7 @@ def test_validate_attr_TIME_datetime_medium():
 	)
 	assert attr_val == '00:00:00'
 
+
 def test_validate_attr_TIME_datetime_iso():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_TIME',
@@ -64,6 +69,7 @@ def test_validate_attr_TIME_datetime_iso():
 	)
 	assert attr_val == '00:00:00.000000'
 
+
 def test_validate_attr_TIME_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_TIME',
@@ -73,6 +79,7 @@ def test_validate_attr_TIME_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_TIME_default_None():
 	attr_type = ATTR.TIME()
@@ -86,6 +93,7 @@ def test_validate_attr_TIME_default_None():
 	)
 	assert attr_val == 'test_validate_attr_TIME'
 
+
 def test_validate_attr_TIME_default_int():
 	attr_type = ATTR.TIME()
 	attr_type._default = 'test_validate_attr_TIME'
@@ -97,6 +105,7 @@ def test_validate_attr_TIME_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_TIME'
+
 
 def test_validate_attr_TIME_default_int_allow_none():
 	attr_type = ATTR.TIME()

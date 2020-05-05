@@ -14,6 +14,7 @@ def test_validate_attr_UNION_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_UNION_float():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_UNION_float():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_UNION_str():
 	attr_val = utils.validate_attr(
@@ -34,6 +36,7 @@ def test_validate_attr_UNION_str():
 	)
 	assert attr_val == 'str'
 
+
 def test_validate_attr_UNION_int():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
@@ -44,6 +47,7 @@ def test_validate_attr_UNION_int():
 	)
 	assert attr_val == 1
 
+
 def test_validate_attr_UNION_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
@@ -53,6 +57,7 @@ def test_validate_attr_UNION_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_UNION_default_None():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])
@@ -66,6 +71,7 @@ def test_validate_attr_UNION_default_None():
 	)
 	assert attr_val == 'test_validate_attr_UNION'
 
+
 def test_validate_attr_UNION_default_float():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])
 	attr_type._default = 'test_validate_attr_UNION'
@@ -77,6 +83,7 @@ def test_validate_attr_UNION_default_float():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_UNION'
+
 
 def test_validate_attr_UNION_default_float_allow_none():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])

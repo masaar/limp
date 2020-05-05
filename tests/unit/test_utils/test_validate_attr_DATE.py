@@ -14,6 +14,7 @@ def test_validate_attr_DATE_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_DATE_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_DATE_int():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_DATE_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
@@ -34,6 +36,7 @@ def test_validate_attr_DATE_str_invalid():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_DATE_date():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
@@ -44,6 +47,7 @@ def test_validate_attr_DATE_date():
 	)
 	assert attr_val == '2020-02-02'
 
+
 def test_validate_attr_DATE_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
@@ -53,6 +57,7 @@ def test_validate_attr_DATE_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_DATE_default_None():
 	attr_type = ATTR.DATE()
@@ -66,6 +71,7 @@ def test_validate_attr_DATE_default_None():
 	)
 	assert attr_val == 'test_validate_attr_DATE'
 
+
 def test_validate_attr_DATE_default_int():
 	attr_type = ATTR.DATE()
 	attr_type._default = 'test_validate_attr_DATE'
@@ -77,6 +83,7 @@ def test_validate_attr_DATE_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_DATE'
+
 
 def test_validate_attr_DATE_default_int_allow_none():
 	attr_type = ATTR.DATE()

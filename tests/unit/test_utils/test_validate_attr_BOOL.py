@@ -14,6 +14,7 @@ def test_validate_attr_BOOL_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_BOOL_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_BOOL_int():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_BOOL_bool():
 	attr_val = utils.validate_attr(
@@ -34,6 +36,7 @@ def test_validate_attr_BOOL_bool():
 	)
 	assert attr_val == False
 
+
 def test_validate_attr_BOOL_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_BOOL',
@@ -43,6 +46,7 @@ def test_validate_attr_BOOL_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_BOOL_default_None():
 	attr_type = ATTR.BOOL()
@@ -56,6 +60,7 @@ def test_validate_attr_BOOL_default_None():
 	)
 	assert attr_val == 'test_validate_attr_BOOL'
 
+
 def test_validate_attr_BOOL_default_int():
 	attr_type = ATTR.STR()
 	attr_type._default = 'test_validate_attr_BOOL'
@@ -68,6 +73,7 @@ def test_validate_attr_BOOL_default_int():
 	)
 	assert attr_val == 'test_validate_attr_BOOL'
 
+
 def test_validate_attr_BOOL_default_int_allow_none():
 	attr_type = ATTR.STR()
 	attr_type._default = 'test_validate_attr_BOOL'
@@ -79,4 +85,3 @@ def test_validate_attr_BOOL_default_int_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
-

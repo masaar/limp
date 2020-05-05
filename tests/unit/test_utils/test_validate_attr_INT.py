@@ -14,6 +14,7 @@ def test_validate_attr_INT_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_INT_str():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_INT_str():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_INT_float():
 	with pytest.raises(utils.InvalidAttrException):
@@ -34,6 +36,7 @@ def test_validate_attr_INT_float():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_INT_int():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_INT',
@@ -43,6 +46,7 @@ def test_validate_attr_INT_int():
 		allow_none=False,
 	)
 	assert attr_val == 1
+
 
 def test_validate_attr_INT_float_as_str():
 	with pytest.raises(utils.InvalidAttrException):
@@ -54,6 +58,7 @@ def test_validate_attr_INT_float_as_str():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_INT_int_as_str():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_INT',
@@ -63,6 +68,7 @@ def test_validate_attr_INT_int_as_str():
 		allow_none=False,
 	)
 	assert attr_val == 1
+
 
 def test_validate_attr_INT_range_int_invalid():
 	with pytest.raises(utils.InvalidAttrException):
@@ -74,6 +80,7 @@ def test_validate_attr_INT_range_int_invalid():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_INT_range_int():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_INT',
@@ -83,6 +90,7 @@ def test_validate_attr_INT_range_int():
 		allow_none=False,
 	)
 	assert attr_val == 0
+
 
 def test_validate_attr_INT_range_int_as_str():
 	attr_val = utils.validate_attr(
@@ -94,6 +102,7 @@ def test_validate_attr_INT_range_int_as_str():
 	)
 	assert attr_val == 0
 
+
 def test_validate_attr_INT_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_INT',
@@ -103,6 +112,7 @@ def test_validate_attr_INT_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_INT_default_None():
 	attr_type = ATTR.INT()
@@ -116,6 +126,7 @@ def test_validate_attr_INT_default_None():
 	)
 	assert attr_val == 'test_validate_attr_INT'
 
+
 def test_validate_attr_INT_default_str():
 	attr_type = ATTR.INT()
 	attr_type._default = 'test_validate_attr_INT'
@@ -127,6 +138,7 @@ def test_validate_attr_INT_default_str():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_INT'
+
 
 def test_validate_attr_INT_default_int_allow_none():
 	attr_type = ATTR.INT()

@@ -14,6 +14,7 @@ def test_validate_attr_FLOAT_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_FLOAT_str():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_FLOAT_str():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_FLOAT_float():
 	attr_val = utils.validate_attr(
@@ -34,6 +36,7 @@ def test_validate_attr_FLOAT_float():
 	)
 	assert attr_val == 1.1
 
+
 def test_validate_attr_FLOAT_int():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
@@ -43,6 +46,7 @@ def test_validate_attr_FLOAT_int():
 		allow_none=False,
 	)
 	assert attr_val == 1
+
 
 def test_validate_attr_FLOAT_float_as_str():
 	attr_val = utils.validate_attr(
@@ -54,6 +58,7 @@ def test_validate_attr_FLOAT_float_as_str():
 	)
 	assert attr_val == 1.1
 
+
 def test_validate_attr_FLOAT_int_as_str():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
@@ -64,6 +69,7 @@ def test_validate_attr_FLOAT_int_as_str():
 	)
 	assert attr_val == 1
 
+
 def test_validate_attr_FLOAT_range_float_invalid():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -73,6 +79,7 @@ def test_validate_attr_FLOAT_range_float_invalid():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 # def test_validate_attr_FLOAT_range_float():
 # 	attr_val = utils.validate_attr(
@@ -94,6 +101,7 @@ def test_validate_attr_FLOAT_range_float_invalid():
 # 	)
 # 	assert attr_val == 0.5
 
+
 def test_validate_attr_FLOAT_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
@@ -103,6 +111,7 @@ def test_validate_attr_FLOAT_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_FLOAT_default_None():
 	attr_type = ATTR.FLOAT()
@@ -116,6 +125,7 @@ def test_validate_attr_FLOAT_default_None():
 	)
 	assert attr_val == 'test_validate_attr_FLOAT'
 
+
 def test_validate_attr_FLOAT_default_str():
 	attr_type = ATTR.FLOAT()
 	attr_type._default = 'test_validate_attr_FLOAT'
@@ -127,6 +137,7 @@ def test_validate_attr_FLOAT_default_str():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_FLOAT'
+
 
 def test_validate_attr_FLOAT_default_int_allow_none():
 	attr_type = ATTR.FLOAT()

@@ -15,6 +15,7 @@ def test_validate_attr_ID_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_ID_int():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -24,6 +25,7 @@ def test_validate_attr_ID_int():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_ID_str():
 	attr_val = utils.validate_attr(
@@ -35,6 +37,7 @@ def test_validate_attr_ID_str():
 	)
 	assert attr_val == ObjectId('000000000000000000000000')
 
+
 def test_validate_attr_ID_objectid():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_ID',
@@ -45,6 +48,7 @@ def test_validate_attr_ID_objectid():
 	)
 	assert attr_val == ObjectId('000000000000000000000000')
 
+
 def test_validate_attr_ID_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_ID',
@@ -54,6 +58,7 @@ def test_validate_attr_ID_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_ID_default_None():
 	attr_type = ATTR.ID()
@@ -67,6 +72,7 @@ def test_validate_attr_ID_default_None():
 	)
 	assert attr_val == 'test_validate_attr_ID'
 
+
 def test_validate_attr_ID_default_int():
 	attr_type = ATTR.ID()
 	attr_type._default = 'test_validate_attr_ID'
@@ -78,6 +84,7 @@ def test_validate_attr_ID_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_ID'
+
 
 def test_validate_attr_ID_default_int_allow_none():
 	attr_type = ATTR.ID()

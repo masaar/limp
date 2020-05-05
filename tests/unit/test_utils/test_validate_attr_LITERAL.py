@@ -14,6 +14,7 @@ def test_validate_attr_LITERAL_None():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_LITERAL_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
 		utils.validate_attr(
@@ -23,6 +24,7 @@ def test_validate_attr_LITERAL_str_invalid():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 def test_validate_attr_LITERAL_int_invalid():
 	with pytest.raises(utils.InvalidAttrException):
@@ -34,6 +36,7 @@ def test_validate_attr_LITERAL_int_invalid():
 			allow_none=False,
 		)
 
+
 def test_validate_attr_LITERAL_str():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
@@ -43,6 +46,7 @@ def test_validate_attr_LITERAL_str():
 		allow_none=False,
 	)
 	assert attr_val == 'str'
+
 
 def test_validate_attr_LITERAL_int():
 	attr_val = utils.validate_attr(
@@ -54,6 +58,7 @@ def test_validate_attr_LITERAL_int():
 	)
 	assert attr_val == 0
 
+
 def test_validate_attr_LITERAL_None_allow_none():
 	attr_val = utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
@@ -63,6 +68,7 @@ def test_validate_attr_LITERAL_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 def test_validate_attr_LITERAL_default_None():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
@@ -76,6 +82,7 @@ def test_validate_attr_LITERAL_default_None():
 	)
 	assert attr_val == 'test_validate_attr_LITERAL'
 
+
 def test_validate_attr_LITERAL_default_int():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
 	attr_type._default = 'test_validate_attr_LITERAL'
@@ -87,6 +94,7 @@ def test_validate_attr_LITERAL_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_LITERAL'
+
 
 def test_validate_attr_LITERAL_default_int_allow_none():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
