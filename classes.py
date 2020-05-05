@@ -112,7 +112,14 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	},
 	'GEO': {},
 	'LIST': {'list': List['ATTR'], 'min': int, 'max': int},
-	'DICT': {'dict': Dict[str, 'ATTR'], 'min': int, 'max': int, 'req': List[str]},
+	'KV_DICT': {
+		'key': ForwardRef('ATTR'),
+		'val': ForwardRef('ATTR'),
+		'min': int,
+		'max': int,
+		'req': List[str],
+	},
+	'TYPED_DICT': {'dict': Dict[str, 'ATTR']},
 	'LITERAL': {'literal': List[Union[str, int, float, bool]]},
 	'UNION': {'union': List['ATTR']},
 	'TYPE': {'type': str},
@@ -399,6 +406,14 @@ class InvalidAttrTypeArgException(Exception):
 		return f'Invalid Attr Type Arg for \'{self.arg_name}\' expecting type \'{self.arg_type}\' but got \'{self.arg_val}\'.'
 
 
+class InvalidAttrTypeArgsException(Exception):
+	def __init__(self, *, msg: str):
+		self.msg = msg
+
+	def __str__(self):
+		return self.msg
+
+
 class ATTR:
 	_type: Literal[
 		'ANY',
@@ -576,22 +591,23 @@ class ATTR:
 		return ATTR(attr_type='LIST', desc=desc, list=list, min=min, max=max)
 
 	@classmethod
-	def DICT(
+	def KV_DICT(
 		cls,
 		*,
 		desc: str = None,
-		dict: Dict[str, 'ATTR'],
+		key: 'ATTR',
+		val: 'ATTR',
 		min: int = None,
 		max: int = None,
 		req: List[str] = None,
 	):
-		if (min or max or req) and '__key' not in dict.keys():
-			raise InvalidAttrTypeArgException(
-				arg_name='min' if min else 'max' if max else 'req',
-				arg_type=None,
-				arg_val=min or max or req,
-			)
-		return ATTR(attr_type='DICT', desc=desc, dict=dict, min=min, max=max, req=req)
+		return ATTR(
+			attr_type='KV_DICT', desc=desc, key=key, val=val, min=min, max=max, req=req
+		)
+
+	@classmethod
+	def TYPED_DICT(cls, *, desc: str = None, dict: Dict[str, 'ATTR']):
+		return ATTR(attr_type='TYPED_DICT', desc=desc, dict=dict)
 
 	@classmethod
 	def LITERAL(cls, *, desc: str = None, literal: List[Union[str, int, float, bool]]):
@@ -635,7 +651,8 @@ class ATTR:
 			'FILE',
 			'GEO',
 			'LIST',
-			'DICT',
+			'KV_DICT',
+			'TYPED_DICT',
 			'LITERAL',
 			'UNION',
 			'TYPE',
@@ -693,6 +710,11 @@ class ATTR:
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
+			if arg_name == 'key':
+				if arg_val._type not in ['STR', 'LITERAL']:
+					raise InvalidAttrTypeArgException(
+						arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+					)
 			return
 		elif arg_name == 'literal':
 			if type(arg_val) != list:
@@ -758,14 +780,6 @@ class ATTR:
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
-			else:
-				if '__key' in arg_val.keys():
-					if arg_val['__key']._type not in ['STR', 'LITERAL']:
-						raise InvalidAttrTypeArgException(
-							arg_name=f'{arg_name}.__key',
-							arg_type=['STR', 'LITERAL'],
-							arg_val=arg_val['__key']._type,
-						)
 			return
 
 		raise InvalidAttrTypeArgException(
