@@ -735,75 +735,37 @@ def validate_attr(
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
-		elif attr_type._type == 'DICT':
+		elif attr_type._type == 'KV_DICT':
 			if type(attr_val) == dict:
-				if '__key' in attr_type._args['dict'].keys():
-					if attr_type._args['min']:
-						if len(attr_val.keys()) < attr_type._args['min']:
-							raise InvalidAttrException(
-								attr_name=attr_name,
-								attr_type=attr_type,
-								val_type=type(attr_val),
-							)
-					if attr_type._args['max']:
-						if len(attr_val.keys()) > attr_type._args['max']:
-							raise InvalidAttrException(
-								attr_name=attr_name,
-								attr_type=attr_type,
-								val_type=type(attr_val),
-							)
-					shadow_attr_val = {}
-					for child_attr_val in attr_val.keys():
-						shadow_attr_val[
-							validate_attr(
-								attr_name=f'{attr_name}.{child_attr_val}',
-								attr_type=attr_type._args['dict']['__key'],
-								attr_val=child_attr_val,
-								allow_opers=allow_opers,
-								allow_none=allow_none,
-								skip_events=skip_events,
-								env=env,
-								query=query,
-								doc=doc,
-								scope=attr_val,
-							)
-						] = validate_attr(
-							attr_name=f'{attr_name}.{child_attr_val}',
-							attr_type=attr_type._args['dict']['__val'],
-							attr_val=attr_val[child_attr_val],
-							allow_opers=allow_opers,
-							allow_none=allow_none,
-							skip_events=skip_events,
-							env=env,
-							query=query,
-							doc=doc,
-							scope=attr_val,
-						)
-					if attr_type._args['req']:
-						for req_key in attr_type._args['req']:
-							if req_key not in shadow_attr_val.keys():
-								raise InvalidAttrException(
-									attr_name=attr_name,
-									attr_type=attr_type,
-									val_type=type(attr_val),
-								)
-					return return_valid_attr(
-						attr_val=shadow_attr_val, attr_oper=attr_oper
-					)
-				else:
-					if set(attr_val.keys()) != set(attr_type._args['dict'].keys()):
+				if attr_type._args['min']:
+					if len(attr_val.keys()) < attr_type._args['min']:
 						raise InvalidAttrException(
 							attr_name=attr_name,
 							attr_type=attr_type,
 							val_type=type(attr_val),
 						)
-					for child_attr_type in attr_type._args['dict'].keys():
-						if child_attr_type not in attr_val.keys():
-							attr_val[child_attr_type] = None
-						attr_val[child_attr_type] = validate_attr(
-							attr_name=f'{attr_name}.{child_attr_type}',
-							attr_type=attr_type._args['dict'][child_attr_type],
-							attr_val=attr_val[child_attr_type],
+				if attr_type._args['max']:
+					if len(attr_val.keys()) > attr_type._args['max']:
+						raise InvalidAttrException(
+							attr_name=attr_name,
+							attr_type=attr_type,
+							val_type=type(attr_val),
+						)
+				if attr_type._args['req']:
+					for req_key in attr_type._args['req']:
+						if req_key not in attr_val.keys():
+							raise InvalidAttrException(
+								attr_name=attr_name,
+								attr_type=attr_type,
+								val_type=type(attr_val),
+							)
+				shadow_attr_val = {}
+				for child_attr_val in attr_val.keys():
+					shadow_attr_val[
+						validate_attr(
+							attr_name=f'{attr_name}.{child_attr_val}',
+							attr_type=attr_type._args['key'],
+							attr_val=child_attr_val,
 							allow_opers=allow_opers,
 							allow_none=allow_none,
 							skip_events=skip_events,
@@ -812,7 +774,44 @@ def validate_attr(
 							doc=doc,
 							scope=attr_val,
 						)
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					] = validate_attr(
+						attr_name=f'{attr_name}.{child_attr_val}',
+						attr_type=attr_type._args['val'],
+						attr_val=attr_val[child_attr_val],
+						allow_opers=allow_opers,
+						allow_none=allow_none,
+						skip_events=skip_events,
+						env=env,
+						query=query,
+						doc=doc,
+						scope=attr_val,
+					)
+				return return_valid_attr(attr_val=shadow_attr_val, attr_oper=attr_oper)
+
+		elif attr_type._type == 'TYPED_DICT':
+			if type(attr_val) == dict:
+				if set(attr_val.keys()) != set(attr_type._args['dict'].keys()):
+					raise InvalidAttrException(
+						attr_name=attr_name,
+						attr_type=attr_type,
+						val_type=type(attr_val),
+					)
+				for child_attr_type in attr_type._args['dict'].keys():
+					if child_attr_type not in attr_val.keys():
+						attr_val[child_attr_type] = None
+					attr_val[child_attr_type] = validate_attr(
+						attr_name=f'{attr_name}.{child_attr_type}',
+						attr_type=attr_type._args['dict'][child_attr_type],
+						attr_val=attr_val[child_attr_type],
+						allow_opers=allow_opers,
+						allow_none=allow_none,
+						skip_events=skip_events,
+						env=env,
+						query=query,
+						doc=doc,
+						scope=attr_val,
+					)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'EMAIL':
 			if type(attr_val) == str and re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
