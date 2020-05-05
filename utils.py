@@ -888,7 +888,9 @@ def validate_attr(
 				if attr_type._args['ranges']:
 					for _range in attr_type._args['ranges']:
 						if attr_val in range(*_range):
-							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
@@ -929,7 +931,9 @@ def validate_attr(
 				if attr_type._args['ranges']:
 					for _range in attr_type._args['ranges']:
 						if attr_val in range(*_range):
-							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
@@ -988,15 +992,11 @@ def validate_attr(
 		elif attr_type._type == 'LOCALE':
 			attr_val = validate_attr(
 				attr_name=attr_name,
-				attr_type=ATTR.DICT(
-					dict={
-						'__key': ATTR.LITERAL(
-							literal=[locale for locale in Config.locales]
-						),
-						'__val': ATTR.STR(),
-						'__min': 1,
-						'__req': [Config.locale],
-					}
+				attr_type=ATTR.KV_DICT(
+					key=ATTR.LITERAL(literal=[locale for locale in Config.locales]),
+					val=ATTR.STR(),
+					min=1,
+					req=[Config.locale],
 				),
 				attr_val=attr_val,
 				allow_opers=allow_opers,
