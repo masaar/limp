@@ -414,7 +414,10 @@ def process_multipart(*, rfile: bytes, boundary: bytes) -> Dict[bytes, List[byte
 
 
 def extract_attr(*, scope: Dict[str, Any], attr_path: str):
-	attr_path = attr_path[3:].split('.')
+	if attr_path.startswith('$__'):
+		attr_path = attr_path[3:].split('.')
+	else:
+		attr_path = attr_path.split('.')
 	attr = scope
 	for i in range(len(attr_path)):
 		child_attr = attr_path[i]
@@ -422,7 +425,9 @@ def extract_attr(*, scope: Dict[str, Any], attr_path: str):
 			logger.debug(f'Attempting to extract {child_attr} from {attr}.')
 			if ':' in child_attr:
 				child_attr = child_attr.split(':')
-				attr = attr[child_attr[0]][int(child_attr[1])]
+				attr = attr[child_attr[0]]
+				for i in range(1, len(child_attr)):
+					attr = attr[int(child_attr[i])]
 			else:
 				attr = attr[child_attr]
 		except Exception as e:
@@ -432,14 +437,19 @@ def extract_attr(*, scope: Dict[str, Any], attr_path: str):
 
 
 def set_attr(*, scope: Dict[str, Any], attr_path: str, value: Any):
-	attr_path = attr_path[3:].split('.')
+	if attr_path.startswith('$__'):
+		attr_path = attr_path[3:].split('.')
+	else:
+		attr_path = attr_path.split('.')
 	attr = scope
 	for i in range(len(attr_path) - 1):
 		child_attr = attr_path[i]
 		try:
 			if ':' in child_attr:
 				child_attr = child_attr.split(':')
-				attr = attr[child_attr[0]][int(child_attr[1])]
+				attr = attr[child_attr[0]]
+				for i in range(1, len(child_attr)):
+					attr = attr[int(child_attr[i])]
 			else:
 				attr = attr[child_attr]
 		except Exception as e:
@@ -447,7 +457,10 @@ def set_attr(*, scope: Dict[str, Any], attr_path: str, value: Any):
 			raise e
 	if ':' in attr_path[-1]:
 		attr_path[-1] = attr_path[-1].split(':')
-		attr[attr_path[-1][0]][int(attr_path[-1][1])] = value
+		attr = attr[attr_path[-1][0]]
+		for i in range(1, len(attr_path[-1]) - 1):
+			attr = attr[int(attr_path[-1][i])]
+		attr[int(attr_path[-1][-1])] = value
 	else:
 		attr[attr_path[-1]] = value
 
