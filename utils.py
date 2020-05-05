@@ -391,14 +391,13 @@ class SignalHandler:
 				exit()
 
 
-def process_multipart(rfile, boundary):
+def process_multipart(*, rfile: bytes, boundary: bytes) -> Dict[bytes, List[bytes]]:
 	boundary = b'--' + boundary
-	rfile = re.compile(boundary + b'(?:\r\n|\n)').split(
-		rfile.replace(b'\r\n' + boundary + b'--', b'').replace(
-			b'\n' + boundary + b'--', b''
-		)
+	rfile = rfile.replace(b'\r\n', b'\n')
+	rfile = re.compile(boundary + b'(?:\n)').split(
+		rfile.replace(b'\n' + boundary + b'--', b'')
 	)
-	pattern = b'[Cc]ontent-[Dd]isposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\r\n|\n)[Cc]ontent-[Tt]ype: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+)(?:\r\n|\n)|(?:\r\n|\n))(?:\r\n|\n)(.+)'
+	pattern = rb'[Cc]ontent-[Dd]isposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\n)[Cc]ontent-[Tt]ype: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+))?\n\n(.+(?=\n))'
 	multipart = {}
 	for part in rfile:
 		try:
@@ -406,13 +405,9 @@ def process_multipart(rfile, boundary):
 			multipart[multipart_key] = [
 				group for group in re.match(pattern, part, re.DOTALL).groups()
 			]
-			if (
-				multipart[multipart_key][3][-2] == 13
-				and multipart[multipart_key][3][-1] == 10
-			):
-				multipart[multipart_key][3] = multipart[multipart_key][3][:-2]
-			elif multipart[multipart_key][3][-1] == 10:
-				multipart[multipart_key][3][:-1]
+			# [DOC] Check if value of multipart item ends with newline charactre (\n, charcode: 10)
+			if multipart[multipart_key][3][-1] == 10:
+				multipart[multipart_key][3] = multipart[multipart_key][3][:-1]
 		except:
 			continue
 	return multipart
