@@ -816,7 +816,20 @@ def validate_attr(
 
 		elif attr_type._type == 'EMAIL':
 			if type(attr_val) == str and re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				if attr_type._args['allowed_domains']:
+					for domain in attr_type._args['allowed_domains']:
+						if attr_val.endswith(domain):
+							return return_valid_attr(
+								attr_val=attr_val, attr_oper=attr_oper
+							)
+				elif attr_type._args['disallowed_domains']:
+					for domain in attr_type._args['disallowed_domains']:
+						if attr_val.endswith(domain):
+							break
+					else:
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'FILE':
 			if type(attr_val) == list and len(attr_val):
