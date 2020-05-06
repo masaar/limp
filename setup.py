@@ -12,7 +12,7 @@ setuptools.setup(
 	long_description=long_description,
 	long_description_content_type='text/markdown',
 	url='https://github.com/masaar/limp',
-	packages=['limp', 'limp.packages', 'limp.packages.core', 'limp.data'],
+	packages=['limp', 'limp.packages', 'limp.packages.core'],
 	classifiers=[
 		'Programming Language :: Python :: 3',
 		'License :: OSI Approved :: LGPL-3.0 License',
