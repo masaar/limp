@@ -1,3 +1,5 @@
+from limp import __version__
+
 import argparse, os, logging, datetime, sys
 
 logger = logging.getLogger('limp')
@@ -9,13 +11,12 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 __location__ = None
-__version__ = None
 
 
 def limp_cli():
 	global sys, os
 
-	global __location__, __version__
+	global __location__
 
 	if sys.version_info.major != 3 or sys.version_info.minor != 8:
 		print('LIMP CLI can only run with Python3.8. Exiting.')
@@ -24,9 +25,6 @@ def limp_cli():
 	__location__ = os.path.realpath(
 		os.path.join(os.getcwd(), os.path.dirname(__file__))
 	)
-
-	with open(os.path.join(__location__, 'data', 'version.txt')) as f:
-		__version__ = f.read()
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
@@ -218,7 +216,7 @@ def install_deps(args: argparse.Namespace):
 
 def launch(args: argparse.Namespace):
 	global os
-	global __version__, __location__
+	global __location__
 	# [DOC] Update Config with LIMP CLI args
 	from limp.config import Config
 
@@ -259,5 +257,3 @@ def generate_ref(args: argparse.Namespace):
 	if Config.generate_ref:
 		if not os.path.exists(os.path.join(__location__, 'refs')):
 			os.makedirs(os.path.join(__location__, 'refs'))
-
-limp_cli()
