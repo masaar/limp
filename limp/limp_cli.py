@@ -25,7 +25,7 @@ def limp_cli():
 		os.path.join(os.getcwd(), os.path.dirname(__file__))
 	)
 
-	with open(os.path.join(__location__, 'version.txt')) as f:
+	with open(os.path.join(__location__, 'data', 'version.txt')) as f:
 		__version__ = f.read()
 
 	parser = argparse.ArgumentParser()
