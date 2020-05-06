@@ -1,7 +1,7 @@
-from base_module import BaseModule, BaseModel
-from config import Config
-from enums import Event
-from classes import (
+from limp.base_module import BaseModule, BaseModel
+from limp.config import Config
+from limp.enums import Event
+from limp.classes import (
 	ATTR,
 	PERM,
 	EXTN,
@@ -12,7 +12,7 @@ from classes import (
 	LIMP_QUERY,
 	ANALYTIC,
 )
-from utils import DictObj, extract_attr
+from limp.utils import DictObj, extract_attr
 
 from typing import List, Dict, Any, Union
 from bson import ObjectId

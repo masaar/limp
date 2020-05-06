@@ -1,4 +1,4 @@
-from .classes import (
+from limp.classes import (
 	LIMP_DOC,
 	ATTR,
 	ATTR_MOD,
@@ -11,56 +11,54 @@ from .classes import (
 	LIMP_MODULE,
 	LIMP_ENV,
 )
-from .enums import Event, LIMP_VALUES
+from limp.enums import Event, LIMP_VALUES
 
 from typing import Dict, Union, Literal, List, Any
 from bson import ObjectId, binary
 
-import logging, pkgutil, inspect, re, datetime, time, math, random, copy
+import logging, pkgutil, inspect, re, datetime, time, math, random, copy, os, sys
 
 logger = logging.getLogger('limp')
 
 
-def import_modules(*, packages=None):
-	import modules as package
-	from .base_module import BaseModule
-	from .config import Config
-	from .test import TEST
+def import_modules(*, app_path: str):
+	import limp
+	from limp.base_module import BaseModule
+	from limp.config import Config
+	from limp.test import TEST
+
+	sys.path.append(os.path.join(limp.__path__[0], 'packages'))
+	sys.path.append(os.path.join(app_path, 'packages'))
 
 	# [DOC] Assign required variables
 	modules: Dict[str, BaseModule] = {}
 	modules_packages: Dict[str, List[str]] = {}
 	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
-
+	
 	# [DOC] Iterate over packages in modules folder
-	package_prefix = package.__name__ + '.'
-	for _, pkgname, _ in pkgutil.iter_modules(
-		package.__path__, package_prefix
-	):  # pylint: disable=unused-variable
-		# [DOC] Check if package should be skipped
-		if packages and pkgname.replace('modules.', '') not in packages:
-			logger.debug(f'Skipping package: {pkgname}')
+	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(app_path, 'packages')]):  # pylint: disable=unused-variable
+		if not ispkg:
 			continue
+
 		logger.debug(f'Importing package: {pkgname}')
 
 		# [DOC] Load package and attempt to load config
-		child_package = __import__(pkgname, fromlist='*')
-		for k, v in child_package.config().items():
+		package = __import__(pkgname, fromlist='*')
+		for k, v in package.config().items():
 			if k == 'packages_versions':
-				Config.packages_versions[pkgname.replace('modules.', '')] = v
+				Config.packages_versions[pkgname.replace('packages.', '')] = v
 			elif k in ['tests', 'l10n']:
 				logger.warning(
 					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
 				)
 			elif k == 'envs':
-				if Config.env:
-					if Config.env in v.keys():
-						for kk, vv in v[Config.env].items():
-							setattr(Config, kk, vv)
-					else:
-						logger.warning(
-							f'Package \'{pkgname.replace("modules.", "")}\' has \'envs\' Config Attr defined, but \'env\' defintion \'{Config.env}\' not found.'
-						)
+				if Config.env in v.keys():
+					for kk, vv in v[Config.env].items():
+						setattr(Config, kk, vv)
+				else:
+					logger.warning(
+						f'Package \'{pkgname.replace("packages.", "")}\' has \'envs\' Config Attr defined, but \'env\' defintion \'{Config.env}\' not found.'
+					)
 			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
 				user_config[k] = v
 				setattr(Config, k, v)
@@ -72,9 +70,9 @@ def import_modules(*, packages=None):
 				setattr(Config, k, v)
 
 		# [DOC] Iterate over python modules in package
-		child_prefix = child_package.__name__ + '.'
-		for importer, modname, ispkg in pkgutil.iter_modules(
-			child_package.__path__, child_prefix
+		package_prefix = package.__name__ + '.'
+		for _, modname, ispkg in pkgutil.iter_modules(
+			package.__path__, package_prefix
 		):
 			# [DOC] Iterate over python classes in module
 			module = __import__(modname, fromlist='*')
@@ -88,12 +86,13 @@ def import_modules(*, packages=None):
 					if type(getattr(module, l10n_name)) == L10N:
 						Config.l10n[l10n_name] = getattr(module, l10n_name)
 				continue
+
 			for clsname in dir(module):
 				# [DOC] Confirm class is subclass of BaseModule
 				if (
 					clsname != 'BaseModule'
 					and inspect.isclass(getattr(module, clsname))
-					and issubclass(getattr(module, clsname), BaseModule)
+					and getattr(getattr(module, clsname), '_limp_module', False)
 				):
 					# [DOC] Deny loading LIMPd-reserved named LIMP modules
 					if clsname.lower() in ['conn', 'heart', 'watch']:
@@ -155,8 +154,8 @@ def extract_lambda_body(lambda_func):
 def generate_ref(
 	*, modules_packages: Dict[str, List[str]], modules: List['BaseModule']
 ):
-	from .config import Config
-	from .base_module import BaseModule
+	from limp.config import Config
+	from base_module import BaseModule
 
 	modules: List[BaseModule]
 	# [DOC] Initialise _api_ref Config Attr
@@ -598,7 +597,7 @@ def validate_attr(
 	doc: LIMP_DOC = None,
 	scope: LIMP_DOC = None,
 ):
-	from .config import Config
+	from limp.config import Config
 
 	try:
 		return validate_default(
@@ -1145,7 +1144,7 @@ def return_valid_attr(
 
 
 def generate_attr(*, attr_type: ATTR) -> Any:
-	from .config import Config
+	from limp.config import Config
 
 	if attr_type._type == 'ANY':
 		return '__any'
@@ -1230,7 +1229,7 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		}
 
 	elif attr_type._type == 'LOCALES':
-		from .config import Config
+		from limp.config import Config
 
 		return Config.locale
 

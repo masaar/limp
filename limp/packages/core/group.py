@@ -1,7 +1,7 @@
-from base_module import BaseModule
-from classes import ATTR, PERM
-from config import Config
-from enums import Event
+from limp.base_module import BaseModule
+from limp.classes import ATTR, PERM
+from limp.config import Config
+from limp.enums import Event
 
 
 class Group(BaseModule):
@@ -11,13 +11,13 @@ class Group(BaseModule):
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
 		'name': ATTR.LOCALE(desc='Name of the groups as `LOCALE`.'),
 		'desc': ATTR.LOCALE(desc='Description of the group as `LOCALE`. This can be used for dynamic generated groups that are meant to be exposed to end-users.'),
-		'privileges': ATTR.DICT(
+		'privileges': ATTR.KV_DICT(
 			desc='Privileges that any user is a member of the group has.',
-			dict={'__key': ATTR.STR(), '__val': ATTR.LIST(list=[ATTR.STR()])}
+			key=ATTR.STR(), val=ATTR.LIST(list=[ATTR.STR()])
 		),
-		'settings': ATTR.DICT(
+		'settings': ATTR.KV_DICT(
 			desc='`Setting` docs to be created, or required for members users when added to the group.',
-			dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}
+			key=ATTR.STR(), val=ATTR.ANY()
 		),
 		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
 	}

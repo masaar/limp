@@ -1,5 +1,5 @@
-from ....classes import ATTR
-from ....utils import update_attr_values
+from limp.classes import ATTR
+from limp.utils import update_attr_values
 
 
 def test_update_attr_values_default_dict():

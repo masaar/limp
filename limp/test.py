@@ -1,6 +1,6 @@
-from .enums import Event
-from .classes import ATTR, JSONEncoder, Query, LIMP_QUERY, LIMP_DOC
-from .utils import extract_attr, validate_attr
+from limp.enums import Event
+from limp.classes import ATTR, JSONEncoder, Query, LIMP_QUERY, LIMP_DOC
+from limp.utils import extract_attr, validate_attr
 
 from bson import ObjectId
 from typing import List, Dict, Union, Tuple, Literal, Any

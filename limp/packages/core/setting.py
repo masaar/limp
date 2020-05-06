@@ -1,8 +1,8 @@
-from base_module import BaseModule
-from enums import Event
-from classes import ATTR, PERM, EXTN, ATTR_MOD
-from utils import InvalidAttrException
-from config import Config
+from limp.base_module import BaseModule
+from limp.enums import Event
+from limp.classes import ATTR, PERM, EXTN, ATTR_MOD
+from limp.utils import InvalidAttrException
+from limp.config import Config
 
 
 class Setting(BaseModule):

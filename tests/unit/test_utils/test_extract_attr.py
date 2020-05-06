@@ -1,4 +1,4 @@
-from ....utils import extract_attr
+from limp.utils import extract_attr
 
 from .fixtures import attr_obj
 

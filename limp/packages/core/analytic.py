@@ -1,5 +1,5 @@
-from base_module import BaseModule
-from classes import (
+from limp.base_module import BaseModule
+from limp.classes import (
 	ATTR,
 	PERM,
 	EXTN,
@@ -10,7 +10,7 @@ from classes import (
 	LIMP_QUERY,
 	LIMP_DOC,
 )
-from enums import Event
+from limp.enums import Event
 
 from typing import Union
 
@@ -28,12 +28,12 @@ class Analytic(BaseModule):
 		'occurrences': ATTR.LIST(
 			desc='All occurrences of the event as list.',
 			list=[
-				ATTR.DICT(
+				ATTR.TYPED_DICT(
 					desc='Single occurrence of the event details.',
 					dict={
-						'args': ATTR.DICT(
+						'args': ATTR.KV_DICT(
 							desc='Key-value `dict` containing event args, if any.',
-							dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}
+							key=ATTR.STR(), val=ATTR.ANY()
 						),
 						'score': ATTR.INT(desc='Numerical score for occurrence of the event.'),
 						'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the occurrence of the event.'),
@@ -51,7 +51,7 @@ class Analytic(BaseModule):
 			'doc_args': {
 				'event': ATTR.STR(),
 				'subevent': ATTR.ANY(),
-				'args': ATTR.DICT(dict={'__key': ATTR.STR(), '__val': ATTR.ANY()}),
+				'args': ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.ANY()),
 			},
 		},
 		'update': {'permissions': [PERM(privilege='__sys')]},

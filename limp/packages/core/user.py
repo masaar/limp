@@ -1,7 +1,7 @@
-from base_module import BaseModule
-from enums import Event
-from classes import ATTR, PERM, EXTN, ATTR_MOD
-from config import Config
+from limp.base_module import BaseModule
+from limp.enums import Event
+from limp.classes import ATTR, PERM, EXTN, ATTR_MOD
+from limp.config import Config
 
 from bson import ObjectId
 
@@ -18,9 +18,9 @@ class User(BaseModule):
 			desc='List of `_id` for every group the user is member of.',
 			list=[ATTR.ID(desc='`_id` of Group doc the user is member of.')]
 		),
-		'privileges': ATTR.DICT(
+		'privileges': ATTR.KV_DICT(
 			desc='Privileges of the user. These privileges are always available to the user regardless of whether groups user is part of have them or not.',
-			dict={'__key': ATTR.STR(), '__val': ATTR.LIST(list=[ATTR.STR()])}
+			key=ATTR.STR(), val=ATTR.LIST(list=[ATTR.STR()])
 		),
 		'status': ATTR.LITERAL(
 			desc='Status of the user to determine whether user has access to the app or not.',

@@ -1,4 +1,4 @@
-from ....utils import extract_lambda_body
+from limp.utils import extract_lambda_body
 
 
 def test_extract_lamba_body_inline():

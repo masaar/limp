@@ -1,7 +1,7 @@
-from base_module import BaseModule
-from enums import Event
-from classes import ATTR, PERM, EXTN
-from config import Config
+from limp.base_module import BaseModule
+from limp.enums import Event
+from limp.classes import ATTR, PERM, EXTN
+from limp.config import Config
 
 from bson import ObjectId
 

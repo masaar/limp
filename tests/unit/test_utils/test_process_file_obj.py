@@ -1,4 +1,4 @@
-from ....utils import process_file_obj
+from limp.utils import process_file_obj
 
 from .fixtures import Module, read_file_results, delete_file_results
 

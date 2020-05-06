@@ -1,4 +1,4 @@
-from ....utils import set_attr
+from limp.utils import set_attr
 
 from .fixtures import attr_obj
 

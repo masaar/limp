@@ -1,4 +1,4 @@
-from .enums import Event, LIMP_VALUES
+from limp.enums import Event, LIMP_VALUES
 
 from typing import (
 	Union,
@@ -415,6 +415,7 @@ class InvalidAttrTypeArgsException(Exception):
 
 
 class ATTR:
+	_limp_attr: bool = True
 	_type: Literal[
 		'ANY',
 		'ACCESS',
@@ -623,9 +624,9 @@ class ATTR:
 
 	@classmethod
 	def validate_type(cls, *, attr_type: 'ATTR', skip_type: bool = False):
-		from .config import Config
+		from limp.config import Config
 
-		if type(attr_type) != ATTR:
+		if getattr(attr_type, '__limp_attr', False):
 			raise InvalidAttrTypeException(attr_type=attr_type)
 
 		if attr_type._valid:

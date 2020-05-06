@@ -1,8 +1,8 @@
-from base_module import BaseModule
-from enums import Event
-from classes import ATTR, PERM
-from config import Config
-from utils import extract_attr, validate_attr
+from limp.base_module import BaseModule
+from limp.enums import Event
+from limp.classes import ATTR, PERM
+from limp.config import Config
+from limp.utils import extract_attr, validate_attr
 
 from bson import ObjectId
 

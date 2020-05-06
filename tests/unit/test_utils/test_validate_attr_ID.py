@@ -1,5 +1,5 @@
-from ....classes import ATTR
-from .... import utils
+from limp.classes import ATTR
+from limp import utils
 
 from bson import ObjectId
 import pytest

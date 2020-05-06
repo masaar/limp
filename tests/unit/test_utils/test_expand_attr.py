@@ -1,4 +1,4 @@
-from ....utils import expand_attr
+from limp.utils import expand_attr
 
 
 def test_expand_attr():

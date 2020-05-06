@@ -1,4 +1,4 @@
-from ....utils import process_multipart
+from limp.utils import process_multipart
 
 from typing import Literal
 import pytest

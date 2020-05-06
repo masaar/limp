@@ -51,10 +51,8 @@ __pycache
 .gitmodules
 
 # Project Spcefic
-certs/*
+limp/certs/*
 tests/logs/*
-logs/*
-refs/*
-modules/*
-!modules/core
+limp/logs/*
+limp/refs/*
 *~

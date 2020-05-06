@@ -1,7 +1,7 @@
-from .config import Config
-from .enums import Event, DELETE_STRATEGY
-from .data import Data
-from .utils import (
+from limp.config import Config
+from limp.enums import Event, DELETE_STRATEGY
+from limp.data import Data
+from limp.utils import (
 	validate_doc,
 	InvalidAttrException,
 	MissingAttrException,
@@ -9,7 +9,7 @@ from .utils import (
 	update_attr_values,
 	expand_attr,
 )
-from .classes import (
+from limp.classes import (
 	DictObj,
 	BaseModel,
 	Query,
@@ -28,7 +28,7 @@ from .classes import (
 	CACHED_QUERY,
 	ANALYTIC
 )
-from .base_method import BaseMethod
+from limp.base_method import BaseMethod
 
 from typing import List, Dict, Union, Tuple, Callable, Any, TypedDict
 
@@ -40,6 +40,7 @@ logger = logging.getLogger('limp')
 
 
 class BaseModule:
+	_limp_module: bool = True
 	collection: Union[str, bool]
 	proxy: str
 	attrs: Dict[str, ATTR]
@@ -177,7 +178,7 @@ class BaseModule:
 						f'Updating default value for attr \'{attr}\' to: \'{self.defaults[default]}\''
 					)
 					update_attr_values(
-						attr=ATTR.DICT(dict=self.attrs),
+						attr=ATTR.TYPED_DICT(dict=self.attrs),
 						value='default',
 						value_path=default,
 						value_val=self.defaults[default],
@@ -193,7 +194,7 @@ class BaseModule:
 						f'Updating extn value for attr \'{extn}\' to: \'{self.extns[extn]}\''
 					)
 					update_attr_values(
-						attr=ATTR.DICT(dict=self.attrs),
+						attr=ATTR.TYPED_DICT(dict=self.attrs),
 						value='extn',
 						value_path=extn,
 						value_val=self.extns[extn],

@@ -1,7 +1,7 @@
-from base_module import BaseModule
-from enums import Event
-from classes import ATTR, PERM, LIMP_DOC
-from config import Config
+from limp.base_module import BaseModule
+from limp.enums import Event
+from limp.classes import ATTR, PERM, LIMP_DOC
+from limp.config import Config
 
 from bson import ObjectId
 
@@ -14,9 +14,9 @@ class Diff(BaseModule):
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
 		'module': ATTR.STR(desc='Name of the module the original doc is part of.'),
 		'doc': ATTR.ID(desc='`_id` of the original doc.'),
-		'vars': ATTR.DICT(
+		'vars': ATTR.KV_DICT(
 			desc='Key-value `dict` containing all attrs that have been updated from the original doc.',
-			dict={'__key': ATTR.STR(), '__val': ATTR.ANY()},
+			key=ATTR.STR(), val=ATTR.ANY()
 		),
 		'remarks': ATTR.STR(
 			desc='Human-readable remarks of the doc. This is introduced to allow developers to add log messages to diff docs.'

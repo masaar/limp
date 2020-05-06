@@ -1,11 +1,11 @@
-from ....classes import ATTR
-from .... import utils
+from limp.classes import ATTR
+from limp import utils
 
 import pytest
 
 
 def test_validate_attr_LOCALE_None(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -20,7 +20,7 @@ def test_validate_attr_LOCALE_None(monkeypatch):
 
 
 def test_validate_attr_LOCALE_dict_invalid(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -35,7 +35,7 @@ def test_validate_attr_LOCALE_dict_invalid(monkeypatch):
 
 
 def test_validate_attr_LOCALE_locale_all(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -55,7 +55,7 @@ def test_validate_attr_LOCALE_locale_all(monkeypatch):
 
 
 def test_validate_attr_LOCALE_locale_min(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -75,7 +75,7 @@ def test_validate_attr_LOCALE_locale_min(monkeypatch):
 
 
 def test_validate_attr_LOCALE_locale_extra(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -90,7 +90,7 @@ def test_validate_attr_LOCALE_locale_extra(monkeypatch):
 
 
 def test_validate_attr_LOCALE_None_allow_none(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -105,7 +105,7 @@ def test_validate_attr_LOCALE_None_allow_none(monkeypatch):
 
 
 def test_validate_attr_LOCALE_default_None(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -122,7 +122,7 @@ def test_validate_attr_LOCALE_default_None(monkeypatch):
 
 
 def test_validate_attr_LOCALE_default_int(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')
@@ -139,7 +139,7 @@ def test_validate_attr_LOCALE_default_int(monkeypatch):
 
 
 def test_validate_attr_LOCALE_default_int_allow_none(monkeypatch):
-	from ....config import Config
+	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	monkeypatch.setattr(Config, 'locale', 'ar_AE')

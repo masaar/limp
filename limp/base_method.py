@@ -1,5 +1,5 @@
-from .utils import validate_attr, InvalidAttrException, ConvertAttrException
-from .classes import (
+from limp.utils import validate_attr, InvalidAttrException, ConvertAttrException
+from limp.classes import (
 	DictObj,
 	BaseModel,
 	Query,
@@ -9,8 +9,8 @@ from .classes import (
 	LIMP_QUERY,
 	PERM,
 )
-from .enums import Event, LIMP_VALUES
-from .config import Config
+from limp.enums import Event, LIMP_VALUES
+from limp.config import Config
 
 from asyncio import coroutine
 from aiohttp.web import WebSocketResponse
