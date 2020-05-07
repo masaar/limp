@@ -325,7 +325,7 @@ def launch(args: argparse.Namespace):
 		logger.error('Exiting.')
 		exit()
 
-	asyncio.run(run_app(port=port, app_path=args.app_path))
+	asyncio.run(run_app(port=Config.port, app_path=Config._app_path))
 
 def test(args: argparse.Namespace):
 	pass
