@@ -1,7 +1,7 @@
 from typing import Dict, Any, Union, List
 
 
-async def run_app(*, port: int, app_path: str):
+async def run_app():
 	from limp.utils import (
 		import_modules,
 		SignalHandler,
@@ -30,7 +30,7 @@ async def run_app(*, port: int, app_path: str):
 	logger = logging.getLogger('limp')
 
 	# [DOC] Use import_modules to load and initialise modules
-	import_modules(app_path=app_path)
+	import_modules()
 	# [DOC] If realm mode is not enabled drop realm module.
 	if not Config.realm:
 		del Config.modules['realm']
@@ -1191,7 +1191,7 @@ async def run_app(*, port: int, app_path: str):
 			app.router.add_route('POST', route, http_handler)
 			app.router.add_route('OPTIONS', route, http_handler)
 		logger.info('Welcome to LIMPd.')
-		await aiohttp.web.run_app(app, host='0.0.0.0', port=port)
+		await aiohttp.web.run_app(app, host='0.0.0.0', port=Config.port)
 
 	async def loop_gather():
 		await asyncio.gather(jobs_loop(), web_loop())

@@ -21,14 +21,14 @@ import logging, pkgutil, inspect, re, datetime, time, math, random, copy, os, sy
 logger = logging.getLogger('limp')
 
 
-def import_modules(*, app_path: str):
+def import_modules():
 	import limp
 	from limp.base_module import BaseModule
 	from limp.config import Config
 	from limp.test import TEST
 
 	sys.path.append(os.path.join(limp.__path__[0], 'packages'))
-	sys.path.append(os.path.join(app_path, 'packages'))
+	sys.path.append(os.path.join(Config._app_path, 'packages'))
 
 	# [DOC] Assign required variables
 	modules: Dict[str, BaseModule] = {}
@@ -36,7 +36,7 @@ def import_modules(*, app_path: str):
 	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
 	
 	# [DOC] Iterate over packages in modules folder
-	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(app_path, 'packages')]):  # pylint: disable=unused-variable
+	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(Config._app_path, 'packages')]):  # pylint: disable=unused-variable
 		if not ispkg:
 			continue
 
