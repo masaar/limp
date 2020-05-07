@@ -131,7 +131,7 @@ async def run_app(*, port: int, app_path: str):
 		return aiohttp.web.Response(
 			status=200,
 			headers=headers,
-			body=JSONEncoder().encode({'status': 200, 'msg': 'Welcome to LIMP!'}),
+			body=JSONEncoder().encode({'status': 200, 'msg': f'Welcome to {Config._app_name}!', 'args': {'version': Config._app_version, 'powered_by':'LIMP'}}),
 		)
 
 	async def http_handler(request: aiohttp.web.Request):

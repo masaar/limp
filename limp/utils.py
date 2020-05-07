@@ -51,14 +51,6 @@ def import_modules(*, app_path: str):
 				logger.warning(
 					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
 				)
-			elif k == 'envs':
-				if Config.env in v.keys():
-					for kk, vv in v[Config.env].items():
-						setattr(Config, kk, vv)
-				else:
-					logger.warning(
-						f'Package \'{pkgname.replace("packages.", "")}\' has \'envs\' Config Attr defined, but \'env\' defintion \'{Config.env}\' not found.'
-					)
 			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
 				user_config[k] = v
 				setattr(Config, k, v)
@@ -300,7 +292,7 @@ def generate_ref(
 	import os
 
 	ref_file = os.path.join(
-		Config._limp_location,
+		Config._app_path,
 		'refs',
 		f'LIMP_API_REF_{datetime.datetime.utcnow().strftime("%d-%b-%Y")}.md',
 	)
@@ -1162,7 +1154,7 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		attr_val = datetime.datetime.utcnow()
 		return attr_val.isoformat()
 
-	elif attr_type._type == 'DICT':
+	elif attr_type._type == 'TYPED_DICT':
 		attr_val = {
 			child_attr: generate_attr(attr_type=attr_type._args['dict'][child_attr])
 			for child_attr in attr_type._args['dict'].keys()

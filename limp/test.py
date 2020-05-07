@@ -362,9 +362,8 @@ class Test:
 				results['success_rate'],
 			)
 			tests_log = os.path.join(
-				Config._limp_location,
+				Config._app_path,
 				'tests',
-				'logs',
 				f'LIMP-TEST_{test_name}_{datetime.datetime.utcnow().strftime("%d-%b-%Y")}',
 			)
 			if os.path.exists(f'{tests_log}.json'):

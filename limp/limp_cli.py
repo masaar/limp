@@ -1,6 +1,6 @@
 from limp import __version__
 
-import argparse, os, logging, datetime, sys
+import argparse, os, logging, datetime, sys, subprocess, asyncio
 
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
@@ -10,21 +10,13 @@ logger.addHandler(handler)
 
 logger.setLevel(logging.INFO)
 
-__location__ = None
-
 
 def limp_cli():
 	global sys, os
 
-	global __location__
-
 	if sys.version_info.major != 3 or sys.version_info.minor != 8:
 		print('LIMP CLI can only run with Python3.8. Exiting.')
 		exit()
-
-	__location__ = os.path.realpath(
-		os.path.join(os.getcwd(), os.path.dirname(__file__))
-	)
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
@@ -45,8 +37,8 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default $CWD]',
-		default='$CWD',
+		help='Path to create new LIMP app. [default .]',
+		default='.',
 	)
 
 	parser_install = subparsers.add_parser(
@@ -57,8 +49,8 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default $CWD]',
-		default='$CWD',
+		help='Path of the app to discover its dependecies. [default .]',
+		default='.',
 	)
 	parser_install.add_argument(
 		'--install-user',
@@ -72,8 +64,8 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default $CWD]',
-		default='$CWD',
+		help='Path of the app to discover its dependecies. [default .]',
+		default='.',
 	)
 	parser_launch.add_argument('--env', help='Choose specific env')
 	parser_launch.add_argument('--debug', help='Enable debug mode', action='store_true')
@@ -99,8 +91,8 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default $CWD]',
-		default='$CWD',
+		help='Path of the app to discover its dependecies. [default .]',
+		default='.',
 	)
 	parser_test.add_argument(
 		'--skip-flush',
@@ -131,70 +123,88 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default $CWD]',
-		default='$CWD',
+		help='Path of the app to discover its dependecies. [default .]',
+		default='.',
 	)
 
 	args = parser.parse_args()
 	args.func(args)
-	
-	exit()
 
-	# [DOC] Parse runtime args
-	if args.install_deps:
-		# [DOC] Change logging level to debug
-		logger.setLevel(logging.DEBUG)
-		logger.debug('Detected install_deps flag.')
-		# [DOC] Create standard call command list
-		pip_command = [sys.executable, '-m', 'pip', 'install']
-		# [DOC] Check for install_user glag to install dependencies with --user option
-		if args.install_user:
-			logger.debug('Detected install_user flag.')
-			pip_command.append('--user')
-		# [DOC] Add -r option to use requirements.txt files.
-		pip_command.append('-r')
-		# [DOC] Install LIMP dependencies
-		import subprocess, sys, os.path
 
-		logger.debug('Attempting to install dependencies of LIMP.')
-		subprocess.call(pip_command + ['requirements.txt'])
-		__location__ = os.path.realpath(
-			os.path.join(os.getcwd(), os.path.dirname(__file__))
+def create(args: argparse.Namespace):
+	print('create function')
+	print(args)
+
+def install_deps(args: argparse.Namespace):
+	global sys, os, subprocess
+	# [DOC] Change logging level to debug
+	logger.setLevel(logging.DEBUG)
+	logger.debug('Beginning to install dependencies')
+	# [DOC] Create standard call command list
+	pip_command = [sys.executable, '-m', 'pip', 'install']
+	# [DOC] Check for install_user glag to install dependencies with --user option
+	if args.install_user:
+		logger.debug('Detected install_user flag')
+		pip_command.append('--user')
+	# [DOC] Add -r option to use requirements.txt files.
+	pip_command.append('-r')
+
+	dirs = [
+		d
+		for d in os.listdir(os.path.join(args.app_path, 'packages'))
+		if os.path.isdir(os.path.join(args.app_path, 'packages', d))
+	]
+	# [DOC] Iterate over packages to find requirements.txt files
+	for package in dirs:
+		logger.debug(
+			f'Checking package \'{package}\' for \'requirements.txt\' file.'
 		)
-		dirs = [
-			d
-			for d in os.listdir(os.path.join(__location__, 'modules'))
-			if os.path.isdir(os.path.join(__location__, 'modules', d))
-		]
-		# [DOC] Iterate over packages to find requirements.txt files
-		for package in dirs:
+		if os.path.exists(
+			os.path.join(args.app_path, 'packages', package, 'requirements.txt')
+		):
 			logger.debug(
-				f'Checking package \'{package}\' for \'requirements.txt\' file.'
+				'File \'requirements.txt\' found! Attempting to install package dependencies.'
 			)
-			if os.path.exists(
-				os.path.join(__location__, 'modules', package, 'requirements.txt')
-			):
-				logger.debug(
-					'File \'requirements.txt\' found! Attempting to install package dependencies.'
-				)
-				subprocess.call(
-					pip_command
-					+ [
-						os.path.join(
-							__location__, 'modules', package, 'requirements.txt'
-						)
-					]
-				)
-		exit()
+			subprocess.call(
+				pip_command
+				+ [
+					os.path.join(
+						args.app_path, 'packages', package, 'requirements.txt'
+					)
+				]
+			)
 
-	# [DOC] Check for logging options
+def launch(args: argparse.Namespace):
+	global os, asyncio
+	global handler
+
+	# [DOC] Update Config with LIMP CLI args
+	from limp.config import Config
+
+	Config._limp_version = __version__
+	Config.test_collections = args.test_collections
+	Config.env = args.env
+	Config.force_admin_check = args.force_admin_check
+
+	# [DOC] Check for port CLI Arg
+	if args.port:
+		try:
+			Config.port = int(args.port)
+		except:
+			logger.error(f'Port should be in integer format. Exiting.')
+			exit()
+	# [DOC] Check for debug CLI Arg
+	if args.debug:
+		Config.debug = True
+		logger.setLevel(logging.DEBUG)
+	# [DOC] Check for log CLI Arg
 	if args.log:
 		logger.removeHandler(handler)
-		if not os.path.exists(os.path.join(__location__, 'logs')):
-			os.makedirs(os.path.join(__location__, 'logs'))
+		if not os.path.exists(os.path.join(args.app_path, 'logs')):
+			os.makedirs(os.path.join(args.app_path, 'logs'))
 		handler = logging.FileHandler(
 			filename=os.path.join(
-				__location__,
+				args.app_path,
 				'logs',
 				f'{datetime.datetime.utcnow().strftime("%d-%b-%Y")}.log',
 			)
@@ -203,57 +213,123 @@ def limp_cli():
 		logger.addHandler(handler)
 		logger.setLevel(logging.DEBUG)
 
-
-def create(args: argparse.Namespace):
-	print('create function')
-	print(args)
-	exit()
-
-def install_deps(args: argparse.Namespace):
-	print('install_deps function')
-	print(args)
-	exit()
-
-def launch(args: argparse.Namespace):
-	global os
-	global __location__
-	# [DOC] Update Config with LIMP CLI args
-	from limp.config import Config
-
-	Config._limp_version = __version__
-	Config._limp_location = __location__
-	Config.test_collections = args.test_collections
-	Config.env = args.env or os.getenv('ENV') or None
-	Config.force_admin_check = (
-		args.force_admin_check or os.getenv('LIMP_ADMIN_CHECK') or False
-	)
-
-	try:
-		port = int(args.port)
-	except:
-		port = os.getenv('PORT') or 8081
-		logger.warning(f'Port should be in integer format. Defaulting to {port}.')
-	if args.debug or os.getenv('DEBUG'):
-		Config.debug = True
-		logger.setLevel(logging.DEBUG)
-
-	import asyncio
 	from limp.app import run_app
 
-	app_path = args.app_path
-	if app_path == '$CWD':
-		app_path = os.getcwd()
+	try:
+		sys.path.append(args.app_path)
+		limp_app = __import__('limp_app')
+		app_config = limp_app.config()
+		logger.info(f'Found app \'{app_config["name"]} (v{app_config["version"]})\'. Attempting to load App Config.')
+		Config._app_name = app_config['name']
+		Config._app_version = app_config['version']
+		# [DOC] Read app_config and update Config accordingly
+		# [DOC] Check envs, env
+		if 'envs' in app_config.keys():
+			if not args.env and 'env' not in app_config.keys():
+				logger.error('App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.')
+				exit()
+			if args.env:
+				if args.env in app_config['envs'].keys():
+					logger.info(f'Setting \'env\' Config Attr to \'env\' CLI Arg value \'{args.env}\'')
+				else:
+					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
+					exit()
+			else:
+				if app_config['env'] in app_config['envs'].keys():
+					logger.info(f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{args.env}\'')
+				elif app_config['env'].startswith('$__env.'):
+					logger.info('Found Env Variable for \'env\' App Config Attr. Attempting to process it.')
+					env_env_var = app_config['env'].replace('$__env.', '')
+					env = os.getenv(env_env_var)
+					if env:
+						logger.info(f'Setting \'env\' Config Attr to Env Variable \'{env_env_var}\' value \'{env}\'.')
+						Config.env = env
+					else:
+						logger.error(f'No value found for Env Variable \'{env_env_var}\'. Exiting.')
+						exit()
+				else:
+					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
+					exit()
+			logger.info(f'Beginning to extract Config Attrs defined in selected \'env\', \'{Config.env}\', to App Config Attrs.')
+			for config_attr, config_attr_val in app_config['envs'][Config.env].items():
+				logger.info(f'Extracting \'{config_attr}\' Config Attr to App Config Attr')
+				app_config[config_attr] = config_attr_val
+				setattr(Config, config_attr, config_attr_val)
+		# [DOC] Check port Config Attr
+		if 'port' in app_config.keys():
+			if args.port:
+				logger.info(f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.')
+			else:
+				logger.info('Found \'port\' App Config Attr. Attempting to process it.')
+				if type(app_config['port']) == int:
+					Config.port = app_config['port']
+					logger.info(f'Setting \'port\' Config Attr to \'{Config.port}\'.')
+				elif type(app_config['port']) == str and app_config['port'].startswith('$__env.'):
+					logger.info('Found Env Variable for \'port\' App Config Attr. Attempting to process it.')
+					port_env_var = app_config['port'].replace('$__env.', '')
+					port = os.getenv(port_env_var)
+					if port:
+						logger.info(f'Setting \'port\' Config Attr to Env Variable \'{port_env_var}\' value \'{port}\'.')
+						Config.port = port
+					else:
+						logger.error(f'No value found for Env Variable \'{port_env_var}\'. Exiting.')
+						exit()
+		# [DOC] Check debug Config Attr
+		if 'debug' in app_config.keys():
+			if args.debug:
+				logger.info(f'Ignoring \'debug\' App Config Attr in favour of \'debug\' CLI Arg with value \'{args.debug}\'.')
+			else:
+				logger.info('Found \'debug\' App Config Attr. Attempting to process it.')
+				if type(app_config['debug']) == bool:
+					Config.debug = app_config['debug']
+					logger.info(f'Setting \'debug\' Config Attr to \'{Config.debug}\'.')
+				elif type(app_config['debug']) == str and app_config['debug'].startswith('$__env.'):
+					logger.info('Found Env Variable for \'debug\' App Config Attr. Attempting to process it.')
+					debug_env_var = app_config['debug'].replace('$__env.', '')
+					debug = os.getenv(debug_env_var)
+					if debug:
+						logger.info(f'Setting \'debug\' Config Attr to Env Variable \'{debug_env_var}\' as \'True\'.')
+						Config.debug = True
+					else:
+						logger.error(f'No value found for Env Variable \'{debug_env_var}\'. Exiting.')
+						exit()
+		# [DOC] Check force_admin_check Config Attr
+		if 'force_admin_check' in app_config.keys():
+			if args.force_admin_check:
+				logger.info(f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.')
+				Config.force_admin_check = True
+			else:
+				logger.info('Found \'force_admin_check\' App Config Attr. Attempting to process it.')
+				if type(app_config['force_admin_check']) == bool:
+					Config.force_admin_check = app_config['force_admin_check']
+					logger.info(f'Setting \'force_admin_check\' Config Attr to \'{Config.force_admin_check}\'.')
+				elif type(app_config['force_admin_check']) == str and app_config['force_admin_check'].startswith('$__env.'):
+					logger.info('Found Env Variable for \'force_admin_check\' App Config Attr. Attempting to process it.')
+					check_env_var = app_config['force_admin_check'].replace('$__env.', '')
+					check = os.getenv(check_env_var)
+					if check:
+						logger.info(f'Setting \'force_admin_check\' Config Attr to Env Variable \'{check_env_var}\' as \'True\'.')
+						Config.force_admin_check = True
+					else:
+						logger.error(f'No value found for Env Variable \'{check_env_var}\'. Exiting.')
+						exit()
+	except ModuleNotFoundError:
+		logger.error(f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.')
+		exit()
+	except AttributeError:
+		logger.error(f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.')
+		exit()
+	except Exception as e:
+		logger.error('An unexpected exception happened while attempeting to process LIMP app. Exception details:')
+		logger.error(e)
+		logger.error('Exiting.')
+		exit()
 
-	asyncio.run(run_app(port=port, app_path=app_path))
+	asyncio.run(run_app(port=port, app_path=args.app_path))
 
 def test(args: argparse.Namespace):
 	pass
 
 def generate_ref(args: argparse.Namespace):
-	# [DOC] Update Config with LIMP CLI args
-	from limp.config import Config
-	# [DOC] Check for generate_ref mode
-	Config.generate_ref = args.generate_ref
-	if Config.generate_ref:
-		if not os.path.exists(os.path.join(__location__, 'refs')):
-			os.makedirs(os.path.join(__location__, 'refs'))
+	if not os.path.exists(os.path.join(args.app_path, 'refs')):
+		os.makedirs(os.path.join(args.app_path, 'refs'))

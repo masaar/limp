@@ -17,6 +17,7 @@ logger = logging.getLogger('limp')
 class Config:
 	debug: bool = False
 	env: str = None
+	port: int = None
 
 	_sys_conn: AsyncIOMotorClient
 	_sys_env: Dict[str, Any]
@@ -25,9 +26,12 @@ class Config:
 	_jobs_base: datetime
 
 	_limp_version: str = None
-	_limp_location: str = None
 	api_level: str = None
 	packages_versions: Dict[str, str] = {}
+
+	_app_name: str = None
+	_app_version: str = None
+	_app_path: str = None
 
 	test: str = False
 	test_skip_flush: bool = False
@@ -225,21 +229,21 @@ class Config:
 			data_attr = getattr(cls, f'data_{data_attr_name}')
 			if type(data_attr) == str and data_attr.startswith('$__env.'):
 				logger.debug(
-					f'Detected env variable for config attr \'data_{data_attr_name}\''
+					f'Detected Env Variable for config attr \'data_{data_attr_name}\''
 				)
 				if not os.getenv(data_attr[7:]):
 					logger.warning(
-						f'Couldn\'t read env variable for config attr \'data_{data_attr_name}\'. Defaulting to \'{data_attrs[data_attr_name]}\''
+						f'Couldn\'t read Env Variable for config attr \'data_{data_attr_name}\'. Defaulting to \'{data_attrs[data_attr_name]}\''
 					)
 					setattr(cls, f'data_{data_attr_name}', data_attrs[data_attr_name])
 				else:
-					# [DOC] Set data_ssl to True rather than string env variable value
+					# [DOC] Set data_ssl to True rather than string Env Variable value
 					if data_attr_name == 'ssl':
 						data_attr = True
 					else:
 						data_attr = os.getenv(data_attr[7:])
 					logger.warning(
-						f'Setting env variable for config attr \'data_{data_attr_name}\' to \'{data_attr}\''
+						f'Setting Env Variable for config attr \'data_{data_attr_name}\' to \'{data_attr}\''
 					)
 					setattr(cls, f'data_{data_attr_name}', data_attr)
 
