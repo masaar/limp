@@ -8,3 +8,4 @@ requests==2.23.0
 passlib==1.7.2
 Pillow==6.2.2
 pytest==5.4.1
+PyJWT==1.7.1
