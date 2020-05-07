@@ -193,6 +193,8 @@ def launch(args: argparse.Namespace):
 		except:
 			logger.error(f'Port should be in integer format. Exiting.')
 			exit()
+	else:
+		Config.port = 8081
 	# [DOC] Check for debug CLI Arg
 	if args.debug:
 		Config.debug = True
