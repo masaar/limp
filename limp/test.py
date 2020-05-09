@@ -228,7 +228,7 @@ class Test:
 		if test_name not in Config.tests.keys():
 			logger.error('Specified test is not defined in loaded config.')
 			logger.debug(f'Loaded tests: {list(Config.tests.keys())}')
-			exit()
+			exit(1)
 		test: List[STEP] = Config.tests[test_name]
 		results = {
 			'test': Config.tests[test_name],
@@ -267,7 +267,7 @@ class Test:
 					logger.error(
 						f'Can\'t process test step \'AUTH\' with error: {e} Exiting.'
 					)
-					exit()
+					exit(1)
 			elif step._step == 'SIGNOUT':
 				step = STEP.CALL(
 					module='session', method='signout', query=[{'_id': '$__session'}]
@@ -277,7 +277,7 @@ class Test:
 					STEP.validate_step(step=step)
 				except InvalidTestStepException as e:
 					logger.error(f'{e} Exiting.')
-					exit()
+					exit(1)
 
 			if step._step == 'CALL':
 				call_results = await cls.run_call(results=results, **step._args)
@@ -340,7 +340,7 @@ class Test:
 
 		if len(results['steps']) == 0:
 			logger.error('No steps tested. Exiting.')
-			exit()
+			exit(1)
 
 		results['success_rate'] = int(
 			(results['stats']['passed'] / results['stats']['total']) * 100
@@ -378,6 +378,10 @@ class Test:
 			with open(tests_log, 'w') as f:
 				f.write(json.dumps(json.loads(JSONEncoder().encode(results)), indent=4))
 				logger.debug(f'Full tests log available at: {tests_log}')
+			if results['success_rate'] == 100:
+				exit(0)
+			else:
+				exit(1)
 		else:
 			return results
 
