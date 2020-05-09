@@ -169,7 +169,7 @@ def install_deps(args: argparse.Namespace):
 			logger.debug(
 				'File \'requirements.txt\' found! Attempting to install package dependencies.'
 			)
-			subprocess.call(
+			pip_call = subprocess.call(
 				pip_command
 				+ [
 					os.path.join(
@@ -177,6 +177,9 @@ def install_deps(args: argparse.Namespace):
 					)
 				]
 			)
+			if pip_call != 0:
+				logger.error('Last \'pip\' call failed. Check console for more details. Exiting.')
+				exit(1)
 
 def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref'] = None):
 	global os, asyncio
