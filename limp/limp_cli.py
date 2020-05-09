@@ -330,8 +330,6 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 		logger.error('Exiting.')
 		exit()
 
-	breakpoint()
-
 	asyncio.run(run_app())
 
 def test(args: argparse.Namespace):
