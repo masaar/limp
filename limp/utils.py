@@ -44,28 +44,35 @@ def import_modules():
 
 		# [DOC] Load package and attempt to load config
 		package = __import__(pkgname, fromlist='*')
-		for k, v in package.config().items():
-			if k == 'version':
-				if type(v) != str:
-					logger.warning(f'Skipping \'version\' Config Attr with value \'{v}\' due to incompatible type.')
-				Config.packages_versions[pkgname] = v
-			if k == 'api_level':
-				if type(v) != str:
-					logger.warning(f'Skipping \'api_level\' Config Attr with value \'{v}\' due to incompatible type.')
-				Config.packages_api_levels[pkgname] = v
-			elif k in ['tests', 'l10n']:
-				logger.warning(
-					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
-				)
-			elif k in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
-				user_config[k] = v
-				setattr(Config, k, v)
-			elif type(v) == dict:
-				if not getattr(Config, k):
-					setattr(Config, k, {})
-				getattr(Config, k).update(v)
+		for config_attr in dir(package.config):
+			config_attr_val = getattr(package.config, config_attr)
+			
+			# [DOC] Check existence of of api_level, version Config Attrs
+			if config_attr in ['api_level', 'version']:
+				if config_attr_val == None:
+					logger.error(f'Package \'{pkgname}\' is missing either \'{config_attr}\' Config Attr. Exiting.')
+					exit()
+				# [DOC] Check type of api_level, version Config Attrs
+				elif type(config_attr_val) != str:
+					logger.error(f'Package \'{pkgname}\' is having invalid type of \'{config_attr}\'. Exiting.')
+					exit()
+				else:
+					# [DOC] Update corresponding Config 
+					if config_attr == 'api_level':
+						Config.packages_api_levels[pkgname] = config_attr_val
+					else:
+						Config.packages_versions[pkgname] = config_attr_val
+			elif config_attr.startswith('__') or config_attr_val == None: continue
+			# [DOC] Skip non Config Attr attrs
+			elif config_attr in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
+				user_config[config_attr] = config_attr_val
+				setattr(Config, config_attr, config_attr_val)
+			elif type(config_attr_val) == dict:
+				if not getattr(Config, config_attr):
+					setattr(Config, config_attr, {})
+				getattr(Config, config_attr).update(config_attr_val)
 			else:
-				setattr(Config, k, v)
+				setattr(Config, config_attr, config_attr_val)
 
 		# [DOC] Add package to loaded packages dict
 		modules_packages[pkgname] = []
