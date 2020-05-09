@@ -1,8 +1,8 @@
 from limp import __version__
 
-import argparse, os, logging, datetime, sys, subprocess, asyncio
-
 from typing import Literal
+
+import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback
 
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
@@ -136,8 +136,50 @@ def limp_cli():
 
 
 def create(args: argparse.Namespace):
-	print('create function')
-	print(args)
+	import shutil
+	global os, subprocess
+
+	clone_call = subprocess.call(
+		['git', 'clone', 'https://github.com/masaar/limp_app_template', os.path.realpath(os.path.join(args.app_path, args.app_name))]
+	)
+	if clone_call != 0:
+		logger.error('Git clone call failed. Check console for details. Exiting.')
+		exit(1)
+
+	checkout_call = subprocess.call(
+		['git', 'checkout', 'tags/APIv' + '.'.join(__version__.split('.')[:2])],
+		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name))
+	)
+	if checkout_call != 0:
+		logger.error('Git checkout call failed. Check console for details. Exiting.')
+		exit(1)
+
+	shutil.rmtree(os.path.realpath(os.path.join(args.app_path, args.app_name, '.git')))
+
+	init_call = subprocess.call(
+		['git', 'init'],
+		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name))
+	)
+	if init_call != 0:
+		logger.error('Git init call failed. Check console for details. Exiting.')
+		exit(1)
+
+	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r') as f:
+		limp_app_file = f.read()
+	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'w') as f:
+		f.write(limp_app_file.replace('PROJECT_NAME', args.app_name, 1))
+
+	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'r') as f:
+		gitignore_file = f.read()
+	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'w') as f:
+		f.write(gitignore_file.replace('PROJECT_NAME', args.app_name, 1))
+
+	os.rename(
+		os.path.realpath(os.path.join(args.app_path, args.app_name, 'packages', 'PROJECT_NAME')),
+		os.path.realpath(os.path.join(args.app_path, args.app_name, 'packages', args.app_name))
+	)
+
+
 
 def install_deps(args: argparse.Namespace):
 	global sys, os, subprocess
@@ -317,7 +359,7 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 						Config.debug = False
 				else:
 					logger.error(f'Invalid value type for \'debug\' Config Attr with value \'{app_config.debug}\'. Exiting.')
-						exit()
+					exit()
 				if Config.debug:
 					logger.setLevel(logging.DEBUG)
 		# [DOC] Check force_admin_check Config Attr
@@ -342,7 +384,7 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 						Config.force_admin_check = False
 				else:
 					logger.error(f'Invalid value type for \'force_admin_check\' Config Attr with value \'{app_config.force_admin_check}\'. Exiting.')
-						exit()
+					exit()
 		# [TODO] Implement realm APP Config Attr checks
 	except Exception:
 		logger.error('An unexpected exception happened while attempeting to process LIMP app. Exception details:')
