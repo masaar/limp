@@ -298,6 +298,8 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 					else:
 						logger.error(f'No value found for Env Variable \'{debug_env_var}\'. Exiting.')
 						exit()
+				if Config.debug:
+					logger.setLevel(logging.DEBUG)
 		# [DOC] Check force_admin_check Config Attr
 		if not test_launch and 'force_admin_check' in app_config.keys():
 			if args.force_admin_check:
