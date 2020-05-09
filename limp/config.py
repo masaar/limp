@@ -26,7 +26,7 @@ class Config:
 	_jobs_base: datetime
 
 	_limp_version: str = None
-	api_level: str = None
+	packages_api_levels: Dict[str, str] = {}
 	packages_versions: Dict[str, str] = {}
 
 	_app_name: str = None
@@ -136,26 +136,23 @@ class Config:
 	@classmethod
 	async def config_data(cls) -> None:
 		# [DOC] Check API version
-		if not cls.api_level:
+		if not cls.packages_api_levels:
 			logger.warning(
 				'No API-level sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding API-level to eliminate specs mismatch.'
 			)
-		elif type(cls.api_level) != str:
-			logger.warning(
-				'Skipping API-level check due to incompatible \'api_level\' Config Attr value type.'
-			)
 		else:
 			limp_level = '.'.join(cls._limp_version.split('.')[0:2])
-			if cls.api_level != limp_level:
-				logger.error(
-					f'LIMPd is on API-level \'{limp_level}\', but the app requires API-level \'{cls.api_level}\'. Exiting.'
-				)
-				exit()
+			for package, api_level in cls.packages_api_levels.items():	
+				if api_level != limp_level:
+					logger.error(
+						f'LIMPd is on API-level \'{limp_level}\', but the app package \'{package}\' requires API-level \'{api_level}\'. Exiting.'
+					)
+					exit()
 			try:
 				versions = (
 					(
 						requests.get(
-							'https://raw.githubusercontent.com/masaar/limp-versions/master/versions.txt'
+							'https://raw.githubusercontent.com/masaar/limp_versions/master/versions.txt'
 						).content
 					)
 					.decode('utf-8')
@@ -175,7 +172,7 @@ class Config:
 					)
 			except:
 				logger.warning(
-					'An error occured while attempting to check for latest update to LIMPs. Please, check for updates on your own.'
+					'An error occured while attempting to check for latest update to LIMP. Please, check for updates on your own.'
 				)
 
 		# [DOC] Check for jobs

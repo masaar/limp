@@ -2,6 +2,8 @@ from limp import __version__
 
 import argparse, os, logging, datetime, sys, subprocess, asyncio
 
+from typing import Literal
+
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s  [%(levelname)s]  %(message)s')
@@ -127,6 +129,7 @@ def limp_cli():
 		help='Path of the app to discover its dependecies. [default .]',
 		default='.',
 	)
+	parser_ref.add_argument('--debug', help='Enable debug mode', action='store_true')
 
 	args = parser.parse_args()
 	args.func(args)
@@ -175,7 +178,7 @@ def install_deps(args: argparse.Namespace):
 				]
 			)
 
-def launch(args: argparse.Namespace, test_launch: bool = False):
+def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref'] = None):
 	global os, asyncio
 	global handler
 
@@ -183,13 +186,13 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 	from limp.config import Config
 
 	Config._limp_version = __version__
-	if not test_launch:
+	if not custom_launch:
 		Config.test_collections = args.test_collections
 		Config.env = args.env
 		Config.force_admin_check = args.force_admin_check
 
 	# [DOC] Check for port CLI Arg
-	if not test_launch and args.port:
+	if not custom_launch and args.port:
 		try:
 			Config.port = int(args.port)
 		except:
@@ -202,7 +205,7 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 		Config.debug = True
 		logger.setLevel(logging.DEBUG)
 	# [DOC] Check for log CLI Arg
-	if not test_launch and args.log:
+	if not custom_launch and args.log:
 		logger.removeHandler(handler)
 		if not os.path.exists(os.path.join(args.app_path, 'logs')):
 			os.makedirs(os.path.join(args.app_path, 'logs'))
@@ -220,16 +223,23 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 	from limp.app import run_app
 
 	try:
-		sys.path.append(args.app_path)
-		limp_app = __import__('limp_app')
-		app_config = limp_app.config()
+		try:
+			sys.path.append(args.app_path)
+			limp_app = __import__('limp_app')
+			app_config = limp_app.config()
+		except ModuleNotFoundError:
+			logger.error(f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.')
+			exit()
+		except AttributeError as e:
+			logger.error(f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.')
+			exit()
 		logger.info(f'Found app \'{app_config["name"]} (v{app_config["version"]})\'. Attempting to load App Config.')
 		Config._app_name = app_config['name']
 		Config._app_version = app_config['version']
 		Config._app_path = os.path.realpath(args.app_path)
 		# [DOC] Read app_config and update Config accordingly
 		# [DOC] Check envs, env
-		if 'envs' in app_config.keys():
+		if custom_launch != 'generate_ref' and 'envs' in app_config.keys():
 			if not args.env and 'env' not in app_config.keys():
 				logger.error('App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.')
 				exit()
@@ -261,7 +271,7 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 				app_config[config_attr] = config_attr_val
 				setattr(Config, config_attr, config_attr_val)
 		# [DOC] Check port Config Attr
-		if not test_launch and 'port' in app_config.keys():
+		if not custom_launch and 'port' in app_config.keys():
 			if args.port:
 				logger.info(f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.')
 			else:
@@ -301,7 +311,7 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 				if Config.debug:
 					logger.setLevel(logging.DEBUG)
 		# [DOC] Check force_admin_check Config Attr
-		if not test_launch and 'force_admin_check' in app_config.keys():
+		if not custom_launch and 'force_admin_check' in app_config.keys():
 			if args.force_admin_check:
 				logger.info(f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.')
 				Config.force_admin_check = True
@@ -320,12 +330,6 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 					else:
 						logger.error(f'No value found for Env Variable \'{check_env_var}\'. Exiting.')
 						exit()
-	except ModuleNotFoundError:
-		logger.error(f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.')
-		exit()
-	except AttributeError:
-		logger.error(f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.')
-		exit()
 	except Exception as e:
 		logger.error('An unexpected exception happened while attempeting to process LIMP app. Exception details:')
 		logger.error(e)
@@ -342,8 +346,10 @@ def test(args: argparse.Namespace):
 	Config.test_force = args.force
 	Config.test_env = args.env
 	Config.test_breakpoint = args.breakpoint
-	launch(args=args, test_launch=True)
+	launch(args=args, custom_launch='test')
 
 def generate_ref(args: argparse.Namespace):
-	if not os.path.exists(os.path.join(args.app_path, 'refs')):
-		os.makedirs(os.path.join(args.app_path, 'refs'))
+	# [DOC] Update Config with LIMP CLI args
+	from limp.config import Config
+	Config.generate_ref = True
+	launch(args=args, custom_launch='generate_ref')

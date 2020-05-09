@@ -45,8 +45,14 @@ def import_modules():
 		# [DOC] Load package and attempt to load config
 		package = __import__(pkgname, fromlist='*')
 		for k, v in package.config().items():
-			if k == 'packages_versions':
-				Config.packages_versions[pkgname.replace('packages.', '')] = v
+			if k == 'version':
+				if type(v) != str:
+					logger.warning(f'Skipping \'version\' Config Attr with value \'{v}\' due to incompatible type.')
+				Config.packages_versions[pkgname] = v
+			if k == 'api_level':
+				if type(v) != str:
+					logger.warning(f'Skipping \'api_level\' Config Attr with value \'{v}\' due to incompatible type.')
+				Config.packages_api_levels[pkgname] = v
 			elif k in ['tests', 'l10n']:
 				logger.warning(
 					f'Defining \'{k}\' in package config is not recommended. define your values in separate Python module with the name \'__{k}__\'. Refer to LIMP Docs for more.'
@@ -60,6 +66,9 @@ def import_modules():
 				getattr(Config, k).update(v)
 			else:
 				setattr(Config, k, v)
+
+		# [DOC] Add package to loaded packages dict
+		modules_packages[pkgname] = []
 
 		# [DOC] Iterate over python modules in package
 		package_prefix = package.__name__ + '.'
@@ -105,8 +114,6 @@ def import_modules():
 						exit()
 					# [DOC] Add module to loaded modules dict
 					modules[module_name] = cls()
-					if pkgname not in modules_packages.keys():
-						modules_packages[pkgname] = []
 					modules_packages[pkgname].append(module_name)
 	# [DOC] Update User, Session modules with populated attrs
 	modules['user'].attrs.update(user_config['user_attrs'])
@@ -147,15 +154,17 @@ def generate_ref(
 	*, modules_packages: Dict[str, List[str]], modules: List['BaseModule']
 ):
 	from limp.config import Config
-	from base_module import BaseModule
+	from limp.base_module import BaseModule
 
 	modules: List[BaseModule]
 	# [DOC] Initialise _api_ref Config Attr
-	Config._api_ref = '# API Reference\n- - -\n'
+	Config._api_ref = '# API Reference\n'
 	# [DOC] Iterate over packages in ascending order
 	for package in sorted(modules_packages.keys()):
 		# [DOC] Add package header
-		Config._api_ref += f'## Package: {package.replace("modules.", "")}\n'
+		Config._api_ref += f'- - -\n## Package: {package.replace("modules.", "")}\n'
+		if not len(modules_packages[package]):
+			Config._api_ref += f'No modules\n'
 		# [DOC] Iterate over package modules in ascending order
 		for module in sorted(modules_packages[package]):
 			# [DOC] Add module header
