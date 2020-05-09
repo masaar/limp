@@ -226,7 +226,7 @@ def launch(args: argparse.Namespace, test_launch: bool = False):
 		logger.info(f'Found app \'{app_config["name"]} (v{app_config["version"]})\'. Attempting to load App Config.')
 		Config._app_name = app_config['name']
 		Config._app_version = app_config['version']
-		Config._app_path = args.app_path
+		Config._app_path = os.path.realpath(args.app_path)
 		# [DOC] Read app_config and update Config accordingly
 		# [DOC] Check envs, env
 		if 'envs' in app_config.keys():
