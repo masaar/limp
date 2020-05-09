@@ -114,6 +114,7 @@ def limp_cli():
 		help='Create debugger breakpoint upon failure of test',
 		action='store_true',
 	)
+	parser_test.add_argument('--debug', help='Enable debug mode', action='store_true')
 
 	parser_ref = subparsers.add_parser(
 		'generate_ref', help='Generate LIMP app reference'
@@ -174,7 +175,7 @@ def install_deps(args: argparse.Namespace):
 				]
 			)
 
-def launch(args: argparse.Namespace):
+def launch(args: argparse.Namespace, test_launch: bool = False):
 	global os, asyncio
 	global handler
 
@@ -182,12 +183,13 @@ def launch(args: argparse.Namespace):
 	from limp.config import Config
 
 	Config._limp_version = __version__
-	Config.test_collections = args.test_collections
-	Config.env = args.env
-	Config.force_admin_check = args.force_admin_check
+	if not test_launch:
+		Config.test_collections = args.test_collections
+		Config.env = args.env
+		Config.force_admin_check = args.force_admin_check
 
 	# [DOC] Check for port CLI Arg
-	if args.port:
+	if not test_launch and args.port:
 		try:
 			Config.port = int(args.port)
 		except:
@@ -200,7 +202,7 @@ def launch(args: argparse.Namespace):
 		Config.debug = True
 		logger.setLevel(logging.DEBUG)
 	# [DOC] Check for log CLI Arg
-	if args.log:
+	if not test_launch and args.log:
 		logger.removeHandler(handler)
 		if not os.path.exists(os.path.join(args.app_path, 'logs')):
 			os.makedirs(os.path.join(args.app_path, 'logs'))
@@ -259,7 +261,7 @@ def launch(args: argparse.Namespace):
 				app_config[config_attr] = config_attr_val
 				setattr(Config, config_attr, config_attr_val)
 		# [DOC] Check port Config Attr
-		if 'port' in app_config.keys():
+		if not test_launch and 'port' in app_config.keys():
 			if args.port:
 				logger.info(f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.')
 			else:
@@ -297,7 +299,7 @@ def launch(args: argparse.Namespace):
 						logger.error(f'No value found for Env Variable \'{debug_env_var}\'. Exiting.')
 						exit()
 		# [DOC] Check force_admin_check Config Attr
-		if 'force_admin_check' in app_config.keys():
+		if not test_launch and 'force_admin_check' in app_config.keys():
 			if args.force_admin_check:
 				logger.info(f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.')
 				Config.force_admin_check = True
@@ -328,10 +330,19 @@ def launch(args: argparse.Namespace):
 		logger.error('Exiting.')
 		exit()
 
+	breakpoint()
+
 	asyncio.run(run_app())
 
 def test(args: argparse.Namespace):
-	pass
+	# [DOC] Update Config with LIMP CLI args
+	from limp.config import Config
+	Config.test = args.test_name
+	Config.test_skip_flush = args.skip_flush
+	Config.test_force = args.force
+	Config.test_env = args.env
+	Config.test_breakpoint = args.breakpoint
+	launch(args=args, test_launch=True)
 
 def generate_ref(args: argparse.Namespace):
 	if not os.path.exists(os.path.join(args.app_path, 'refs')):
