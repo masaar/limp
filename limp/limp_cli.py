@@ -229,35 +229,35 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 		try:
 			sys.path.append(args.app_path)
 			limp_app = __import__('limp_app')
-			app_config = limp_app.config()
+			app_config = limp_app.config
 		except ModuleNotFoundError:
 			logger.error(f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.')
 			exit()
-		except AttributeError as e:
+		except AttributeError:
 			logger.error(f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.')
 			exit()
-		logger.info(f'Found app \'{app_config["name"]} (v{app_config["version"]})\'. Attempting to load App Config.')
-		Config._app_name = app_config['name']
-		Config._app_version = app_config['version']
+		logger.info(f'Found app \'{app_config.name} (v{app_config.version})\'. Attempting to load App Config.')
+		Config._app_name = app_config.name
+		Config._app_version = app_config.version
 		Config._app_path = os.path.realpath(args.app_path)
 		# [DOC] Read app_config and update Config accordingly
 		# [DOC] Check envs, env
-		if custom_launch != 'generate_ref' and 'envs' in app_config.keys():
-			if not args.env and 'env' not in app_config.keys():
+		if custom_launch != 'generate_ref' and app_config.envs:
+			if not args.env and not app_config.env:
 				logger.error('App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.')
 				exit()
 			if args.env:
-				if args.env in app_config['envs'].keys():
+				if args.env in app_config.envs.keys():
 					logger.info(f'Setting \'env\' Config Attr to \'env\' CLI Arg value \'{args.env}\'')
 				else:
 					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
 					exit()
 			else:
-				if app_config['env'] in app_config['envs'].keys():
+				if app_config.env in app_config.envs.keys():
 					logger.info(f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{args.env}\'')
-				elif app_config['env'].startswith('$__env.'):
+				elif app_config.env.startswith('$__env.'):
 					logger.info('Found Env Variable for \'env\' App Config Attr. Attempting to process it.')
-					env_env_var = app_config['env'].replace('$__env.', '')
+					env_env_var = app_config.env.replace('$__env.', '')
 					env = os.getenv(env_env_var)
 					if env:
 						logger.info(f'Setting \'env\' Config Attr to Env Variable \'{env_env_var}\' value \'{env}\'.')
@@ -269,22 +269,23 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
 					exit()
 			logger.info(f'Beginning to extract Config Attrs defined in selected \'env\', \'{Config.env}\', to App Config Attrs.')
-			for config_attr, config_attr_val in app_config['envs'][Config.env].items():
+			for config_attr in dir(app_config.envs[Config.env]):
+				if config_attr.startswith('__') or getattr(app_config.envs[Config.env], config_attr) == None: continue
 				logger.info(f'Extracting \'{config_attr}\' Config Attr to App Config Attr')
-				app_config[config_attr] = config_attr_val
-				setattr(Config, config_attr, config_attr_val)
+				setattr(app_config, config_attr, getattr(app_config.envs[Config.env], config_attr))
+				setattr(Config, config_attr, getattr(app_config.envs[Config.env], config_attr))
 		# [DOC] Check port Config Attr
-		if not custom_launch and 'port' in app_config.keys():
+		if not custom_launch and app_config.port:
 			if args.port:
 				logger.info(f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.')
 			else:
 				logger.info('Found \'port\' App Config Attr. Attempting to process it.')
-				if type(app_config['port']) == int:
-					Config.port = app_config['port']
+				if type(app_config.port) == int:
+					Config.port = app_config.port
 					logger.info(f'Setting \'port\' Config Attr to \'{Config.port}\'.')
-				elif type(app_config['port']) == str and app_config['port'].startswith('$__env.'):
+				elif type(app_config.port) == str and app_config.port.startswith('$__env.'):
 					logger.info('Found Env Variable for \'port\' App Config Attr. Attempting to process it.')
-					port_env_var = app_config['port'].replace('$__env.', '')
+					port_env_var = app_config.port.replace('$__env.', '')
 					port = os.getenv(port_env_var)
 					if port:
 						logger.info(f'Setting \'port\' Config Attr to Env Variable \'{port_env_var}\' value \'{port}\'.')
@@ -292,50 +293,60 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 					else:
 						logger.error(f'No value found for Env Variable \'{port_env_var}\'. Exiting.')
 						exit()
+				else:
+					logger.error(f'Invalid value type for \'port\' Config Attr with value \'{app_config.port}\'. Exiting.')
+					exit()
 		# [DOC] Check debug Config Attr
-		if 'debug' in app_config.keys():
+		if app_config.debug:
 			if args.debug:
 				logger.info(f'Ignoring \'debug\' App Config Attr in favour of \'debug\' CLI Arg with value \'{args.debug}\'.')
 			else:
 				logger.info('Found \'debug\' App Config Attr. Attempting to process it.')
-				if type(app_config['debug']) == bool:
-					Config.debug = app_config['debug']
+				if type(app_config.debug) == bool:
+					Config.debug = app_config.debug
 					logger.info(f'Setting \'debug\' Config Attr to \'{Config.debug}\'.')
-				elif type(app_config['debug']) == str and app_config['debug'].startswith('$__env.'):
+				elif type(app_config.debug) == str and app_config.debug.startswith('$__env.'):
 					logger.info('Found Env Variable for \'debug\' App Config Attr. Attempting to process it.')
-					debug_env_var = app_config['debug'].replace('$__env.', '')
+					debug_env_var = app_config.debug.replace('$__env.', '')
 					debug = os.getenv(debug_env_var)
 					if debug:
 						logger.info(f'Setting \'debug\' Config Attr to Env Variable \'{debug_env_var}\' as \'True\'.')
 						Config.debug = True
 					else:
-						logger.error(f'No value found for Env Variable \'{debug_env_var}\'. Exiting.')
+						logger.info(f'No value found for Env Variable \'{debug_env_var}\'. Setting \'debug\' to \'False\'.')
+						Config.debug = False
+				else:
+					logger.error(f'Invalid value type for \'debug\' Config Attr with value \'{app_config.debug}\'. Exiting.')
 						exit()
 				if Config.debug:
 					logger.setLevel(logging.DEBUG)
 		# [DOC] Check force_admin_check Config Attr
-		if not custom_launch and 'force_admin_check' in app_config.keys():
+		if not custom_launch and app_config.force_admin_check:
 			if args.force_admin_check:
 				logger.info(f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.')
 				Config.force_admin_check = True
 			else:
 				logger.info('Found \'force_admin_check\' App Config Attr. Attempting to process it.')
-				if type(app_config['force_admin_check']) == bool:
-					Config.force_admin_check = app_config['force_admin_check']
+				if type(app_config.force_admin_check) == bool:
+					Config.force_admin_check = app_config.force_admin_check
 					logger.info(f'Setting \'force_admin_check\' Config Attr to \'{Config.force_admin_check}\'.')
-				elif type(app_config['force_admin_check']) == str and app_config['force_admin_check'].startswith('$__env.'):
+				elif type(app_config.force_admin_check) == str and app_config.force_admin_check.startswith('$__env.'):
 					logger.info('Found Env Variable for \'force_admin_check\' App Config Attr. Attempting to process it.')
-					check_env_var = app_config['force_admin_check'].replace('$__env.', '')
+					check_env_var = app_config.force_admin_check.replace('$__env.', '')
 					check = os.getenv(check_env_var)
 					if check:
 						logger.info(f'Setting \'force_admin_check\' Config Attr to Env Variable \'{check_env_var}\' as \'True\'.')
 						Config.force_admin_check = True
 					else:
-						logger.error(f'No value found for Env Variable \'{check_env_var}\'. Exiting.')
+						logger.info(f'No value found for Env Variable \'{check_env_var}\'. Setting \'force_admin_check\' to \'False\'.')
+						Config.force_admin_check = False
+				else:
+					logger.error(f'Invalid value type for \'force_admin_check\' Config Attr with value \'{app_config.force_admin_check}\'. Exiting.')
 						exit()
-	except Exception as e:
+		# [TODO] Implement realm APP Config Attr checks
+	except Exception:
 		logger.error('An unexpected exception happened while attempeting to process LIMP app. Exception details:')
-		logger.error(e)
+		logger.error(traceback.format_exc())
 		logger.error('Exiting.')
 		exit()
 
