@@ -905,12 +905,14 @@ class ANALYTIC:
 
 
 @dataclass
-class CONFIG:
-	envs: Dict[str, 'CONFIG'] = None
+class PACKAGE_CONFIG:
 	api_level: str = None
-	packages_versions: Dict[str, str] = None
+	version: str = None
 	emulate_test: bool = None
-	realm: bool = None
+	debug: bool = None
+	port: int = None
+	env: str = None
+	force_admin_check: bool = None
 	vars: Dict[str, Any] = None
 	client_apps: Dict[
 		str,
@@ -964,6 +966,18 @@ class CONFIG:
 	jobs: List[Dict[str, Any]] = None
 	gateways: Dict[str, Callable] = None
 	types: Dict[str, Callable] = None
+
+
+@dataclass
+class APP_CONFIG:
+	name: str
+	version: str
+	debug: bool = False
+	port: int = None
+	env: str = None
+	envs: Dict[str, PACKAGE_CONFIG] = None
+	realm: bool = None
+	force_admin_check: bool = None
 
 
 class JSONEncoder(json.JSONEncoder):
