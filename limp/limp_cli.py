@@ -2,7 +2,7 @@ from limp import __version__
 
 from typing import Literal
 
-import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback
+import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback, shutil, re
 
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
@@ -136,8 +136,14 @@ def limp_cli():
 
 
 def create(args: argparse.Namespace):
-	import shutil
 	global os, subprocess
+
+	if args.app_name == 'limp_app':
+		logger.error('Value for \'app_name\' CLI Arg is invalid. Name can\'t be \'limp_app\'')
+		exit(1)
+	elif not re.match(r'^[a-z_]+$', args.app_name):
+		logger.error('Value for \'app_name\' CLI Arg is invalid. Name should have only small letters and underscores.')
+		exit(1)
 
 	clone_call = subprocess.call(
 		['git', 'clone', 'https://github.com/masaar/limp_app_template', os.path.realpath(os.path.join(args.app_path, args.app_name))]
