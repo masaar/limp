@@ -321,15 +321,21 @@ class BaseModule:
 		logger.debug(f'Initialised module {self.module_name}')
 
 	def status(
-		self, *, status: int, msg: str, args: Dict[str, Any] = None
+		self, *, status: int, msg: str, args: Union[Dict[str, Any], DictObj] = None
 	) -> Dict[str, Any]:
 		status_dict = {'status': status, 'msg': msg, 'args': {}}
 		if args:
 			status_dict['args'] = args
-		if 'code' in status_dict['args'].keys():
-			status_dict['args'][
-				'code'
-			] = f'{self.package_name.upper()}_{self.module_name.upper()}_{status_dict["args"]["code"]}'
+		if type(status_dict['args']) == dict:
+			if 'code' in status_dict['args'].keys():
+				status_dict['args'][
+					'code'
+				] = f'{self.package_name.upper()}_{self.module_name.upper()}_{status_dict["args"]["code"]}'
+		elif type(status_dict['args']) == DictObj:
+			if 'code' in status_dict['args']:
+				status_dict['args'][
+					'code'
+				] = f'{self.package_name.upper()}_{self.module_name.upper()}_{status_dict["args"]["code"]}'
 		return status_dict
 
 	def __getattribute__(self, attr):
