@@ -1253,7 +1253,7 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return '127.0.0.1'
 
 	elif attr_type._type == 'LIST':
-		return [generate_attr(attr_type=random.choice(attr_type._args['list']))]
+		return [generate_attr(attr_type=random.choice(attr_type._args['list'])) for _ in range(attr_type._args['min'] or 0)]
 
 	elif attr_type._type == 'LOCALE':
 		return {
