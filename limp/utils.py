@@ -494,6 +494,22 @@ def expand_attr(*, doc: Dict[str, Any], expanded_doc: Dict[str, Any] = None):
 	return expanded_doc
 
 
+def deep_update(*, target: Union[List, Dict], new_values: Union[List, Dict]):
+	if type(target) != type(new_values):
+		logger.error(f'Type \'{type(target)}\' of \'target\' is not the same as \'{type(new_values)}\' of \'new_values\'. Exiting.')
+		exit(1)
+	if type(new_values) == dict:
+		for k in new_values.keys():
+			if k not in target.keys():
+				target[k] = new_values[k]
+			else:
+				deep_update(target=target[k], new_values=new_values[k])
+	elif type(new_values) == list:
+		for j in new_values:
+			if j not in target:
+				target.append(j)
+
+
 class MissingAttrException(Exception):
 	def __init__(self, *, attr_name):
 		self.attr_name = attr_name
