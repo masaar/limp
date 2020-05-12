@@ -70,7 +70,7 @@ def import_modules():
 			elif type(config_attr_val) == dict:
 				if not getattr(Config, config_attr):
 					setattr(Config, config_attr, {})
-				getattr(Config, config_attr).update(config_attr_val)
+				deep_update(target=getattr(Config, config_attr), new_values=config_attr_val)
 			else:
 				setattr(Config, config_attr, config_attr_val)
 
