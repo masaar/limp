@@ -100,7 +100,12 @@ class BaseModule:
 			self.__class__.__name__[0].lower() + self.__class__.__name__[1:],
 		).lower()
 
+	def _pre_initialise(self) -> None:
+		pass
+
 	def _initialise(self) -> None:
+		# [DOC] Call _pre_initialise for advanced module initialisation
+		self._pre_initialise()
 		# [DOC] Check for proxy
 		if self.proxy:
 			logger.debug(f'Module \'{self.module_name}\' is a proxy module. Updating.')
