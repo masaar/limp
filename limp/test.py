@@ -127,11 +127,11 @@ class STEP:
 					msg=f'Test step arg \'test\' is invalid. Unknown test \'{step._args["test"]}\'.'
 				)
 			if step._args['steps'] != None and (
-				type(step._args['steps']) != list
+				type(step._args['steps']) not in [list, range]
 				or sum(step for step in step._args['steps'] if type(step) != int)
 			):
 				raise InvalidTestStepException(
-					msg='Test step arg \'steps\' is invalid. Either value is not of type \'list\' or at least on item in the list is not of type \'int\'.'
+					msg='Test step arg \'steps\' is invalid. Either value is not of type \'list\', nor \'range\' or at least on item in the list is not of type \'int\'.'
 				)
 		else:
 			raise InvalidTestStepException(
@@ -398,6 +398,12 @@ class Test:
 	):
 		from .config import Config
 
+		# [DOC] If query, doc of call are callable call them
+		if callable(query):
+			query = query(results=results)
+		if callable(doc):
+			doc = doc(results=results)
+
 		call_results = {
 			'step': 'call',
 			'module': module,
@@ -473,6 +479,9 @@ class Test:
 			obj_iter = obj.keys()
 		elif type(obj) == list:
 			obj_iter = range(len(obj))
+		else:
+			logger.error(f'Object is not of types \'dict\' or \'list\'. Refer to log to check how invalid type obj was attempted to be processed. Exiting.')
+			exit(1)
 
 		for j in obj_iter:
 			if type(obj[j]) == ATTR:
