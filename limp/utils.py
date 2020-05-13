@@ -328,7 +328,10 @@ def update_attr_values(
 				int(child_default_path.split(':')[1])
 			]
 		else:
-			attr = attr._args['dict'][child_default_path]
+			if child_default_path == 'val' and attr._type == 'KV_DICT':
+				attr = attr._args['val']
+			else:
+				attr = attr._args['dict'][child_default_path]
 	setattr(attr, f'_{value}', value_val)
 
 
