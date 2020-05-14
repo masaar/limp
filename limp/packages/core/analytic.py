@@ -19,12 +19,17 @@ import datetime
 
 class Analytic(BaseModule):
 	'''`Analytic` module provides data type and controller from `Analytics Workflow` and accompanying analytics docs. It uses `pre_create` handler to assure no events duplications occur and all occurrences of the same event are recorded in one doc.'''
+
 	collection = 'analytics'
 	attrs = {
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
 		'event': ATTR.STR(desc='Analytics event name.'),
-		'subevent': ATTR.ANY(desc='Analytics subevent distinguishing attribute. This is usually `STR`, or `ID` but it is introduced in the module as `ANY` to allow wider use-cases by developers.'),
-		'date': ATTR.DATE(desc='Analytics event date. This allows clustering of events occurances to limit doc size.'),
+		'subevent': ATTR.ANY(
+			desc='Analytics subevent distinguishing attribute. This is usually `STR`, or `ID` but it is introduced in the module as `ANY` to allow wider use-cases by developers.'
+		),
+		'date': ATTR.DATE(
+			desc='Analytics event date. This allows clustering of events occurances to limit doc size.'
+		),
 		'occurrences': ATTR.LIST(
 			desc='All occurrences of the event as list.',
 			list=[
@@ -33,15 +38,22 @@ class Analytic(BaseModule):
 					dict={
 						'args': ATTR.KV_DICT(
 							desc='Key-value `dict` containing event args, if any.',
-							key=ATTR.STR(), val=ATTR.ANY()
+							key=ATTR.STR(),
+							val=ATTR.ANY(),
 						),
-						'score': ATTR.INT(desc='Numerical score for occurrence of the event.'),
-						'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the occurrence of the event.'),
-					}
+						'score': ATTR.INT(
+							desc='Numerical score for occurrence of the event.'
+						),
+						'create_time': ATTR.DATETIME(
+							desc='Python `datetime` ISO format of the occurrence of the event.'
+						),
+					},
 				)
-			]
+			],
 		),
-		'score': ATTR.INT(desc='Total score of all scores of all occurrences of the event. This can be used for data analysis.'),
+		'score': ATTR.INT(
+			desc='Total score of all scores of all occurrences of the event. This can be used for data analysis.'
+		),
 	}
 	unique_attrs = [('user', 'event', 'subevent', 'date')]
 	methods = {

@@ -481,7 +481,7 @@ class ATTR:
 	@classmethod
 	def ACCESS(cls, *, desc: str = None):
 		return ATTR(attr_type='ACCESS', desc=desc)
-	
+
 	@classmethod
 	def COUNTER(cls, *, desc: str = None, pattern: str, values: List[Callable] = None):
 		return ATTR(attr_type='COUNTER', desc=desc, pattern=pattern, values=values)
@@ -689,27 +689,40 @@ class ATTR:
 				else:
 					attr_type._args[arg] = None
 			if attr_type._type == 'COUNTER':
-				if '$__values.' in attr_type._args['pattern'] or '$__counters:' in attr_type._args['pattern']:
-					logger.error('Attr Type COUNTER is using wrong format for \'$__values\', or \'$__counters\'.')
+				if (
+					'$__values.' in attr_type._args['pattern']
+					or '$__counters:' in attr_type._args['pattern']
+				):
+					logger.error(
+						'Attr Type COUNTER is using wrong format for \'$__values\', or \'$__counters\'.'
+					)
 					raise InvalidAttrTypeException(attr_type=attr_type)
-				counter_groups = re.findall(r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))', attr_type._args['pattern'])
+				counter_groups = re.findall(
+					r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))',
+					attr_type._args['pattern'],
+				)
 				if len(counter_groups) == 0:
-					logger.error('Attr Type COUNTER is not having any \'$__values\', or \'$__counters\'.')
+					logger.error(
+						'Attr Type COUNTER is not having any \'$__values\', or \'$__counters\'.'
+					)
 					raise InvalidAttrTypeException(attr_type=attr_type)
 				if '$__counters.' not in attr_type._args['pattern']:
-					logger.warning('Attr Type COUNTER is defined with not \'$__counters\'.')
+					logger.warning(
+						'Attr Type COUNTER is defined with not \'$__counters\'.'
+					)
 				for group in counter_groups:
 					if group.startswith('$__counters.'):
 						Config.docs.append(
 							{
-								'module':'setting',
-								'key':'var',
-								'doc':{
-									'user':ObjectId('f00000000000000000000010'),
-									'var':'__counter:' + group.replace('$__counters.', ''),
-									'val':0,
-									'type':'global'
-								}
+								'module': 'setting',
+								'key': 'var',
+								'doc': {
+									'user': ObjectId('f00000000000000000000010'),
+									'var': '__counter:'
+									+ group.replace('$__counters.', ''),
+									'val': 0,
+									'type': 'global',
+								},
 							}
 						)
 			attr_type._valid = True
@@ -1397,4 +1410,3 @@ class QueryAttrList(list):
 			del instance_attr[self._attrs[item].split(':')[0]]
 			# [DOC] Update index
 			self._query._create_index(self._query._query)
-

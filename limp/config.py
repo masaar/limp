@@ -142,7 +142,7 @@ class Config:
 			)
 		else:
 			limp_level = '.'.join(cls._limp_version.split('.')[0:2])
-			for package, api_level in cls.packages_api_levels.items():	
+			for package, api_level in cls.packages_api_levels.items():
 				if api_level != limp_level:
 					logger.error(
 						f'LIMPd is on API-level \'{limp_level}\', but the app package \'{package}\' requires API-level \'{api_level}\'. Exiting.'
@@ -404,7 +404,9 @@ class Config:
 			admin_doc.update(cls.admin_doc)
 
 			for auth_attr in cls.user_auth_attrs:
-				admin_doc[f'{auth_attr}_hash'] = pbkdf2_sha512.using(  # pylint: disable=no-member
+				admin_doc[
+					f'{auth_attr}_hash'
+				] = pbkdf2_sha512.using(  # pylint: disable=no-member
 					rounds=100000
 				).hash(
 					f'{auth_attr}{admin_doc[auth_attr]}{cls.admin_password}{cls.anon_token}'.encode(
@@ -762,7 +764,9 @@ class Config:
 				if doc_results.status != 200:
 					logger.error('Config step failed. Exiting.')
 					exit()
-			cls._sys_docs[ObjectId(doc_results.args.docs[0]._id)] = {'module': doc['module']}
+			cls._sys_docs[ObjectId(doc_results.args.docs[0]._id)] = {
+				'module': doc['module']
+			}
 
 		# [DOC] Check for test mode
 		if cls.test:
@@ -812,4 +816,3 @@ class Config:
 		if cls.realm:
 			session_doc['realm'] = '__global'
 		return session_doc
-

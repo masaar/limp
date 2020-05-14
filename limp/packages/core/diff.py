@@ -16,7 +16,8 @@ class Diff(BaseModule):
 		'doc': ATTR.ID(desc='`_id` of the original doc.'),
 		'vars': ATTR.KV_DICT(
 			desc='Key-value `dict` containing all attrs that have been updated from the original doc.',
-			key=ATTR.STR(), val=ATTR.ANY()
+			key=ATTR.STR(),
+			val=ATTR.ANY(),
 		),
 		'remarks': ATTR.STR(
 			desc='Human-readable remarks of the doc. This is introduced to allow developers to add log messages to diff docs.'
@@ -70,4 +71,3 @@ class Diff(BaseModule):
 			else:
 				shadow_doc[attr] = doc[attr]
 		return shadow_doc
-

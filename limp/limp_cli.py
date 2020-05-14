@@ -139,14 +139,23 @@ def create(args: argparse.Namespace):
 	global os, subprocess
 
 	if args.app_name == 'limp_app':
-		logger.error('Value for \'app_name\' CLI Arg is invalid. Name can\'t be \'limp_app\'')
+		logger.error(
+			'Value for \'app_name\' CLI Arg is invalid. Name can\'t be \'limp_app\''
+		)
 		exit(1)
 	elif not re.match(r'^[a-z_]+$', args.app_name):
-		logger.error('Value for \'app_name\' CLI Arg is invalid. Name should have only small letters and underscores.')
+		logger.error(
+			'Value for \'app_name\' CLI Arg is invalid. Name should have only small letters and underscores.'
+		)
 		exit(1)
 
 	clone_call = subprocess.call(
-		['git', 'clone', 'https://github.com/masaar/limp_app_template', os.path.realpath(os.path.join(args.app_path, args.app_name))]
+		[
+			'git',
+			'clone',
+			'https://github.com/masaar/limp_app_template',
+			os.path.realpath(os.path.join(args.app_path, args.app_name)),
+		]
 	)
 	if clone_call != 0:
 		logger.error('Git clone call failed. Check console for details. Exiting.')
@@ -154,7 +163,7 @@ def create(args: argparse.Namespace):
 
 	checkout_call = subprocess.call(
 		['git', 'checkout', 'tags/APIv' + '.'.join(__version__.split('.')[:2])],
-		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name))
+		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name)),
 	)
 	if checkout_call != 0:
 		logger.error('Git checkout call failed. Check console for details. Exiting.')
@@ -164,27 +173,38 @@ def create(args: argparse.Namespace):
 
 	init_call = subprocess.call(
 		['git', 'init'],
-		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name))
+		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name)),
 	)
 	if init_call != 0:
 		logger.error('Git init call failed. Check console for details. Exiting.')
 		exit(1)
 
-	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r') as f:
+	with open(
+		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
+	) as f:
 		limp_app_file = f.read()
-	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'w') as f:
+	with open(
+		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'w'
+	) as f:
 		f.write(limp_app_file.replace('PROJECT_NAME', args.app_name, 1))
 
-	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'r') as f:
+	with open(
+		os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'r'
+	) as f:
 		gitignore_file = f.read()
-	with open(os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'w') as f:
+	with open(
+		os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'w'
+	) as f:
 		f.write(gitignore_file.replace('PROJECT_NAME', args.app_name, 1))
 
 	os.rename(
-		os.path.realpath(os.path.join(args.app_path, args.app_name, 'packages', 'PROJECT_NAME')),
-		os.path.realpath(os.path.join(args.app_path, args.app_name, 'packages', args.app_name))
+		os.path.realpath(
+			os.path.join(args.app_path, args.app_name, 'packages', 'PROJECT_NAME')
+		),
+		os.path.realpath(
+			os.path.join(args.app_path, args.app_name, 'packages', args.app_name)
+		),
 	)
-
 
 
 def install_deps(args: argparse.Namespace):
@@ -208,9 +228,7 @@ def install_deps(args: argparse.Namespace):
 	]
 	# [DOC] Iterate over packages to find requirements.txt files
 	for package in dirs:
-		logger.debug(
-			f'Checking package \'{package}\' for \'requirements.txt\' file.'
-		)
+		logger.debug(f'Checking package \'{package}\' for \'requirements.txt\' file.')
 		if os.path.exists(
 			os.path.join(args.app_path, 'packages', package, 'requirements.txt')
 		):
@@ -219,17 +237,18 @@ def install_deps(args: argparse.Namespace):
 			)
 			pip_call = subprocess.call(
 				pip_command
-				+ [
-					os.path.join(
-						args.app_path, 'packages', package, 'requirements.txt'
-					)
-				]
+				+ [os.path.join(args.app_path, 'packages', package, 'requirements.txt')]
 			)
 			if pip_call != 0:
-				logger.error('Last \'pip\' call failed. Check console for more details. Exiting.')
+				logger.error(
+					'Last \'pip\' call failed. Check console for more details. Exiting.'
+				)
 				exit(1)
 
-def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref'] = None):
+
+def launch(
+	args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref'] = None
+):
 	global os, asyncio
 	global handler
 
@@ -279,12 +298,18 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 			limp_app = __import__('limp_app')
 			app_config = limp_app.config
 		except ModuleNotFoundError:
-			logger.error(f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.')
+			logger.error(
+				f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.'
+			)
 			exit()
 		except AttributeError:
-			logger.error(f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.')
+			logger.error(
+				f'File \'limp_app.py\' was found but it doesn\'t have \'config\' method. Exiting.'
+			)
 			exit()
-		logger.info(f'Found app \'{app_config.name} (v{app_config.version})\'. Attempting to load App Config.')
+		logger.info(
+			f'Found app \'{app_config.name} (v{app_config.version})\'. Attempting to load App Config.'
+		)
 		Config._app_name = app_config.name
 		Config._app_version = app_config.version
 		Config._app_path = os.path.realpath(args.app_path)
@@ -292,118 +317,196 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 		# [DOC] Check envs, env
 		if custom_launch != 'generate_ref' and app_config.envs:
 			if not args.env and not app_config.env:
-				logger.error('App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.')
+				logger.error(
+					'App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.'
+				)
 				exit()
 			if args.env:
 				if args.env in app_config.envs.keys():
-					logger.info(f'Setting \'env\' Config Attr to \'env\' CLI Arg value \'{args.env}\'')
+					logger.info(
+						f'Setting \'env\' Config Attr to \'env\' CLI Arg value \'{args.env}\''
+					)
 				else:
-					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
+					logger.error(
+						f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.'
+					)
 					exit()
 			else:
 				if app_config.env in app_config.envs.keys():
-					logger.info(f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{app_config.env}\'')
+					logger.info(
+						f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{app_config.env}\''
+					)
 					Config.env = app_config.env
 				elif app_config.env.startswith('$__env.'):
-					logger.info('Found Env Variable for \'env\' App Config Attr. Attempting to process it.')
+					logger.info(
+						'Found Env Variable for \'env\' App Config Attr. Attempting to process it.'
+					)
 					env_env_var = app_config.env.replace('$__env.', '')
 					env = os.getenv(env_env_var)
 					if env:
-						logger.info(f'Setting \'env\' Config Attr to Env Variable \'{env_env_var}\' value \'{env}\'.')
+						logger.info(
+							f'Setting \'env\' Config Attr to Env Variable \'{env_env_var}\' value \'{env}\'.'
+						)
 						Config.env = env
 					else:
-						logger.error(f'No value found for Env Variable \'{env_env_var}\'. Exiting.')
+						logger.error(
+							f'No value found for Env Variable \'{env_env_var}\'. Exiting.'
+						)
 						exit()
 				else:
-					logger.error(f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.')
+					logger.error(
+						f'Found value \'{args.env}\' for \'env\' CLI Arg, but not defined in \'envs\' App Config Attr. Exiting.'
+					)
 					exit()
-			logger.info(f'Beginning to extract Config Attrs defined in selected \'env\', \'{Config.env}\', to App Config Attrs.')
+			logger.info(
+				f'Beginning to extract Config Attrs defined in selected \'env\', \'{Config.env}\', to App Config Attrs.'
+			)
 			for config_attr in dir(app_config.envs[Config.env]):
-				if config_attr.startswith('__') or getattr(app_config.envs[Config.env], config_attr) == None: continue
-				logger.info(f'Extracting \'{config_attr}\' Config Attr to App Config Attr')
-				setattr(app_config, config_attr, getattr(app_config.envs[Config.env], config_attr))
-				setattr(Config, config_attr, getattr(app_config.envs[Config.env], config_attr))
+				if (
+					config_attr.startswith('__')
+					or getattr(app_config.envs[Config.env], config_attr) == None
+				):
+					continue
+				logger.info(
+					f'Extracting \'{config_attr}\' Config Attr to App Config Attr'
+				)
+				setattr(
+					app_config,
+					config_attr,
+					getattr(app_config.envs[Config.env], config_attr),
+				)
+				setattr(
+					Config,
+					config_attr,
+					getattr(app_config.envs[Config.env], config_attr),
+				)
 		# [DOC] Check port Config Attr
 		if not custom_launch and app_config.port:
 			if args.port:
-				logger.info(f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.')
+				logger.info(
+					f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.'
+				)
 			else:
 				logger.info('Found \'port\' App Config Attr. Attempting to process it.')
 				if type(app_config.port) == int:
 					Config.port = app_config.port
 					logger.info(f'Setting \'port\' Config Attr to \'{Config.port}\'.')
-				elif type(app_config.port) == str and app_config.port.startswith('$__env.'):
-					logger.info('Found Env Variable for \'port\' App Config Attr. Attempting to process it.')
+				elif type(app_config.port) == str and app_config.port.startswith(
+					'$__env.'
+				):
+					logger.info(
+						'Found Env Variable for \'port\' App Config Attr. Attempting to process it.'
+					)
 					port_env_var = app_config.port.replace('$__env.', '')
 					port = os.getenv(port_env_var)
 					if port:
-						logger.info(f'Setting \'port\' Config Attr to Env Variable \'{port_env_var}\' value \'{port}\'.')
+						logger.info(
+							f'Setting \'port\' Config Attr to Env Variable \'{port_env_var}\' value \'{port}\'.'
+						)
 						Config.port = port
 					else:
-						logger.error(f'No value found for Env Variable \'{port_env_var}\'. Exiting.')
+						logger.error(
+							f'No value found for Env Variable \'{port_env_var}\'. Exiting.'
+						)
 						exit()
 				else:
-					logger.error(f'Invalid value type for \'port\' Config Attr with value \'{app_config.port}\'. Exiting.')
+					logger.error(
+						f'Invalid value type for \'port\' Config Attr with value \'{app_config.port}\'. Exiting.'
+					)
 					exit()
 		# [DOC] Check debug Config Attr
 		if app_config.debug:
 			if args.debug:
-				logger.info(f'Ignoring \'debug\' App Config Attr in favour of \'debug\' CLI Arg with value \'{args.debug}\'.')
+				logger.info(
+					f'Ignoring \'debug\' App Config Attr in favour of \'debug\' CLI Arg with value \'{args.debug}\'.'
+				)
 			else:
-				logger.info('Found \'debug\' App Config Attr. Attempting to process it.')
+				logger.info(
+					'Found \'debug\' App Config Attr. Attempting to process it.'
+				)
 				if type(app_config.debug) == bool:
 					Config.debug = app_config.debug
 					logger.info(f'Setting \'debug\' Config Attr to \'{Config.debug}\'.')
-				elif type(app_config.debug) == str and app_config.debug.startswith('$__env.'):
-					logger.info('Found Env Variable for \'debug\' App Config Attr. Attempting to process it.')
+				elif type(app_config.debug) == str and app_config.debug.startswith(
+					'$__env.'
+				):
+					logger.info(
+						'Found Env Variable for \'debug\' App Config Attr. Attempting to process it.'
+					)
 					debug_env_var = app_config.debug.replace('$__env.', '')
 					debug = os.getenv(debug_env_var)
 					if debug:
-						logger.info(f'Setting \'debug\' Config Attr to Env Variable \'{debug_env_var}\' as \'True\'.')
+						logger.info(
+							f'Setting \'debug\' Config Attr to Env Variable \'{debug_env_var}\' as \'True\'.'
+						)
 						Config.debug = True
 					else:
-						logger.info(f'No value found for Env Variable \'{debug_env_var}\'. Setting \'debug\' to \'False\'.')
+						logger.info(
+							f'No value found for Env Variable \'{debug_env_var}\'. Setting \'debug\' to \'False\'.'
+						)
 						Config.debug = False
 				else:
-					logger.error(f'Invalid value type for \'debug\' Config Attr with value \'{app_config.debug}\'. Exiting.')
+					logger.error(
+						f'Invalid value type for \'debug\' Config Attr with value \'{app_config.debug}\'. Exiting.'
+					)
 					exit()
 				if Config.debug:
 					logger.setLevel(logging.DEBUG)
 		# [DOC] Check force_admin_check Config Attr
 		if not custom_launch and app_config.force_admin_check:
 			if args.force_admin_check:
-				logger.info(f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.')
+				logger.info(
+					f'Ignoring \'force_admin_check\' App Config Attr in favour of \'force_admin_check\' CLI Arg with value \'{args.force_admin_check}\'.'
+				)
 				Config.force_admin_check = True
 			else:
-				logger.info('Found \'force_admin_check\' App Config Attr. Attempting to process it.')
+				logger.info(
+					'Found \'force_admin_check\' App Config Attr. Attempting to process it.'
+				)
 				if type(app_config.force_admin_check) == bool:
 					Config.force_admin_check = app_config.force_admin_check
-					logger.info(f'Setting \'force_admin_check\' Config Attr to \'{Config.force_admin_check}\'.')
-				elif type(app_config.force_admin_check) == str and app_config.force_admin_check.startswith('$__env.'):
-					logger.info('Found Env Variable for \'force_admin_check\' App Config Attr. Attempting to process it.')
+					logger.info(
+						f'Setting \'force_admin_check\' Config Attr to \'{Config.force_admin_check}\'.'
+					)
+				elif type(
+					app_config.force_admin_check
+				) == str and app_config.force_admin_check.startswith('$__env.'):
+					logger.info(
+						'Found Env Variable for \'force_admin_check\' App Config Attr. Attempting to process it.'
+					)
 					check_env_var = app_config.force_admin_check.replace('$__env.', '')
 					check = os.getenv(check_env_var)
 					if check:
-						logger.info(f'Setting \'force_admin_check\' Config Attr to Env Variable \'{check_env_var}\' as \'True\'.')
+						logger.info(
+							f'Setting \'force_admin_check\' Config Attr to Env Variable \'{check_env_var}\' as \'True\'.'
+						)
 						Config.force_admin_check = True
 					else:
-						logger.info(f'No value found for Env Variable \'{check_env_var}\'. Setting \'force_admin_check\' to \'False\'.')
+						logger.info(
+							f'No value found for Env Variable \'{check_env_var}\'. Setting \'force_admin_check\' to \'False\'.'
+						)
 						Config.force_admin_check = False
 				else:
-					logger.error(f'Invalid value type for \'force_admin_check\' Config Attr with value \'{app_config.force_admin_check}\'. Exiting.')
+					logger.error(
+						f'Invalid value type for \'force_admin_check\' Config Attr with value \'{app_config.force_admin_check}\'. Exiting.'
+					)
 					exit()
 		# [TODO] Implement realm APP Config Attr checks
 	except Exception:
-		logger.error('An unexpected exception happened while attempeting to process LIMP app. Exception details:')
+		logger.error(
+			'An unexpected exception happened while attempeting to process LIMP app. Exception details:'
+		)
 		logger.error(traceback.format_exc())
 		logger.error('Exiting.')
 		exit()
 
 	asyncio.run(run_app())
 
+
 def test(args: argparse.Namespace):
 	# [DOC] Update Config with LIMP CLI args
 	from limp.config import Config
+
 	Config.test = args.test_name
 	Config.test_skip_flush = args.skip_flush
 	Config.test_force = args.force
@@ -411,8 +514,10 @@ def test(args: argparse.Namespace):
 	Config.test_breakpoint = args.breakpoint
 	launch(args=args, custom_launch='test')
 
+
 def generate_ref(args: argparse.Namespace):
 	# [DOC] Update Config with LIMP CLI args
 	from limp.config import Config
+
 	Config.generate_ref = True
 	launch(args=args, custom_launch='generate_ref')

@@ -8,12 +8,21 @@ from bson import ObjectId
 
 class Realm(BaseModule):
 	'''`Realm` module module provides data type and controller for Realm Mode in LIMP eco-system.'''
+
 	collection = 'realms'
 	attrs = {
-		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to. This is also the ADMIN of the realm.'),
-		'name': ATTR.STR(desc='Name of the realm. This is both readable as well as unique name.'),
-		'default': ATTR.ID(desc='`_id` of `Group` doc that serves as `DEFAULT` group of the realm.'),
-		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
+		'user': ATTR.ID(
+			desc='`_id` of `User` doc the doc belongs to. This is also the ADMIN of the realm.'
+		),
+		'name': ATTR.STR(
+			desc='Name of the realm. This is both readable as well as unique name.'
+		),
+		'default': ATTR.ID(
+			desc='`_id` of `Group` doc that serves as `DEFAULT` group of the realm.'
+		),
+		'create_time': ATTR.DATETIME(
+			desc='Python `datetime` ISO format of the doc creation.'
+		),
 	}
 	methods = {
 		'read': {'permissions': [PERM(privilege='read')]},

@@ -16,7 +16,9 @@ async def test_validate_attr_COUNTER_invalid_type():
 async def test_validate_attr_COUNTER_valid_type():
 	from limp.config import Config
 
-	ATTR.COUNTER(pattern='O-$__values:0$__values:1$__values:2-$__counters.order_counter')
+	ATTR.COUNTER(
+		pattern='O-$__values:0$__values:1$__values:2-$__counters.order_counter'
+	)
 	assert Config.docs[0]['doc']['var'] == '__counter:order_counter'
 
 
@@ -29,7 +31,7 @@ async def test_validate_attr_COUNTER_valid_type():
 		values=[
 			lambda skip_events, env, query, doc: 42,
 			lambda skip_events, env, query, doc: 24,
-		]
+		],
 	)
 	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_COUNTER',

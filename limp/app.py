@@ -131,7 +131,13 @@ async def run_app():
 		return aiohttp.web.Response(
 			status=200,
 			headers=headers,
-			body=JSONEncoder().encode({'status': 200, 'msg': f'Welcome to {Config._app_name}!', 'args': {'version': Config._app_version, 'powered_by':'LIMP'}}),
+			body=JSONEncoder().encode(
+				{
+					'status': 200,
+					'msg': f'Welcome to {Config._app_name}!',
+					'args': {'version': Config._app_version, 'powered_by': 'LIMP'},
+				}
+			),
 		)
 
 	async def http_handler(request: aiohttp.web.Request):
@@ -140,7 +146,10 @@ async def run_app():
 			('Powered-By', 'Masaar, https://masaar.com'),
 			('Access-Control-Allow-Origin', '*'),
 			('Access-Control-Allow-Methods', 'GET,POST,OPTIONS'),
-			('Access-Control-Allow-Headers', 'Content-Type,X-Auth-Bearer,X-Auth-Token,X-Auth-App'),
+			(
+				'Access-Control-Allow-Headers',
+				'Content-Type,X-Auth-Bearer,X-Auth-Token,X-Auth-App',
+			),
 			('Access-Control-Expose-Headers', 'Content-Disposition'),
 		]
 
@@ -243,8 +252,13 @@ async def run_app():
 				break
 
 		conn = Data.create_conn()
-		env = {'conn': conn, 'REMOTE_ADDR': request.remote, 'ws': None, 'client_app': '__public'}
-		
+		env = {
+			'conn': conn,
+			'REMOTE_ADDR': request.remote,
+			'ws': None,
+			'client_app': '__public',
+		}
+
 		try:
 			env['HTTP_USER_AGENT'] = request.headers['user-agent']
 			env['HTTP_ORIGIN'] = request.headers['origin']
@@ -282,9 +296,7 @@ async def run_app():
 					not in Config.client_apps[request.headers['X-Auth-App']]['hosts']
 				)
 			):
-				logger.debug(
-					'Denying request due to unaithorised client_app.'
-				)
+				logger.debug('Denying request due to unaithorised client_app.')
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
 				return aiohttp.web.Response(
 					status=403,
@@ -303,11 +315,7 @@ async def run_app():
 				session_results = await Config.modules['session'].read(
 					skip_events=[Event.PERM],
 					env=env,
-					query=[
-						{
-							'_id': request.headers['X-Auth-Bearer'],
-						}
-					]
+					query=[{'_id': request.headers['X-Auth-Bearer'],}],
 				)
 			except:
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
@@ -340,7 +348,9 @@ async def run_app():
 						.encode('utf-8'),
 					)
 
-			if not session_results.args.count or not pbkdf2_sha512.verify(request.headers['X-Auth-Token'], session_results.args.docs[0].token_hash):
+			if not session_results.args.count or not pbkdf2_sha512.verify(
+				request.headers['X-Auth-Token'], session_results.args.docs[0].token_hash
+			):
 				logger.debug(
 					'Denying request due to missing failed Call Authorisation.'
 				)
@@ -363,7 +373,12 @@ async def run_app():
 				session_results = await Config.modules['session'].reauth(
 					skip_events=[Event.PERM],
 					env=env,
-					query=[{'_id': request.headers['X-Auth-Bearer'], 'token': request.headers['X-Auth-Token'],}],
+					query=[
+						{
+							'_id': request.headers['X-Auth-Bearer'],
+							'token': request.headers['X-Auth-Token'],
+						}
+					],
 				)
 				logger.debug('Denying request due to fail to reauth.')
 				if session_results.status != 200:
@@ -1083,9 +1098,7 @@ async def run_app():
 						# [DOC] Update job next_time
 						job['next_time'] = datetime.datetime.fromtimestamp(
 							job['schedule'].get_next(), datetime.timezone.utc
-						).isoformat()[
-							:16
-						]
+						).isoformat()[:16]
 						if job['type'] == 'job':
 							logger.debug('-Type of job: job.')
 							job['job'](
@@ -1141,16 +1154,25 @@ async def run_app():
 						logger.debug('-Not yet due.')
 			except Exception:
 				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
-			
+
 			try:
 				logger.debug('Time to check for files timeout!')
-				files_results = await Config.modules['file'].delete(skip_events=[Event.PERM], env=Config._sys_env, query=[
-					{
-						'create_time':{
-							'$lt': (datetime.datetime.utcnow() - datetime.timedelta(seconds=Config.file_upload_timeout)).isoformat()
+				files_results = await Config.modules['file'].delete(
+					skip_events=[Event.PERM],
+					env=Config._sys_env,
+					query=[
+						{
+							'create_time': {
+								'$lt': (
+									datetime.datetime.utcnow()
+									- datetime.timedelta(
+										seconds=Config.file_upload_timeout
+									)
+								).isoformat()
+							}
 						}
-					}
-				])
+					],
+				)
 				logger.debug('Files timeout results:')
 				logger.debug(f'-status: {files_results.status}')
 				logger.debug(f'-msg: {files_results.msg}')
@@ -1197,4 +1219,3 @@ async def run_app():
 		await asyncio.gather(jobs_loop(), web_loop())
 
 	asyncio.run(loop_gather())
-

@@ -34,9 +34,14 @@ def import_modules():
 	modules: Dict[str, BaseModule] = {}
 	modules_packages: Dict[str, List[str]] = {}
 	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
-	
+
 	# [DOC] Iterate over packages in modules folder
-	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(Config._app_path, 'packages')]):
+	for _, pkgname, ispkg in pkgutil.iter_modules(
+		[
+			os.path.join(limp.__path__[0], 'packages'),
+			os.path.join(Config._app_path, 'packages'),
+		]
+	):
 		if not ispkg:
 			continue
 
@@ -46,31 +51,42 @@ def import_modules():
 		package = __import__(pkgname, fromlist='*')
 		for config_attr in dir(package.config):
 			config_attr_val = getattr(package.config, config_attr)
-			
+
 			# [DOC] Check existence of of api_level, version Config Attrs
 			if config_attr in ['api_level', 'version']:
 				if config_attr_val == None:
-					logger.error(f'Package \'{pkgname}\' is missing either \'{config_attr}\' Config Attr. Exiting.')
+					logger.error(
+						f'Package \'{pkgname}\' is missing either \'{config_attr}\' Config Attr. Exiting.'
+					)
 					exit()
 				# [DOC] Check type of api_level, version Config Attrs
 				elif type(config_attr_val) != str:
-					logger.error(f'Package \'{pkgname}\' is having invalid type of \'{config_attr}\'. Exiting.')
+					logger.error(
+						f'Package \'{pkgname}\' is having invalid type of \'{config_attr}\'. Exiting.'
+					)
 					exit()
 				else:
-					# [DOC] Update corresponding Config 
+					# [DOC] Update corresponding Config
 					if config_attr == 'api_level':
 						Config.packages_api_levels[pkgname] = config_attr_val
 					else:
 						Config.packages_versions[pkgname] = config_attr_val
-			elif config_attr.startswith('__') or config_attr_val == None: continue
+			elif config_attr.startswith('__') or config_attr_val == None:
+				continue
 			# [DOC] Skip non Config Attr attrs
-			elif config_attr in ['user_attrs', 'user_auth_attrs', 'user_attrs_defaults']:
+			elif config_attr in [
+				'user_attrs',
+				'user_auth_attrs',
+				'user_attrs_defaults',
+			]:
 				user_config[config_attr] = config_attr_val
 				setattr(Config, config_attr, config_attr_val)
 			elif type(config_attr_val) == dict:
 				if not getattr(Config, config_attr):
 					setattr(Config, config_attr, {})
-				deep_update(target=getattr(Config, config_attr), new_values=config_attr_val)
+				deep_update(
+					target=getattr(Config, config_attr), new_values=config_attr_val
+				)
 			else:
 				setattr(Config, config_attr, config_attr_val)
 
@@ -79,9 +95,7 @@ def import_modules():
 
 		# [DOC] Iterate over python modules in package
 		package_prefix = package.__name__ + '.'
-		for _, modname, ispkg in pkgutil.iter_modules(
-			package.__path__, package_prefix
-		):
+		for _, modname, ispkg in pkgutil.iter_modules(package.__path__, package_prefix):
 			# [DOC] Iterate over python classes in module
 			module = __import__(modname, fromlist='*')
 			if modname.endswith('__tests__'):
@@ -499,7 +513,9 @@ def expand_attr(*, doc: Dict[str, Any], expanded_doc: Dict[str, Any] = None):
 
 def deep_update(*, target: Union[List, Dict], new_values: Union[List, Dict]):
 	if type(target) != type(new_values):
-		logger.error(f'Type \'{type(target)}\' of \'target\' is not the same as \'{type(new_values)}\' of \'new_values\'. Exiting.')
+		logger.error(
+			f'Type \'{type(target)}\' of \'target\' is not the same as \'{type(new_values)}\' of \'new_values\'. Exiting.'
+		)
 		exit(1)
 	if type(new_values) == dict:
 		for k in new_values.keys():
@@ -601,22 +617,34 @@ async def validate_default(
 			else:
 				attr_val = attr_type._default.default
 			return copy.deepcopy(attr_val)
-	
+
 	elif attr_type._type == 'COUNTER':
 		from limp.config import Config
 
-		counter_groups = re.findall(r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))', attr_type._args['pattern'])
+		counter_groups = re.findall(
+			r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))', attr_type._args['pattern']
+		)
 		counter_val = attr_type._args['pattern']
 		for group in counter_groups:
 			for group in counter_groups:
 				if group.startswith('$__values:'):
-					value_callable = attr_type._args['values'][int(group.replace('$__values:', ''))]
-					counter_val = counter_val.replace(group, str(value_callable(skip_events, env, query, doc)))
+					value_callable = attr_type._args['values'][
+						int(group.replace('$__values:', ''))
+					]
+					counter_val = counter_val.replace(
+						group, str(value_callable(skip_events, env, query, doc))
+					)
 				elif group.startswith('$__counters.'):
-					setting_results = await Config.modules['setting'].read(skip_events=[Event.PERM], env=env, query=[{
-						'var': '__counter:' + group.replace('$__counters.', ''),
-						'type': 'global'
-					}])
+					setting_results = await Config.modules['setting'].read(
+						skip_events=[Event.PERM],
+						env=env,
+						query=[
+							{
+								'var': '__counter:' + group.replace('$__counters.', ''),
+								'type': 'global',
+							}
+						],
+					)
 					setting = setting_results.args.docs[0]
 					counter_val = counter_val.replace(group, str(setting.val + 1))
 		return counter_val
@@ -1210,7 +1238,9 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 
 	elif attr_type._type == 'KV_DICT':
 		attr_val = {
-			generate_attr(attr_type=attr_type._args['key']): generate_attr(attr_type=attr_type._args['val'])
+			generate_attr(attr_type=attr_type._args['key']): generate_attr(
+				attr_type=attr_type._args['val']
+			)
 			for _ in range(attr_type._args['min'] or 0)
 		}
 		if len(attr_val.keys()) < (attr_type._args['min'] or 0):
@@ -1275,7 +1305,10 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return '127.0.0.1'
 
 	elif attr_type._type == 'LIST':
-		return [generate_attr(attr_type=random.choice(attr_type._args['list'])) for _ in range(attr_type._args['min'] or 0)]
+		return [
+			generate_attr(attr_type=random.choice(attr_type._args['list']))
+			for _ in range(attr_type._args['min'] or 0)
+		]
 
 	elif attr_type._type == 'LOCALE':
 		return {
@@ -1312,4 +1345,3 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		attr_val = generate_attr(attr_type=random.choice(attr_type._args['union']))
 
 	raise Exception(f'Unkown generator attr \'{attr_type}\'')
-

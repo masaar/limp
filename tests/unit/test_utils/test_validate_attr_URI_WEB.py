@@ -15,6 +15,7 @@ async def test_validate_attr_URI_WEB_None():
 			allow_none=False,
 		)
 
+
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_int():
 	with pytest.raises(utils.InvalidAttrException):
@@ -25,6 +26,7 @@ async def test_validate_attr_URI_WEB_int():
 			allow_opers=False,
 			allow_none=False,
 		)
+
 
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_str_invalid():
@@ -37,6 +39,7 @@ async def test_validate_attr_URI_WEB_str_invalid():
 			allow_none=False,
 		)
 
+
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_uri_web_insecure():
 	attr_val = await utils.validate_attr(
@@ -47,6 +50,7 @@ async def test_validate_attr_URI_WEB_uri_web_insecure():
 		allow_none=False,
 	)
 	assert attr_val == 'http://sub.example.com'
+
 
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_uri_web_secure():
@@ -59,6 +63,7 @@ async def test_validate_attr_URI_WEB_uri_web_secure():
 	)
 	assert attr_val == 'https://sub.example.com'
 
+
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_uri_web_params():
 	attr_val = await utils.validate_attr(
@@ -68,7 +73,11 @@ async def test_validate_attr_URI_WEB_uri_web_params():
 		allow_opers=False,
 		allow_none=False,
 	)
-	assert attr_val == 'https://sub.example.com?param1=something-here&param2=something_else'
+	assert (
+		attr_val
+		== 'https://sub.example.com?param1=something-here&param2=something_else'
+	)
+
 
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_None_allow_none():
@@ -80,6 +89,7 @@ async def test_validate_attr_URI_WEB_None_allow_none():
 		allow_none=True,
 	)
 	assert attr_val == None
+
 
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_default_None():
@@ -94,6 +104,7 @@ async def test_validate_attr_URI_WEB_default_None():
 	)
 	assert attr_val == 'test_validate_attr_URI_WEB'
 
+
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_default_int():
 	attr_type = ATTR.URI_WEB()
@@ -106,6 +117,7 @@ async def test_validate_attr_URI_WEB_default_int():
 		allow_none=False,
 	)
 	assert attr_val == 'test_validate_attr_URI_WEB'
+
 
 @pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_default_int_allow_none():

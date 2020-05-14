@@ -7,14 +7,17 @@ from limp.config import Config
 
 class Setting(BaseModule):
 	'''`Setting` module module provides data type and controller for settings in LIMP eco-system. This is used by `User` module tp provide additional user-wise settings. It also allows for global-typed settings.'''
+
 	collection = 'settings'
 	attrs = {
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
-		'var': ATTR.STR(desc='Name of the setting. This is unique for every `user` in the module.'),
+		'var': ATTR.STR(
+			desc='Name of the setting. This is unique for every `user` in the module.'
+		),
 		'val': ATTR.ANY(desc='Value of the setting.'),
 		'type': ATTR.LITERAL(
 			desc='Type of the setting. This sets whether setting is global, or belong to user, and whether use can update it or not.',
-			literal=['global', 'user', 'user_sys']
+			literal=['global', 'user', 'user_sys'],
 		),
 	}
 	diff = True
@@ -60,10 +63,7 @@ class Setting(BaseModule):
 					'_id': ATTR.ID(),
 					'type': ATTR.LITERAL(literal=['global', 'user', 'user_sys']),
 				},
-				{
-					'var': ATTR.STR(),
-					'type': ATTR.LITERAL(literal=['global']),
-				},
+				{'var': ATTR.STR(), 'type': ATTR.LITERAL(literal=['global']),},
 				{
 					'var': ATTR.STR(),
 					'user': ATTR.ID(),
@@ -91,10 +91,7 @@ class Setting(BaseModule):
 					'_id': ATTR.ID(),
 					'type': ATTR.LITERAL(literal=['global', 'user', 'user_sys']),
 				},
-				{
-					'var': ATTR.STR(),
-					'type': ATTR.LITERAL(literal=['global']),
-				},
+				{'var': ATTR.STR(), 'type': ATTR.LITERAL(literal=['global']),},
 				{
 					'var': ATTR.STR(),
 					'user': ATTR.ID(),
@@ -122,7 +119,7 @@ class Setting(BaseModule):
 		):
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, query, doc, payload)
-	
+
 	async def on_create(self, results, skip_events, env, query, doc, payload):
 		if doc['type'] in ['user', 'user_sys']:
 			if doc['user'] == env['session'].user._id:
@@ -138,18 +135,24 @@ class Setting(BaseModule):
 		):
 			doc['val'] = doc['val'][0]
 		return (skip_events, env, query, doc, payload)
-	
+
 	async def on_update(self, results, skip_events, env, query, doc, payload):
 		if query['type'][0] in ['user', 'user_sys']:
 			if query['user'][0] == env['session'].user._id:
 				if type(doc['val']) == dict and '$add' in doc['val'].keys():
 					env['session'].user.settings[query['var'][0]] += doc['val']['$add']
 				elif type(doc['val']) == dict and '$multiply' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]] *= doc['val']['$multiply']
+					env['session'].user.settings[query['var'][0]] *= doc['val'][
+						'$multiply'
+					]
 				elif type(doc['val']) == dict and '$append' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]].append(doc['val']['$append'])
+					env['session'].user.settings[query['var'][0]].append(
+						doc['val']['$append']
+					)
 				elif type(doc['val']) == dict and '$remove' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]].remove(doc['val']['$remove'])
+					env['session'].user.settings[query['var'][0]].remove(
+						doc['val']['$remove']
+					)
 				else:
 					env['session'].user.settings[query['var'][0]] = doc['val']
 		return (results, skip_events, env, query, doc, payload)

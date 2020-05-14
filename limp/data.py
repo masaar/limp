@@ -413,7 +413,11 @@ class Data:
 		# [DOC] Process doc attrs
 		for attr in attrs.keys():
 			if attrs[attr]._type == 'LOCALE':
-				if attr in doc.keys() and type(doc[attr]) == dict and Config.locale in doc[attr].keys():
+				if (
+					attr in doc.keys()
+					and type(doc[attr]) == dict
+					and Config.locale in doc[attr].keys()
+				):
 					doc[attr] = {
 						locale: doc[attr][locale]
 						if locale in doc[attr].keys()
@@ -443,7 +447,7 @@ class Data:
 
 		if type(scope) == dict and attr_name not in scope.keys():
 			return
-		
+
 		if attr_type._type == 'DICT':
 			if scope[attr_name] and type(scope[attr_name]) == dict:
 				if '__key' in attr_type._args['dict'].keys():
@@ -466,7 +470,7 @@ class Data:
 							env=env,
 							extn_models=extn_models,
 						)
-		
+
 		elif attr_type._type == 'LIST':
 			if scope[attr_name] and type(scope[attr_name]) == list:
 				for child_attr in attr_type._args['list']:
@@ -484,12 +488,16 @@ class Data:
 											extn_models=extn_models,
 										)
 								else:
-									for child_child_attr in child_attr._args['dict'].keys():
+									for child_child_attr in child_attr._args[
+										'dict'
+									].keys():
 										await cls._extend_attr(
 											doc=doc,
 											scope=child_scope,
 											attr_name=child_child_attr,
-											attr_type=child_attr._args['dict'][child_child_attr],
+											attr_type=child_attr._args['dict'][
+												child_child_attr
+											],
 											env=env,
 											extn_models=extn_models,
 										)
@@ -612,9 +620,9 @@ class Data:
 		extn_doc = copy.deepcopy(extn_models[str(extn_id)])
 		# [DOC] delete all unneeded keys from the resulted doc
 		if extn_doc:
-			extn_doc = BaseModel({
-				attr: extn_doc[attr] for attr in extn_attrs.keys() if attr in extn_doc
-			})
+			extn_doc = BaseModel(
+				{attr: extn_doc[attr] for attr in extn_attrs.keys() if attr in extn_doc}
+			)
 		return extn_doc
 
 	@classmethod
@@ -633,14 +641,12 @@ class Data:
 		)
 
 		logger.debug(f'aggregate_query: {aggregate_query}')
-		logger.debug(
-			f'skip, limit, sort, group: {skip}, {limit}, {sort}, {group}.'
-		)
+		logger.debug(f'skip, limit, sort, group: {skip}, {limit}, {sort}, {group}.')
 
 		collection = env['conn'][Config.data_name][collection]
 		docs_total_results = collection.aggregate(
 			aggregate_query + [{'$count': '__docs_total'}],
-			allowDiskUse=Config.data_disk_use
+			allowDiskUse=Config.data_disk_use,
 		)
 		try:
 			async for doc in docs_total_results:
@@ -671,7 +677,9 @@ class Data:
 						break
 				if check_group:
 					del group_query[i]
-				group_query = collection.aggregate(group_query, allowDiskUse=Config.data_disk_use)
+				group_query = collection.aggregate(
+					group_query, allowDiskUse=Config.data_disk_use
+				)
 				groups[group_condition['by']] = [
 					{
 						'min': group['_id']['min'],
@@ -692,7 +700,7 @@ class Data:
 
 		docs_count_results = collection.aggregate(
 			aggregate_query + [{'$count': '__docs_count'}],
-			allowDiskUse=Config.data_disk_use
+			allowDiskUse=Config.data_disk_use,
 		)
 		try:
 			async for doc in docs_count_results:

@@ -26,7 +26,7 @@ from limp.classes import (
 	ATTR_MOD,
 	CACHE,
 	CACHED_QUERY,
-	ANALYTIC
+	ANALYTIC,
 )
 from limp.base_method import BaseMethod
 
@@ -56,7 +56,7 @@ class BaseModule:
 		doc_args=Dict[str, Union[ATTR, ATTR_MOD]],
 		get_method=bool,
 		post_method=bool,
-		watch_method=bool
+		watch_method=bool,
 	)
 	cache: List[CACHE]
 	analytics: List[ANALYTIC]
@@ -405,7 +405,8 @@ class BaseModule:
 			if type(pre_read) in [DictObj, dict]:
 				return pre_read
 			skip_events, env, query, doc, payload = pre_read
-		else: payload = {}
+		else:
+			payload = {}
 		# [DOC] Check for cache workflow instructins
 		if self.cache:
 			results = False
@@ -562,7 +563,8 @@ class BaseModule:
 			if type(pre_watch) in [DictObj, dict]:
 				yield pre_watch
 			skip_events, env, query, doc, payload = pre_watch
-		else: payload = {}
+		else:
+			payload = {}
 
 		logger.debug('Preparing async loop at BaseModule')
 		async for results in Data.watch(
@@ -674,7 +676,8 @@ class BaseModule:
 			if type(pre_create) in [DictObj, dict]:
 				return pre_create
 			skip_events, env, query, doc, payload = pre_create
-		else: payload = {}
+		else:
+			payload = {}
 		# [DOC] Expant dot-notated keys onto dicts
 		doc = expand_attr(doc=doc)
 		# [DOC] Deleted all extra doc args
@@ -850,7 +853,8 @@ class BaseModule:
 			if type(pre_update) in [DictObj, dict]:
 				return pre_update
 			skip_events, env, query, doc, payload = pre_update
-		else: payload = {}
+		else:
+			payload = {}
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
 			await validate_doc(
@@ -996,7 +1000,9 @@ class BaseModule:
 			# [DOC] If diff is a ATTR_MOD, Check condition for valid diff case
 			if type(self.diff) == ATTR_MOD:
 				self.diff: ATTR_MOD
-				if self.diff.condition(skip_events=skip_events, env=env, query=query, doc=doc):
+				if self.diff.condition(
+					skip_events=skip_events, env=env, query=query, doc=doc
+				):
 					# [DOC] if condition passed, create Diff doc with default callable
 					diff_vars = doc
 					if self.diff.default and callable(self.diff.default):
@@ -1010,7 +1016,9 @@ class BaseModule:
 						doc={'module': self.module_name, 'vars': diff_vars},
 					)
 					if diff_results.status != 200:
-						logger.error(f'Failed to create Diff doc, results: {diff_results}')
+						logger.error(
+							f'Failed to create Diff doc, results: {diff_results}'
+						)
 				else:
 					logger.debug(f'Skipped Diff Workflow due to failed condition.')
 			else:
@@ -1087,7 +1095,8 @@ class BaseModule:
 			if type(pre_delete) in [DictObj, dict]:
 				return pre_delete
 			skip_events, env, query, doc, payload = pre_delete
-		else: payload = {}
+		else:
+			payload = {}
 		# [TODO]: confirm all extns are not linked.
 		# [DOC] Pick delete strategy based on skip_events
 		strategy = DELETE_STRATEGY.SOFT_SKIP_SYS
@@ -1190,7 +1199,8 @@ class BaseModule:
 			if type(pre_create_file) in [DictObj, dict]:
 				return pre_create_file
 			skip_events, env, query, doc, payload = pre_create_file
-		else: payload = {}
+		else:
+			payload = {}
 
 		if (
 			query['attr'][0] not in self.attrs.keys()
@@ -1264,7 +1274,8 @@ class BaseModule:
 			if type(pre_delete_file) in [DictObj, dict]:
 				return pre_delete_file
 			skip_events, env, query, doc, payload = pre_delete_file
-		else: payload = {}
+		else:
+			payload = {}
 
 		if (
 			query['attr'][0] not in self.attrs.keys()
@@ -1380,7 +1391,8 @@ class BaseModule:
 			if type(pre_retrieve_file) in [DictObj, dict]:
 				return pre_retrieve_file
 			skip_events, env, query, doc, payload = pre_retrieve_file
-		else: payload = {}
+		else:
+			payload = {}
 
 		attr_name = query['attr'][0]
 		filename = query['filename'][0]
@@ -1458,7 +1470,14 @@ class BaseModule:
 					pass
 
 			if Event.ON not in skip_events:
-				results, skip_events, env, query, doc, payload = await self.on_retrieve_file(
+				(
+					results,
+					skip_events,
+					env,
+					query,
+					doc,
+					payload,
+				) = await self.on_retrieve_file(
 					results=results,
 					skip_events=skip_events,
 					env=env,
@@ -1494,12 +1513,10 @@ class BaseModule:
 					cache_special: LIMP_QUERY = eval(cache_key.split('____')[1])
 					cache_query.append(cache_special)
 					results = await Data.read(
-							env=env,
-							collection=self.collection,
-							attrs=self.attrs,
-							query=Query(cache_query),
-						)
-					cache_set.queries[cache_key] = CACHED_QUERY(
-						results=results
+						env=env,
+						collection=self.collection,
+						attrs=self.attrs,
+						query=Query(cache_query),
 					)
+					cache_set.queries[cache_key] = CACHED_QUERY(results=results)
 		return self.status(status=200, msg='Cache deleted.', args={})

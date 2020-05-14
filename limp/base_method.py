@@ -377,7 +377,9 @@ class BaseMethod:
 				while curr is not None:
 					prev = curr
 					curr = curr.tb_next
-				logger.error(f'Scope variables: {JSONEncoder().encode(prev.tb_frame.f_locals)}')
+				logger.error(
+					f'Scope variables: {JSONEncoder().encode(prev.tb_frame.f_locals)}'
+				)
 			query = Query([])
 			if Config.debug:
 				return await self.return_results(

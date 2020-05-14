@@ -430,7 +430,8 @@ class Test:
 			for measure in acceptance.keys():
 				if measure.startswith('session.'):
 					results_measure = extract_attr(
-						scope=cls.session, attr_path=f'$__{measure.replace("session.", "")}'
+						scope=cls.session,
+						attr_path=f'$__{measure.replace("session.", "")}',
 					)
 				else:
 					results_measure = extract_attr(
@@ -480,7 +481,9 @@ class Test:
 		elif type(obj) == list:
 			obj_iter = range(len(obj))
 		else:
-			logger.error(f'Object is not of types \'dict\' or \'list\'. Refer to log to check how invalid type obj was attempted to be processed. Exiting.')
+			logger.error(
+				f'Object is not of types \'dict\' or \'list\'. Refer to log to check how invalid type obj was attempted to be processed. Exiting.'
+			)
 			exit(1)
 
 		for j in obj_iter:
@@ -512,7 +515,9 @@ class Test:
 				if obj[j] == '$__session':
 					obj[j] = cls.session
 				elif obj[j].startswith('$__session.'):
-					obj[j] = extract_attr(scope=cls.session, attr_path=obj[j].replace('session.', ''))
+					obj[j] = extract_attr(
+						scope=cls.session, attr_path=obj[j].replace('session.', '')
+					)
 				else:
 					obj[j] = extract_attr(scope=results, attr_path=obj[j])
 			elif callable(obj[j]):

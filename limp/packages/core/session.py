@@ -25,18 +25,25 @@ logger = logging.getLogger('limp')
 
 class Session(BaseModule):
 	'''`Session` module provides data type and controller for sessions in LIMP eco-system. CRUD methods of the module are supposed to used for internal calls only, while methods `auth`, `reauth`, and `signout` are available for use by API as well as internal calls when needed.'''
+
 	collection = 'sessions'
 	attrs = {
 		'user': ATTR.ID(desc='`_id` of `User` doc the doc belongs to.'),
 		'groups': ATTR.LIST(
 			desc='List of `_id` for every group the session is authenticated against. This attr is set by `auth` method when called with `groups` Doc Arg for Controller Auth Sequence.',
-			list=[ATTR.ID(desc='`_id` of Group doc the session is authenticated against.')]
+			list=[
+				ATTR.ID(desc='`_id` of Group doc the session is authenticated against.')
+			],
 		),
 		'host_add': ATTR.IP(desc='IP of the host the user used to authenticate.'),
-		'user_agent': ATTR.STR(desc='User-agent of the app the user used to authenticate.'),
+		'user_agent': ATTR.STR(
+			desc='User-agent of the app the user used to authenticate.'
+		),
 		'expiry': ATTR.DATETIME(desc='Python `datetime` ISO format of session expiry.'),
 		'token_hash': ATTR.STR(desc='Hashed system-generated session token.'),
-		'create_time': ATTR.DATETIME(desc='Python `datetime` ISO format of the doc creation.'),
+		'create_time': ATTR.DATETIME(
+			desc='Python `datetime` ISO format of the doc creation.'
+		),
 	}
 	defaults = {'groups': []}
 	extns = {'user': EXTN(module='user', force=True)}
@@ -90,8 +97,9 @@ class Session(BaseModule):
 		user_results = await Config.modules['user'].read(
 			skip_events=[Event.PERM, Event.ON], env=env, query=user_query
 		)
-		if not user_results.args.count or \
-			not pbkdf2_sha512.verify(doc['hash'], user_results.args.docs[0][f'{key}_hash']):
+		if not user_results.args.count or not pbkdf2_sha512.verify(
+			doc['hash'], user_results.args.docs[0][f'{key}_hash']
+		):
 			return self.status(
 				status=403,
 				msg='Wrong auth credentials.',
@@ -206,9 +214,7 @@ class Session(BaseModule):
 				status=403, msg='Session is invalid.', args={'code': 'INVALID_SESSION'}
 			)
 
-		if (
-			not pbkdf2_sha512.verify(query['token'][0], results.args.docs[0].token_hash)
-		):
+		if not pbkdf2_sha512.verify(query['token'][0], results.args.docs[0].token_hash):
 			return self.status(
 				status=403,
 				msg='Reauth token hash invalid.',
@@ -393,13 +399,17 @@ class Session(BaseModule):
 					'*' in user.privileges.keys()
 					and permission_module not in user.privileges.keys()
 				):
-					user.privileges[permission_module] = copy.deepcopy(user.privileges['*'])
+					user.privileges[permission_module] = copy.deepcopy(
+						user.privileges['*']
+					)
 				if permission_module in user.privileges.keys():
 					if (
 						type(user.privileges[permission_module]) == list
 						and '*' in user.privileges[permission_module]
 					):
-						user.privileges[permission_module] += copy.deepcopy(module.privileges)
+						user.privileges[permission_module] += copy.deepcopy(
+							module.privileges
+						)
 				if permission_module not in user.privileges.keys():
 					user.privileges[permission_module] = []
 

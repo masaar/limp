@@ -3,7 +3,7 @@ import setuptools
 with open('README.md', 'r') as f:
 	long_description = f.read()
 
-with open('requirements.txt' , 'r') as f:
+with open('requirements.txt', 'r') as f:
 	requirements = f.readlines()
 
 setuptools.setup(
@@ -16,10 +16,10 @@ setuptools.setup(
 	long_description_content_type='text/markdown',
 	url='https://github.com/masaar/limp',
 	project_urls={
-        'Docs: Github': 'https://github.com/masaar/limp-docs',
-        'GitHub: issues': 'https://github.com/masaar/limp/issues',
-        'GitHub: repo': 'https://github.com/masaar/limp',
-    },
+		'Docs: Github': 'https://github.com/masaar/limp-docs',
+		'GitHub: issues': 'https://github.com/masaar/limp/issues',
+		'GitHub: repo': 'https://github.com/masaar/limp',
+	},
 	packages=['limp', 'limp.packages', 'limp.packages.core'],
 	classifiers=[
 		'Programming Language :: Python :: 3',
