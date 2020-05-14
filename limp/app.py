@@ -242,7 +242,7 @@ async def run_app():
 					)
 				break
 
-		conn = Data.create_conn()  # pylint: disable=no-value-for-parameter
+		conn = Data.create_conn()
 		env = {'conn': conn, 'REMOTE_ADDR': request.remote, 'ws': None, 'client_app': '__public'}
 		
 		try:
@@ -449,7 +449,7 @@ async def run_app():
 		)
 
 	async def websocket_handler(request: aiohttp.web.Request):
-		conn = Data.create_conn()  # pylint: disable=no-value-for-parameter
+		conn = Data.create_conn()
 		logger.debug(
 			f'Websocket connection starting with client at \'{request.remote}\''
 		)
@@ -1085,11 +1085,11 @@ async def run_app():
 							job['schedule'].get_next(), datetime.timezone.utc
 						).isoformat()[
 							:16
-						]  # pylint: disable=no-member
+						]
 						if job['type'] == 'job':
 							logger.debug('-Type of job: job.')
 							job['job'](
-								env=Config._sys_env, session=Config._jobs_session,
+								env=Config._sys_env, session=Config._sys_env,
 							)
 						elif job['type'] == 'call':
 							logger.debug('-Type of job: call.')
@@ -1109,7 +1109,7 @@ async def run_app():
 									continue
 								session = session_results.args.docs[0]
 							else:
-								session = Config._jobs_session
+								session = Config._sys_env
 							job_resuls = Config.modules[job['module']].methods[
 								job['method']
 							](

@@ -1009,7 +1009,7 @@ class APP_CONFIG:
 
 
 class JSONEncoder(json.JSONEncoder):
-	def default(self, o): # pylint: disable=E0202
+	def default(self, o):
 		if isinstance(o, ObjectId):
 			return str(o)
 		elif isinstance(o, BaseModel) or isinstance(o, DictObj):

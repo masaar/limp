@@ -404,7 +404,7 @@ class Config:
 			admin_doc.update(cls.admin_doc)
 
 			for auth_attr in cls.user_auth_attrs:
-				admin_doc[f'{auth_attr}_hash'] = pbkdf2_sha512.using(
+				admin_doc[f'{auth_attr}_hash'] = pbkdf2_sha512.using(  # pylint: disable=no-member
 					rounds=100000
 				).hash(
 					f'{auth_attr}{admin_doc[auth_attr]}{cls.admin_password}{cls.anon_token}'.encode(
@@ -457,7 +457,7 @@ class Config:
 					)
 					admin_doc_update[attr] = cls.admin_doc[attr]
 			for auth_attr in cls.user_auth_attrs:
-				auth_attr_hash = pbkdf2_sha512.using(
+				auth_attr_hash = pbkdf2_sha512.using(  # pylint: disable=no-member
 					rounds=100000
 				).hash(
 					f'{auth_attr}{admin_doc[auth_attr]}{cls.admin_password}{cls.anon_token}'.encode(

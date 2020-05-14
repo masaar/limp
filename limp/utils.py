@@ -36,7 +36,7 @@ def import_modules():
 	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
 	
 	# [DOC] Iterate over packages in modules folder
-	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(Config._app_path, 'packages')]):  # pylint: disable=unused-variable
+	for _, pkgname, ispkg in pkgutil.iter_modules([os.path.join(limp.__path__[0], 'packages'), os.path.join(Config._app_path, 'packages')]):
 		if not ispkg:
 			continue
 

@@ -739,7 +739,7 @@ class BaseModule:
 				unique_results = await self.read(
 					skip_events=[Event.PERM], env=env, query=unique_attrs_query
 				)
-				if unique_results.args.count:  # pylint: disable=no-member
+				if unique_results.args.count:
 					unique_attrs_str = ', '.join(
 						map(
 							lambda _: ('(' + ', '.join(_) + ')')
@@ -944,7 +944,7 @@ class BaseModule:
 				unique_results = await self.read(
 					skip_events=[Event.PERM], env=env, query=unique_attrs_query
 				)
-				if unique_results.args.count:  # pylint: disable=no-member
+				if unique_results.args.count:
 					unique_attrs_str = ', '.join(
 						map(
 							lambda _: ('(' + ', '.join(_) + ')')
@@ -1278,11 +1278,11 @@ class BaseModule:
 		results = await self.read(
 			skip_events=[Event.PERM], env=env, query=[{'_id': query['_id'][0]}]
 		)
-		if not results.args.count:  # pylint: disable=no-member
+		if not results.args.count:
 			return self.status(
 				status=400, msg='Doc is invalid.', args={'code': 'INVALID_DOC'}
 			)
-		doc = results.args.docs[0]  # pylint: disable=no-member
+		doc = results.args.docs[0]
 
 		if query['attr'][0] not in doc:
 			return self.status(
@@ -1394,13 +1394,13 @@ class BaseModule:
 			env=env,
 			query=[{'_id': query['_id'][0]}],
 		)
-		if not results.args.count:  # pylint: disable=no-member
+		if not results.args.count:
 			return self.status(
 				status=400,
 				msg='File not found.',
 				args={'code': 'NOT_FOUND', 'return': 'json'},
 			)
-		doc = results.args.docs[0]  # pylint: disable=no-member
+		doc = results.args.docs[0]
 		try:
 			attr_path = attr_name.split('.')
 			attr = doc

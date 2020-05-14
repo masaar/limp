@@ -335,7 +335,7 @@ class BaseMethod:
 					stream=env['watch_tasks'][call_id]['watch'],
 					call_id=call_id,
 					watch_task=env['watch_tasks'][call_id],
-				)  # pylint: disable=assignment-from-no-return
+				)
 				env['watch_tasks'][call_id]['task'] = asyncio.create_task(
 					env['watch_tasks'][call_id]['watch']
 				)
