@@ -932,7 +932,7 @@ async def validate_attr(
 			if type(attr_val) == float:
 				if attr_type._args['ranges']:
 					for _range in attr_type._args['ranges']:
-						if attr_val in range(*_range):
+						if attr_val >= _range[0] and attr_val < _range[1]:
 							return return_valid_attr(
 								attr_val=attr_val, attr_oper=attr_oper
 							)
