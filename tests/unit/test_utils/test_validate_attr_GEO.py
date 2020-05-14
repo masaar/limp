@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_GEO_None():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_GEO_None():
 		)
 
 
-def test_validate_attr_GEO_int():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_GEO_int():
 		)
 
 
-def test_validate_attr_GEO_dict_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
 			attr_val={'key': 'value'},
@@ -37,9 +40,10 @@ def test_validate_attr_GEO_dict_invalid():
 		)
 
 
-def test_validate_attr_GEO_geo():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_geo():
 	geo_attr_val = {'type': 'Point', 'coordinates': [21.422507, 39.826181]}
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=ATTR.GEO(),
 		attr_val=geo_attr_val,
@@ -49,9 +53,10 @@ def test_validate_attr_GEO_geo():
 	assert attr_val == geo_attr_val
 
 
-def test_validate_attr_GEO_geo_as_str():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_geo_as_str():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_GEO',
 			attr_type=ATTR.GEO(),
 			attr_val={'type': 'Point', 'coordinates': ['21.422507', '39.826181']},
@@ -60,8 +65,9 @@ def test_validate_attr_GEO_geo_as_str():
 		)
 
 
-def test_validate_attr_GEO_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=ATTR.GEO(),
 		attr_val=None,
@@ -71,10 +77,11 @@ def test_validate_attr_GEO_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_GEO_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_default_None():
 	attr_type = ATTR.GEO()
 	attr_type._default = 'test_validate_attr_GEO'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=attr_type,
 		attr_val=None,
@@ -84,10 +91,11 @@ def test_validate_attr_GEO_default_None():
 	assert attr_val == 'test_validate_attr_GEO'
 
 
-def test_validate_attr_GEO_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_default_int():
 	attr_type = ATTR.GEO()
 	attr_type._default = 'test_validate_attr_GEO'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=attr_type,
 		attr_val=1,
@@ -97,10 +105,11 @@ def test_validate_attr_GEO_default_int():
 	assert attr_val == 'test_validate_attr_GEO'
 
 
-def test_validate_attr_GEO_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_GEO_default_int_allow_none():
 	attr_type = ATTR.GEO()
 	attr_type._default = 'test_validate_attr_GEO'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_GEO',
 		attr_type=attr_type,
 		attr_val=1,

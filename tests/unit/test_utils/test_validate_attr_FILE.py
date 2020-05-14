@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_FILE_None():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FILE',
 			attr_type=ATTR.FILE(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_FILE_None():
 		)
 
 
-def test_validate_attr_FILE_int():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FILE',
 			attr_type=ATTR.FILE(),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_FILE_int():
 		)
 
 
-def test_validate_attr_FILE_dict_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FILE',
 			attr_type=ATTR.FILE(),
 			attr_val={'key': 'value'},
@@ -37,7 +40,8 @@ def test_validate_attr_FILE_dict_invalid():
 		)
 
 
-def test_validate_attr_FILE_file():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_file():
 	file_attr_val = {
 		'name': '__filename',
 		'type': 'mime/type',
@@ -45,7 +49,7 @@ def test_validate_attr_FILE_file():
 		'size': 6,
 		'content': b'__file',
 	}
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=ATTR.FILE(),
 		attr_val=file_attr_val,
@@ -55,7 +59,8 @@ def test_validate_attr_FILE_file():
 	assert attr_val == file_attr_val
 
 
-def test_validate_attr_FILE_file_list():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_file_list():
 	file_attr_val = {
 		'name': '__filename',
 		'type': 'mime/type',
@@ -63,7 +68,7 @@ def test_validate_attr_FILE_file_list():
 		'size': 6,
 		'content': b'__file',
 	}
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=ATTR.FILE(),
 		attr_val=[file_attr_val],
@@ -73,8 +78,9 @@ def test_validate_attr_FILE_file_list():
 	assert attr_val == file_attr_val
 
 
-def test_validate_attr_FILE_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=ATTR.FILE(),
 		attr_val=None,
@@ -84,10 +90,11 @@ def test_validate_attr_FILE_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_FILE_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_default_None():
 	attr_type = ATTR.FILE()
 	attr_type._default = 'test_validate_attr_FILE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=attr_type,
 		attr_val=None,
@@ -97,10 +104,11 @@ def test_validate_attr_FILE_default_None():
 	assert attr_val == 'test_validate_attr_FILE'
 
 
-def test_validate_attr_FILE_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_default_int():
 	attr_type = ATTR.FILE()
 	attr_type._default = 'test_validate_attr_FILE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=attr_type,
 		attr_val=1,
@@ -110,10 +118,11 @@ def test_validate_attr_FILE_default_int():
 	assert attr_val == 'test_validate_attr_FILE'
 
 
-def test_validate_attr_FILE_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_FILE_default_int_allow_none():
 	attr_type = ATTR.FILE()
 	attr_type._default = 'test_validate_attr_FILE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FILE',
 		attr_type=attr_type,
 		attr_val=1,

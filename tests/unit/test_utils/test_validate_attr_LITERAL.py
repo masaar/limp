@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_LITERAL_None():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_LITERAL',
 			attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_LITERAL_None():
 		)
 
 
-def test_validate_attr_LITERAL_str_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_LITERAL',
 			attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 			attr_val='0',
@@ -26,9 +28,10 @@ def test_validate_attr_LITERAL_str_invalid():
 		)
 
 
-def test_validate_attr_LITERAL_int_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_int_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_LITERAL',
 			attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 			attr_val=1,
@@ -37,8 +40,9 @@ def test_validate_attr_LITERAL_int_invalid():
 		)
 
 
-def test_validate_attr_LITERAL_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 		attr_val='str',
@@ -48,8 +52,9 @@ def test_validate_attr_LITERAL_str():
 	assert attr_val == 'str'
 
 
-def test_validate_attr_LITERAL_int():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_int():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 		attr_val=0,
@@ -59,8 +64,9 @@ def test_validate_attr_LITERAL_int():
 	assert attr_val == 0
 
 
-def test_validate_attr_LITERAL_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=ATTR.LITERAL(literal=['str', 0, 1.1]),
 		attr_val=None,
@@ -70,10 +76,11 @@ def test_validate_attr_LITERAL_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_LITERAL_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_default_None():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
 	attr_type._default = 'test_validate_attr_LITERAL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=attr_type,
 		attr_val=None,
@@ -83,10 +90,11 @@ def test_validate_attr_LITERAL_default_None():
 	assert attr_val == 'test_validate_attr_LITERAL'
 
 
-def test_validate_attr_LITERAL_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_default_int():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
 	attr_type._default = 'test_validate_attr_LITERAL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=attr_type,
 		attr_val=1,
@@ -96,10 +104,11 @@ def test_validate_attr_LITERAL_default_int():
 	assert attr_val == 'test_validate_attr_LITERAL'
 
 
-def test_validate_attr_LITERAL_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_LITERAL_default_int_allow_none():
 	attr_type = ATTR.LITERAL(literal=['str', 0, 1.1])
 	attr_type._default = 'test_validate_attr_LITERAL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LITERAL',
 		attr_type=attr_type,
 		attr_val=1,

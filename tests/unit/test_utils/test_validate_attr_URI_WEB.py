@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_URI_WEB_None():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_URI_WEB',
 			attr_type=ATTR.URI_WEB(),
 			attr_val=None,
@@ -14,9 +15,10 @@ def test_validate_attr_URI_WEB_None():
 			allow_none=False,
 		)
 
-def test_validate_attr_URI_WEB_int():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_URI_WEB',
 			attr_type=ATTR.URI_WEB(),
 			attr_val=1,
@@ -24,9 +26,10 @@ def test_validate_attr_URI_WEB_int():
 			allow_none=False,
 		)
 
-def test_validate_attr_URI_WEB_str_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_URI_WEB',
 			attr_type=ATTR.URI_WEB(),
 			attr_val='str',
@@ -34,8 +37,9 @@ def test_validate_attr_URI_WEB_str_invalid():
 			allow_none=False,
 		)
 
-def test_validate_attr_URI_WEB_uri_web_insecure():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_uri_web_insecure():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=ATTR.URI_WEB(),
 		attr_val='http://sub.example.com',
@@ -44,8 +48,9 @@ def test_validate_attr_URI_WEB_uri_web_insecure():
 	)
 	assert attr_val == 'http://sub.example.com'
 
-def test_validate_attr_URI_WEB_uri_web_secure():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_uri_web_secure():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=ATTR.URI_WEB(),
 		attr_val='https://sub.example.com',
@@ -54,8 +59,9 @@ def test_validate_attr_URI_WEB_uri_web_secure():
 	)
 	assert attr_val == 'https://sub.example.com'
 
-def test_validate_attr_URI_WEB_uri_web_params():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_uri_web_params():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=ATTR.URI_WEB(),
 		attr_val='https://sub.example.com?param1=something-here&param2=something_else',
@@ -64,8 +70,9 @@ def test_validate_attr_URI_WEB_uri_web_params():
 	)
 	assert attr_val == 'https://sub.example.com?param1=something-here&param2=something_else'
 
-def test_validate_attr_URI_WEB_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=ATTR.URI_WEB(),
 		attr_val=None,
@@ -74,10 +81,11 @@ def test_validate_attr_URI_WEB_None_allow_none():
 	)
 	assert attr_val == None
 
-def test_validate_attr_URI_WEB_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_default_None():
 	attr_type = ATTR.URI_WEB()
 	attr_type._default = 'test_validate_attr_URI_WEB'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=attr_type,
 		attr_val=None,
@@ -86,10 +94,11 @@ def test_validate_attr_URI_WEB_default_None():
 	)
 	assert attr_val == 'test_validate_attr_URI_WEB'
 
-def test_validate_attr_URI_WEB_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_default_int():
 	attr_type = ATTR.URI_WEB()
 	attr_type._default = 'test_validate_attr_URI_WEB'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=attr_type,
 		attr_val=1,
@@ -98,10 +107,11 @@ def test_validate_attr_URI_WEB_default_int():
 	)
 	assert attr_val == 'test_validate_attr_URI_WEB'
 
-def test_validate_attr_URI_WEB_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_default_int_allow_none():
 	attr_type = ATTR.URI_WEB()
 	attr_type._default = 'test_validate_attr_URI_WEB'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
 		attr_type=attr_type,
 		attr_val=1,

@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_FLOAT_None():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_FLOAT_None():
 		)
 
 
-def test_validate_attr_FLOAT_str():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_str():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(),
 			attr_val='str',
@@ -26,8 +28,9 @@ def test_validate_attr_FLOAT_str():
 		)
 
 
-def test_validate_attr_FLOAT_float():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_float():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=1.1,
@@ -37,8 +40,9 @@ def test_validate_attr_FLOAT_float():
 	assert attr_val == 1.1
 
 
-def test_validate_attr_FLOAT_int():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_int():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=1,
@@ -48,8 +52,9 @@ def test_validate_attr_FLOAT_int():
 	assert attr_val == 1
 
 
-def test_validate_attr_FLOAT_float_as_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_float_as_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val='1.1',
@@ -59,8 +64,9 @@ def test_validate_attr_FLOAT_float_as_str():
 	assert attr_val == 1.1
 
 
-def test_validate_attr_FLOAT_int_as_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_int_as_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val='1',
@@ -70,9 +76,10 @@ def test_validate_attr_FLOAT_int_as_str():
 	assert attr_val == 1
 
 
-def test_validate_attr_FLOAT_range_float_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_range_float_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
 			attr_val=9.5,
@@ -81,29 +88,33 @@ def test_validate_attr_FLOAT_range_float_invalid():
 		)
 
 
-# def test_validate_attr_FLOAT_range_float():
-# 	attr_val = utils.validate_attr(
-# 		attr_name='test_validate_attr_FLOAT',
-# 		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
-# 		attr_val=0.5,
-# 		allow_opers=False,
-# 		allow_none=False,
-# 	)
-# 	assert attr_val == 0.5
-
-# def test_validate_attr_FLOAT_range_float_as_str():
-# 	attr_val = utils.validate_attr(
-# 		attr_name='test_validate_attr_FLOAT',
-# 		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
-# 		attr_val='0.5',
-# 		allow_opers=False,
-# 		allow_none=False,
-# 	)
-# 	assert attr_val == 0.5
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_range_float():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_FLOAT',
+		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
+		attr_val=0.5,
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 0.5
 
 
-def test_validate_attr_FLOAT_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_range_float_as_str():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_FLOAT',
+		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
+		attr_val='0.5',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 0.5
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=None,
@@ -113,10 +124,11 @@ def test_validate_attr_FLOAT_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_FLOAT_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_default_None():
 	attr_type = ATTR.FLOAT()
 	attr_type._default = 'test_validate_attr_FLOAT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val=None,
@@ -126,10 +138,11 @@ def test_validate_attr_FLOAT_default_None():
 	assert attr_val == 'test_validate_attr_FLOAT'
 
 
-def test_validate_attr_FLOAT_default_str():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_default_str():
 	attr_type = ATTR.FLOAT()
 	attr_type._default = 'test_validate_attr_FLOAT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val='str',
@@ -139,10 +152,11 @@ def test_validate_attr_FLOAT_default_str():
 	assert attr_val == 'test_validate_attr_FLOAT'
 
 
-def test_validate_attr_FLOAT_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_FLOAT_default_int_allow_none():
 	attr_type = ATTR.FLOAT()
 	attr_type._default = 'test_validate_attr_FLOAT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val='str',

@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_DICT_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.TYPED_DICT(dict={'key': ATTR.STR()}),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_DICT_None():
 		)
 
 
-def test_validate_attr_DICT_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.TYPED_DICT(dict={'key': ATTR.STR()}),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_DICT_int():
 		)
 
 
-def test_validate_attr_DICT_dict_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.TYPED_DICT(dict={'key': ATTR.STR()}),
 			attr_val={'key': 'value', 'key2': 'value',},
@@ -37,12 +40,13 @@ def test_validate_attr_DICT_dict_invalid():
 		)
 
 
-def test_validate_attr_DICT_simple_dict():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_simple_dict():
 	dict_attr_val = {
 		'key1': 'value',
 		'key2': 2,
 	}
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.TYPED_DICT(dict={'key1': ATTR.STR(), 'key2': ATTR.INT()}),
 		attr_val=dict_attr_val,
@@ -52,9 +56,10 @@ def test_validate_attr_DICT_simple_dict():
 	assert attr_val == dict_attr_val
 
 
-def test_validate_attr_DICT_nested_dict_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_nested_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.TYPED_DICT(
 				dict={
@@ -68,12 +73,13 @@ def test_validate_attr_DICT_nested_dict_invalid():
 		)
 
 
-def test_validate_attr_DICT_nested_dict():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_nested_dict():
 	dict_attr_val = {
 		'key1': 'value',
 		'key2': {'child_key': 2},
 	}
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.TYPED_DICT(
 			dict={
@@ -88,9 +94,10 @@ def test_validate_attr_DICT_nested_dict():
 	assert attr_val == dict_attr_val
 
 
-def test_validate_attr_DICT_nested_list_dict_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_nested_list_dict_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.TYPED_DICT(
 				dict={'key1': ATTR.STR(), 'key2': ATTR.LIST(list=[ATTR.INT()]),}
@@ -101,8 +108,9 @@ def test_validate_attr_DICT_nested_list_dict_invalid():
 		)
 
 
-def test_validate_attr_DICT_nested_list_dict():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_nested_list_dict():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.TYPED_DICT(
 			dict={'key1': ATTR.STR(), 'key2': ATTR.LIST(list=[ATTR.INT()]),}
@@ -117,8 +125,9 @@ def test_validate_attr_DICT_nested_list_dict():
 	}
 
 
-def test_validate_attr_DICT_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.TYPED_DICT(dict={'key': ATTR.STR()}),
 		attr_val=None,
@@ -131,10 +140,11 @@ def test_validate_attr_DICT_None_allow_none():
 # [TODO] Add tests for nested default values
 
 
-def test_validate_attr_DICT_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_default_None():
 	attr_type = ATTR.TYPED_DICT(dict={'key': ATTR.STR()})
 	attr_type._default = 'test_validate_attr_DICT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=None,
@@ -144,10 +154,11 @@ def test_validate_attr_DICT_default_None():
 	assert attr_val == 'test_validate_attr_DICT'
 
 
-def test_validate_attr_DICT_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_default_int():
 	attr_type = ATTR.TYPED_DICT(dict={'key': ATTR.STR()})
 	attr_type._default = 'test_validate_attr_DICT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=1,
@@ -157,10 +168,11 @@ def test_validate_attr_DICT_default_int():
 	assert attr_val == 'test_validate_attr_DICT'
 
 
-def test_validate_attr_DICT_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_DICT_default_int_allow_none():
 	attr_type = ATTR.TYPED_DICT(dict={'key': ATTR.STR()})
 	attr_type._default = 'test_validate_attr_DICT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=1,

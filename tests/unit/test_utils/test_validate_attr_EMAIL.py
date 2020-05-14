@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_EMAIL_None():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_EMAIL_None():
 		)
 
 
-def test_validate_attr_EMAIL_int():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_EMAIL_int():
 		)
 
 
-def test_validate_attr_EMAIL_str_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val='str',
@@ -37,8 +40,9 @@ def test_validate_attr_EMAIL_str_invalid():
 		)
 
 
-def test_validate_attr_EMAIL_email():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_email():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(),
 		attr_val='info@limp.masaar.com',
@@ -48,8 +52,9 @@ def test_validate_attr_EMAIL_email():
 	assert attr_val == 'info@limp.masaar.com'
 
 
-def test_validate_attr_EMAIL_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(),
 		attr_val=None,
@@ -59,10 +64,11 @@ def test_validate_attr_EMAIL_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_EMAIL_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_default_None():
 	attr_type = ATTR.EMAIL()
 	attr_type._default = 'test_validate_attr_EMAIL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=None,
@@ -72,10 +78,11 @@ def test_validate_attr_EMAIL_default_None():
 	assert attr_val == 'test_validate_attr_EMAIL'
 
 
-def test_validate_attr_EMAIL_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_default_int():
 	attr_type = ATTR.EMAIL()
 	attr_type._default = 'test_validate_attr_EMAIL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=1,
@@ -85,10 +92,11 @@ def test_validate_attr_EMAIL_default_int():
 	assert attr_val == 'test_validate_attr_EMAIL'
 
 
-def test_validate_attr_EMAIL_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_EMAIL_default_int_allow_none():
 	attr_type = ATTR.EMAIL()
 	attr_type._default = 'test_validate_attr_EMAIL'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=1,

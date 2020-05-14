@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_DATETIME_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATETIME',
 			attr_type=ATTR.DATETIME(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_DATETIME_None():
 		)
 
 
-def test_validate_attr_DATETIME_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATETIME',
 			attr_type=ATTR.DATETIME(),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_DATETIME_int():
 		)
 
 
-def test_validate_attr_DATETIME_str_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATETIME',
 			attr_type=ATTR.DATETIME(),
 			attr_val='202002020000',
@@ -37,8 +40,9 @@ def test_validate_attr_DATETIME_str_invalid():
 		)
 
 
-def test_validate_attr_DATETIME_datetime_short():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_datetime_short():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=ATTR.DATETIME(),
 		attr_val='2020-02-02T00:00',
@@ -48,8 +52,9 @@ def test_validate_attr_DATETIME_datetime_short():
 	assert attr_val == '2020-02-02T00:00'
 
 
-def test_validate_attr_DATETIME_datetime_medium():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_datetime_medium():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=ATTR.DATETIME(),
 		attr_val='2020-02-02T00:00:00',
@@ -59,8 +64,9 @@ def test_validate_attr_DATETIME_datetime_medium():
 	assert attr_val == '2020-02-02T00:00:00'
 
 
-def test_validate_attr_DATETIME_datetime_iso():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_datetime_iso():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=ATTR.DATETIME(),
 		attr_val='2020-02-02T00:00:00.000000',
@@ -70,8 +76,9 @@ def test_validate_attr_DATETIME_datetime_iso():
 	assert attr_val == '2020-02-02T00:00:00.000000'
 
 
-def test_validate_attr_DATETIME_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=ATTR.DATETIME(),
 		attr_val=None,
@@ -81,10 +88,11 @@ def test_validate_attr_DATETIME_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_DATETIME_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_default_None():
 	attr_type = ATTR.DATETIME()
 	attr_type._default = 'test_validate_attr_DATETIME'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=attr_type,
 		attr_val=None,
@@ -94,10 +102,11 @@ def test_validate_attr_DATETIME_default_None():
 	assert attr_val == 'test_validate_attr_DATETIME'
 
 
-def test_validate_attr_DATETIME_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_default_int():
 	attr_type = ATTR.DATETIME()
 	attr_type._default = 'test_validate_attr_DATETIME'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=attr_type,
 		attr_val=1,
@@ -107,10 +116,11 @@ def test_validate_attr_DATETIME_default_int():
 	assert attr_val == 'test_validate_attr_DATETIME'
 
 
-def test_validate_attr_DATETIME_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_DATETIME_default_int_allow_none():
 	attr_type = ATTR.DATETIME()
 	attr_type._default = 'test_validate_attr_DATETIME'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATETIME',
 		attr_type=attr_type,
 		attr_val=1,

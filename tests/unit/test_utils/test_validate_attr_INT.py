@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_INT_None():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_INT',
 			attr_type=ATTR.INT(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_INT_None():
 		)
 
 
-def test_validate_attr_INT_str():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_str():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_INT',
 			attr_type=ATTR.INT(),
 			attr_val='str',
@@ -26,9 +28,10 @@ def test_validate_attr_INT_str():
 		)
 
 
-def test_validate_attr_INT_float():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_float():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_INT',
 			attr_type=ATTR.INT(),
 			attr_val=1.1,
@@ -37,8 +40,9 @@ def test_validate_attr_INT_float():
 		)
 
 
-def test_validate_attr_INT_int():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_INT_int():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=ATTR.INT(),
 		attr_val=1,
@@ -48,9 +52,10 @@ def test_validate_attr_INT_int():
 	assert attr_val == 1
 
 
-def test_validate_attr_INT_float_as_str():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_float_as_str():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_INT',
 			attr_type=ATTR.INT(),
 			attr_val='1.1',
@@ -59,8 +64,9 @@ def test_validate_attr_INT_float_as_str():
 		)
 
 
-def test_validate_attr_INT_int_as_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_INT_int_as_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=ATTR.INT(),
 		attr_val='1',
@@ -70,9 +76,10 @@ def test_validate_attr_INT_int_as_str():
 	assert attr_val == 1
 
 
-def test_validate_attr_INT_range_int_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_range_int_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_INT',
 			attr_type=ATTR.INT(ranges=[[0, 10]]),
 			attr_val=10,
@@ -81,8 +88,9 @@ def test_validate_attr_INT_range_int_invalid():
 		)
 
 
-def test_validate_attr_INT_range_int():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_INT_range_int():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=ATTR.INT(ranges=[[0, 10]]),
 		attr_val=0,
@@ -92,8 +100,9 @@ def test_validate_attr_INT_range_int():
 	assert attr_val == 0
 
 
-def test_validate_attr_INT_range_int_as_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_INT_range_int_as_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=ATTR.INT(ranges=[[0, 10]]),
 		attr_val='0',
@@ -103,8 +112,9 @@ def test_validate_attr_INT_range_int_as_str():
 	assert attr_val == 0
 
 
-def test_validate_attr_INT_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_INT_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=ATTR.INT(),
 		attr_val=None,
@@ -114,10 +124,11 @@ def test_validate_attr_INT_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_INT_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_default_None():
 	attr_type = ATTR.INT()
 	attr_type._default = 'test_validate_attr_INT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=attr_type,
 		attr_val=None,
@@ -127,10 +138,11 @@ def test_validate_attr_INT_default_None():
 	assert attr_val == 'test_validate_attr_INT'
 
 
-def test_validate_attr_INT_default_str():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_default_str():
 	attr_type = ATTR.INT()
 	attr_type._default = 'test_validate_attr_INT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=attr_type,
 		attr_val='str',
@@ -140,10 +152,11 @@ def test_validate_attr_INT_default_str():
 	assert attr_val == 'test_validate_attr_INT'
 
 
-def test_validate_attr_INT_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_INT_default_int_allow_none():
 	attr_type = ATTR.INT()
 	attr_type._default = 'test_validate_attr_INT'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_INT',
 		attr_type=attr_type,
 		attr_val='str',

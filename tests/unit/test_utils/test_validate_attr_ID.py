@@ -5,9 +5,10 @@ from bson import ObjectId
 import pytest
 
 
-def test_validate_attr_ID_None():
+@pytest.mark.asyncio
+async def test_validate_attr_ID_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_ID',
 			attr_type=ATTR.ID(),
 			attr_val=None,
@@ -16,9 +17,10 @@ def test_validate_attr_ID_None():
 		)
 
 
-def test_validate_attr_ID_int():
+@pytest.mark.asyncio
+async def test_validate_attr_ID_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_ID',
 			attr_type=ATTR.ID(),
 			attr_val=1,
@@ -27,8 +29,9 @@ def test_validate_attr_ID_int():
 		)
 
 
-def test_validate_attr_ID_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_ID_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val='000000000000000000000000',
@@ -38,8 +41,9 @@ def test_validate_attr_ID_str():
 	assert attr_val == ObjectId('000000000000000000000000')
 
 
-def test_validate_attr_ID_objectid():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_ID_objectid():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val=ObjectId('000000000000000000000000'),
@@ -49,8 +53,9 @@ def test_validate_attr_ID_objectid():
 	assert attr_val == ObjectId('000000000000000000000000')
 
 
-def test_validate_attr_ID_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_ID_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val=None,
@@ -60,10 +65,11 @@ def test_validate_attr_ID_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_ID_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_ID_default_None():
 	attr_type = ATTR.ID()
 	attr_type._default = 'test_validate_attr_ID'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=None,
@@ -73,10 +79,11 @@ def test_validate_attr_ID_default_None():
 	assert attr_val == 'test_validate_attr_ID'
 
 
-def test_validate_attr_ID_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_ID_default_int():
 	attr_type = ATTR.ID()
 	attr_type._default = 'test_validate_attr_ID'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=1,
@@ -86,10 +93,11 @@ def test_validate_attr_ID_default_int():
 	assert attr_val == 'test_validate_attr_ID'
 
 
-def test_validate_attr_ID_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_ID_default_int_allow_none():
 	attr_type = ATTR.ID()
 	attr_type._default = 'test_validate_attr_ID'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=1,

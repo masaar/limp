@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_ANY_None():
+@pytest.mark.asyncio
+async def test_validate_attr_ANY_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_ANY',
 			attr_type=ATTR.ANY(),
 			attr_val=None,
@@ -15,8 +16,9 @@ def test_validate_attr_ANY_None():
 		)
 
 
-def test_validate_attr_ANY_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_ANY_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ANY',
 		attr_type=ATTR.ANY(),
 		attr_val='test_validate_attr_ANY',
@@ -26,10 +28,11 @@ def test_validate_attr_ANY_str():
 	assert attr_val == 'test_validate_attr_ANY'
 
 
-def test_validate_attr_ANY_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_ANY_default_None():
 	attr_type = ATTR.ANY()
 	attr_type._default = 'test_validate_attr_ANY'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_ANY',
 		attr_type=attr_type,
 		attr_val=None,

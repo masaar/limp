@@ -4,12 +4,13 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_LOCALES_None(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_None(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_LOCALES',
 			attr_type=ATTR.LOCALES(),
 			attr_val=None,
@@ -18,12 +19,13 @@ def test_validate_attr_LOCALES_None(monkeypatch):
 		)
 
 
-def test_validate_attr_LOCALES_str_invalid(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_str_invalid(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_LOCALES',
 			attr_type=ATTR.LOCALES(),
 			attr_val='ar',
@@ -32,11 +34,12 @@ def test_validate_attr_LOCALES_str_invalid(monkeypatch):
 		)
 
 
-def test_validate_attr_LOCALES_locale(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_locale(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=ATTR.LOCALES(),
 		attr_val='en_AE',
@@ -46,11 +49,12 @@ def test_validate_attr_LOCALES_locale(monkeypatch):
 	assert attr_val == 'en_AE'
 
 
-def test_validate_attr_LOCALES_None_allow_none(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_None_allow_none(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=ATTR.LOCALES(),
 		attr_val=None,
@@ -60,13 +64,14 @@ def test_validate_attr_LOCALES_None_allow_none(monkeypatch):
 	assert attr_val == None
 
 
-def test_validate_attr_LOCALES_default_None(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_default_None(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	attr_type = ATTR.LOCALES()
 	attr_type._default = 'test_validate_attr_LOCALES'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=None,
@@ -76,13 +81,14 @@ def test_validate_attr_LOCALES_default_None(monkeypatch):
 	assert attr_val == 'test_validate_attr_LOCALES'
 
 
-def test_validate_attr_LOCALES_default_int(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_default_int(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	attr_type = ATTR.LOCALES()
 	attr_type._default = 'test_validate_attr_LOCALES'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=1,
@@ -92,13 +98,14 @@ def test_validate_attr_LOCALES_default_int(monkeypatch):
 	assert attr_val == 'test_validate_attr_LOCALES'
 
 
-def test_validate_attr_LOCALES_default_int_allow_none(monkeypatch):
+@pytest.mark.asyncio
+async def test_validate_attr_LOCALES_default_int_allow_none(monkeypatch):
 	from limp.config import Config
 
 	monkeypatch.setattr(Config, 'locales', ['ar_AE', 'en_AE', 'de_DE'])
 	attr_type = ATTR.LOCALES()
 	attr_type._default = 'test_validate_attr_LOCALES'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=1,

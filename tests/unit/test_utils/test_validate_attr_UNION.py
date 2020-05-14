@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_UNION_None():
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_UNION',
 			attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_UNION_None():
 		)
 
 
-def test_validate_attr_UNION_float():
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_float():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_UNION',
 			attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 			attr_val=1.1,
@@ -26,8 +28,9 @@ def test_validate_attr_UNION_float():
 		)
 
 
-def test_validate_attr_UNION_str():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_str():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val='str',
@@ -37,8 +40,9 @@ def test_validate_attr_UNION_str():
 	assert attr_val == 'str'
 
 
-def test_validate_attr_UNION_int():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_int():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val=1,
@@ -48,8 +52,9 @@ def test_validate_attr_UNION_int():
 	assert attr_val == 1
 
 
-def test_validate_attr_UNION_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val=None,
@@ -59,10 +64,11 @@ def test_validate_attr_UNION_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_UNION_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_default_None():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])
 	attr_type._default = 'test_validate_attr_UNION'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=None,
@@ -72,10 +78,11 @@ def test_validate_attr_UNION_default_None():
 	assert attr_val == 'test_validate_attr_UNION'
 
 
-def test_validate_attr_UNION_default_float():
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_default_float():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])
 	attr_type._default = 'test_validate_attr_UNION'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=1.1,
@@ -85,10 +92,11 @@ def test_validate_attr_UNION_default_float():
 	assert attr_val == 'test_validate_attr_UNION'
 
 
-def test_validate_attr_UNION_default_float_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_UNION_default_float_allow_none():
 	attr_type = ATTR.UNION(union=[ATTR.STR(), ATTR.INT()])
 	attr_type._default = 'test_validate_attr_UNION'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=1.1,

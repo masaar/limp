@@ -4,9 +4,10 @@ from limp import utils
 import pytest
 
 
-def test_validate_attr_DATE_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_None():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val=None,
@@ -15,9 +16,10 @@ def test_validate_attr_DATE_None():
 		)
 
 
-def test_validate_attr_DATE_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_int():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val=1,
@@ -26,9 +28,10 @@ def test_validate_attr_DATE_int():
 		)
 
 
-def test_validate_attr_DATE_str_invalid():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_str_invalid():
 	with pytest.raises(utils.InvalidAttrException):
-		utils.validate_attr(
+		await utils.validate_attr(
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val='20200202',
@@ -37,8 +40,9 @@ def test_validate_attr_DATE_str_invalid():
 		)
 
 
-def test_validate_attr_DATE_date():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_date():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val='2020-02-02',
@@ -48,8 +52,9 @@ def test_validate_attr_DATE_date():
 	assert attr_val == '2020-02-02'
 
 
-def test_validate_attr_DATE_None_allow_none():
-	attr_val = utils.validate_attr(
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_None_allow_none():
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val=None,
@@ -59,10 +64,11 @@ def test_validate_attr_DATE_None_allow_none():
 	assert attr_val == None
 
 
-def test_validate_attr_DATE_default_None():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_default_None():
 	attr_type = ATTR.DATE()
 	attr_type._default = 'test_validate_attr_DATE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=None,
@@ -72,10 +78,11 @@ def test_validate_attr_DATE_default_None():
 	assert attr_val == 'test_validate_attr_DATE'
 
 
-def test_validate_attr_DATE_default_int():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_default_int():
 	attr_type = ATTR.DATE()
 	attr_type._default = 'test_validate_attr_DATE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=1,
@@ -85,10 +92,11 @@ def test_validate_attr_DATE_default_int():
 	assert attr_val == 'test_validate_attr_DATE'
 
 
-def test_validate_attr_DATE_default_int_allow_none():
+@pytest.mark.asyncio
+async def test_validate_attr_DATE_default_int_allow_none():
 	attr_type = ATTR.DATE()
 	attr_type._default = 'test_validate_attr_DATE'
-	attr_val = utils.validate_attr(
+	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=1,
