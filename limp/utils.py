@@ -544,7 +544,7 @@ class ConvertAttrException(Exception):
 		return f'Can\'t convert attr \'{self.attr_name}\' of type \'{self.val_type}\' to type \'{self.attr_type._type}\''
 
 
-def validate_doc(
+async def validate_doc(
 	*,
 	doc: LIMP_DOC,
 	attrs: Dict[str, ATTR],
@@ -558,7 +558,7 @@ def validate_doc(
 		if attr not in doc.keys():
 			doc[attr] = None
 		try:
-			doc[attr] = validate_attr(
+			doc[attr] = await validate_attr(
 				attr_name=attr,
 				attr_type=attrs[attr],
 				attr_val=doc[attr],
@@ -579,7 +579,7 @@ def validate_doc(
 				raise e
 
 
-def validate_default(
+async def validate_default(
 	*,
 	attr_type: ATTR,
 	attr_val: Any,
@@ -601,6 +601,25 @@ def validate_default(
 			else:
 				attr_val = attr_type._default.default
 			return copy.deepcopy(attr_val)
+	
+	elif attr_type._type == 'COUNTER':
+		from limp.config import Config
+
+		counter_groups = re.findall(r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))', attr_type._args['pattern'])
+		counter_val = attr_type._args['pattern']
+		for group in counter_groups:
+			for group in counter_groups:
+				if group.startswith('$__values:'):
+					value_callable = attr_type._args['values'][int(group.replace('$__values:', ''))]
+					counter_val = counter_val.replace(group, str(value_callable(skip_events, env, query, doc)))
+				elif group.startswith('$__counters.'):
+					setting_results = await Config.modules['setting'].read(skip_events=[Event.PERM], env=env, query=[{
+						'var': '__counter:' + group.replace('$__counters.', ''),
+						'type': 'global'
+					}])
+					setting = setting_results.args.docs[0]
+					counter_val = counter_val.replace(group, str(setting.val + 1))
+		return counter_val
 
 	elif attr_val == None:
 		if allow_none:
@@ -611,7 +630,7 @@ def validate_default(
 	raise Exception('No default set to validate.')
 
 
-def validate_attr(
+async def validate_attr(
 	*,
 	attr_name: str,
 	attr_type: ATTR,
@@ -627,7 +646,7 @@ def validate_attr(
 	from limp.config import Config
 
 	try:
-		return validate_default(
+		return await validate_default(
 			attr_type=attr_type,
 			attr_val=attr_val,
 			skip_events=skip_events,
@@ -788,7 +807,7 @@ def validate_attr(
 				shadow_attr_val = {}
 				for child_attr_val in attr_val.keys():
 					shadow_attr_val[
-						validate_attr(
+						await validate_attr(
 							attr_name=f'{attr_name}.{child_attr_val}',
 							attr_type=attr_type._args['key'],
 							attr_val=child_attr_val,
@@ -800,7 +819,7 @@ def validate_attr(
 							doc=doc,
 							scope=attr_val,
 						)
-					] = validate_attr(
+					] = await validate_attr(
 						attr_name=f'{attr_name}.{child_attr_val}',
 						attr_type=attr_type._args['val'],
 						attr_val=attr_val[child_attr_val],
@@ -825,7 +844,7 @@ def validate_attr(
 				for child_attr_type in attr_type._args['dict'].keys():
 					if child_attr_type not in attr_val.keys():
 						attr_val[child_attr_type] = None
-					attr_val[child_attr_type] = validate_attr(
+					attr_val[child_attr_type] = await validate_attr(
 						attr_name=f'{attr_name}.{child_attr_type}',
 						attr_type=attr_type._args['dict'][child_attr_type],
 						attr_val=attr_val[child_attr_type],
@@ -859,7 +878,7 @@ def validate_attr(
 		elif attr_type._type == 'FILE':
 			if type(attr_val) == list and len(attr_val):
 				try:
-					attr_val = validate_attr(
+					attr_val = await validate_attr(
 						attr_name=attr_name,
 						attr_type=attr_type,
 						attr_val=attr_val[0],
@@ -991,7 +1010,7 @@ def validate_attr(
 					child_attr_check = False
 					for child_attr_type in attr_type._args['list']:
 						try:
-							attr_val[i] = validate_attr(
+							attr_val[i] = await validate_attr(
 								attr_name=attr_name,
 								attr_type=child_attr_type,
 								attr_val=child_attr_val,
@@ -1016,7 +1035,7 @@ def validate_attr(
 				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'LOCALE':
-			attr_val = validate_attr(
+			attr_val = await validate_attr(
 				attr_name=attr_name,
 				attr_type=ATTR.KV_DICT(
 					key=ATTR.LITERAL(literal=[locale for locale in Config.locales]),
@@ -1112,7 +1131,7 @@ def validate_attr(
 		elif attr_type._type == 'UNION':
 			for child_attr in attr_type._args['union']:
 				try:
-					attr_val = validate_attr(
+					attr_val = await validate_attr(
 						attr_name=attr_name,
 						attr_type=child_attr,
 						attr_val=attr_val,

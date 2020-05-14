@@ -736,10 +736,12 @@ class Config:
 		# [DOC] Test app-specific docs
 		logger.debug('Testing docs.')
 		for doc in cls.docs:
+			if 'key' not in doc.keys():
+				doc['key'] = '_id'
 			doc_results = await cls.modules[doc['module']].read(
-				skip_events=[Event.PERM, Event.PRE, Event.ON],
+				skip_events=[Event.PERM, Event.PRE, Event.ON, Event.ARGS],
 				env=cls._sys_env,
-				query=[{'_id': doc['doc']['_id']}],
+				query=[{doc['key']: doc['doc'][doc['key']]}],
 			)
 			if not doc_results.args.count:
 				if cls.realm:
@@ -751,15 +753,16 @@ class Config:
 					skip_events=skip_events, env=cls._sys_env, doc=doc['doc']
 				)
 				logger.debug(
-					'App-specific doc with _id \'%s\' of module \'%s\' creation results: %s',
-					doc['doc']['_id'],
+					'App-specific doc with %s \'%s\' of module \'%s\' creation results: %s',
+					doc['key'],
+					doc['doc'][doc['key']],
 					doc['module'],
 					doc_results,
 				)
 				if doc_results.status != 200:
 					logger.error('Config step failed. Exiting.')
 					exit()
-			cls._sys_docs[ObjectId(doc['doc']['_id'])] = {'module': doc['module']}
+			cls._sys_docs[ObjectId(doc_results.args.docs[0]._id)] = {'module': doc['module']}
 
 		# [DOC] Check for test mode
 		if cls.test:

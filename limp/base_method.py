@@ -42,7 +42,7 @@ class BaseMethod:
 		self.get_method = get_method
 		self.post_method = post_method
 
-	def validate_args(self, args: Dict[str, Any], args_list: str):
+	async def validate_args(self, args: Dict[str, Any], args_list: str):
 		args_list_label = args_list
 		args_list = getattr(self, f'{args_list}_args')
 
@@ -66,19 +66,19 @@ class BaseMethod:
 					try:
 						if args_list_label == 'query' and arg[0] != '$':
 							for i in range(len(args[arg])):
-								args[arg][i] = validate_attr(
+								args[arg][i] = await validate_attr(
 									attr_name=arg,
 									attr_type=args_set[arg],
 									attr_val=args[arg][i],
 								)
 						elif args_list_label == 'query' and arg[0] == '$':
-							args[arg] = validate_attr(
+							args[arg] = await validate_attr(
 								attr_name=arg,
 								attr_type=args_set[arg],
 								attr_val=args[arg],
 							)
 						elif args_list_label == 'doc':
-							args[arg] = validate_attr(
+							args[arg] = await validate_attr(
 								attr_name=arg,
 								attr_type=args_set[arg],
 								attr_val=args[arg],
@@ -222,7 +222,7 @@ class BaseMethod:
 
 		if Event.ARGS not in skip_events:
 			if self.query_args:
-				test_query = self.validate_args(query, 'query')
+				test_query = await self.validate_args(query, 'query')
 				if test_query != True:
 					for i in range(len(test_query)):
 						test_query[i] = (
@@ -254,7 +254,7 @@ class BaseMethod:
 					)
 
 			if self.doc_args:
-				test_doc = self.validate_args(doc, 'doc')
+				test_doc = await self.validate_args(doc, 'doc')
 				if test_doc != True:
 					for i in range(len(test_doc)):
 						test_doc[i] = (

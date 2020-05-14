@@ -80,7 +80,7 @@ class STEP:
 		return STEP(step='SET_REALM')
 
 	@classmethod
-	def validate_step(cls, *, step: 'STEP'):
+	async def validate_step(cls, *, step: 'STEP'):
 		from .config import Config
 
 		logger.debug(f'Attempting to validate test step: {step}')
@@ -96,7 +96,7 @@ class STEP:
 				)
 			else:
 				try:
-					validate_attr(
+					await validate_attr(
 						attr_name='val',
 						attr_type=Config.user_attrs[step._args['var']],
 						attr_val=step._args['val'],
@@ -254,7 +254,7 @@ class Test:
 
 			if step._step == 'AUTH':
 				try:
-					STEP.validate_step(step=step)
+					await STEP.validate_step(step=step)
 					step = STEP.CALL(
 						module='session',
 						method='auth',
@@ -274,7 +274,7 @@ class Test:
 				)
 			else:
 				try:
-					STEP.validate_step(step=step)
+					await STEP.validate_step(step=step)
 				except InvalidTestStepException as e:
 					logger.error(f'{e} Exiting.')
 					exit(1)

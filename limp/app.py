@@ -205,7 +205,7 @@ async def run_app():
 			) == len(args_set.keys()):
 				# [DOC] Check presence and validate all attrs in doc args
 				try:
-					validate_doc(doc=request_args, attrs=args_set)
+					await validate_doc(doc=request_args, attrs=args_set)
 				except InvalidAttrException as e:
 					headers.append(('Content-Type', 'application/json; charset=utf-8'))
 					return aiohttp.web.Response(

@@ -700,7 +700,7 @@ class BaseModule:
 		if Event.ARGS not in skip_events:
 			# [DOC] Check presence and validate all attrs in doc args
 			try:
-				validate_doc(
+				await validate_doc(
 					doc=doc,
 					attrs=self.attrs,
 					skip_events=skip_events,
@@ -853,7 +853,7 @@ class BaseModule:
 		else: payload = {}
 		# [DOC] Check presence and validate all attrs in doc args
 		try:
-			validate_doc(
+			await validate_doc(
 				doc=doc,
 				attrs=self.attrs,
 				allow_opers=True,
