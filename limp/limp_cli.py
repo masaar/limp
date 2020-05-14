@@ -302,7 +302,8 @@ def launch(args: argparse.Namespace, custom_launch: Literal['test', 'generate_re
 					exit()
 			else:
 				if app_config.env in app_config.envs.keys():
-					logger.info(f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{args.env}\'')
+					logger.info(f'Setting \'env\' Config Attr to \'env\' App Config Attr value \'{app_config.env}\'')
+					Config.env = app_config.env
 				elif app_config.env.startswith('$__env.'):
 					logger.info('Found Env Variable for \'env\' App Config Attr. Attempting to process it.')
 					env_env_var = app_config.env.replace('$__env.', '')
