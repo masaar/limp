@@ -1,11 +1,14 @@
 Metadata-Version: 2.1
 Name: LIMP
-Version: 6.1.0.dev1
+Version: 6.1.0.dev3
 Summary: Rapid app development framework
-Home-page: https://github.com/pypa/sampleproject
+Home-page: https://github.com/masaar/limp
 Author: Mahmoud Abduljawad
 Author-email: mahmoud@masaar.com
 License: UNKNOWN
+Project-URL: Docs: Github, https://github.com/masaar/limp-docs
+Project-URL: GitHub: issues, https://github.com/masaar/limp/issues
+Project-URL: GitHub: repo, https://github.com/masaar/limp
 Description: # LIMP
         LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 Websocket` as primary protocol of communication with clients. However, it also provides an `HTTP/1 GET`, `POST` interfaces for additional communication windows.
         
@@ -44,7 +47,12 @@ Description: # LIMP
         > LIMP docs have moved to [https://github.com/masaar/limp-docs](https://github.com/masaar/limp-docs).
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
-Classifier: License :: OSI Approved :: LGPL-3.0 License
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
 Classifier: Operating System :: OS Independent
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Framework :: AsyncIO
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
+Provides-Extra: dev_dependencies

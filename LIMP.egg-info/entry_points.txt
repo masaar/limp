@@ -1,0 +1,3 @@
+[console_scripts]
+limp = limp.limp_cli:limp_cli
+
