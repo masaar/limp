@@ -16,7 +16,7 @@ from limp.enums import Event, LIMP_VALUES
 from typing import Dict, Union, Literal, List, Any
 from bson import ObjectId, binary
 
-import logging, pkgutil, inspect, re, datetime, time, math, random, copy, os, sys
+import logging, pkgutil, inspect, re, datetime, time, math, random, copy, os, sys, asyncio
 
 logger = logging.getLogger('limp')
 
@@ -127,7 +127,7 @@ def import_modules():
 					module_name = re.sub(
 						r'([A-Z])', r'_\1', clsname[0].lower() + clsname[1:]
 					).lower()
-					# [DOC] Deny duplicat LIMP modules names
+					# [DOC] Deny duplicate LIMP modules names
 					if module_name in modules.keys():
 						logger.error(
 							f'Duplicate module name \'{module_name}\'. Exiting.'
@@ -153,7 +153,7 @@ def import_modules():
 			{'hash': ATTR.STR(), attr: user_config['user_attrs'][attr]}
 		)
 	modules['user'].defaults.update(user_config['user_attrs_defaults'])
-	# [DOC] Call update_modules, effectively finalise initlising modules
+	# [DOC] Call update_modules, effectively finalise initialising modules
 	Config.modules = modules
 	for module in modules.values():
 		module._initialise()
@@ -310,7 +310,7 @@ def generate_ref(
 					)
 			else:
 				Config._api_ref += '#### Cache Sets: None\n'
-			# [DOC] Add module anayltics sets
+			# [DOC] Add module analytics sets
 			if modules[module].analytics:
 				Config._api_ref += '#### Analytics Sets\n'
 				for i in range(len(modules[module].analytics)):
@@ -421,15 +421,16 @@ def process_multipart(*, rfile: bytes, boundary: bytes) -> Dict[bytes, List[byte
 	rfile = re.compile(boundary + b'(?:\n)').split(
 		rfile.replace(b'\n' + boundary + b'--', b'')
 	)
-	pattern = rb'[Cc]ontent-[Dd]isposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\n)[Cc]ontent-[Tt]ype: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+))?\n\n(.+(?=\n))'
+	pattern = rb'content-disposition: form-data; name="?([\$a-zA-Z0-9\.\-_\\\:]+)"?(?:; filename="?([a-zA-Z0-9\.\-_]+)"?(?:\n)content-type: ([a-zA-Z0-9\.\-_]+\/[a-zA-Z0-9\.\-_]+))?\n\n(.+(?=\n))'
 	multipart = {}
 	for part in rfile:
 		try:
-			multipart_key = re.match(pattern, part, re.DOTALL).group(1)
+			# [REF]: https://stackoverflow.com/a/30651316/2393762
+			multipart_key = re.match(pattern, part, re.IGNORECASE | re.DOTALL).group(1)
 			multipart[multipart_key] = [
-				group for group in re.match(pattern, part, re.DOTALL).groups()
+				group for group in re.match(pattern, part, re.IGNORECASE | re.DOTALL).groups()
 			]
-			# [DOC] Check if value of multipart item ends with newline charactre (\n, charcode: 10)
+			# [DOC] Check if value of multipart item ends with newline character (\n, charcode: 10)
 			if multipart[multipart_key][3][-1] == 10:
 				multipart[multipart_key][3] = multipart[multipart_key][3][:-1]
 		except:
@@ -632,20 +633,35 @@ async def validate_default(
 						int(group.replace('$__values:', ''))
 					]
 					counter_val = counter_val.replace(
-						group, str(value_callable(skip_events, env, query, doc))
+						group, str(value_callable(skip_events=skip_events, env=env, query=query, doc=doc))
 					)
 				elif group.startswith('$__counters.'):
+					counter_name = group.replace('$__counters.', '')
 					setting_results = await Config.modules['setting'].read(
 						skip_events=[Event.PERM],
 						env=env,
 						query=[
 							{
-								'var': '__counter:' + group.replace('$__counters.', ''),
+								'var': '__counter:' + counter_name,
 								'type': 'global',
 							}
 						],
 					)
 					setting = setting_results.args.docs[0]
+					setting_results = asyncio.create_task(
+						Config.modules['setting'].update(
+							skip_events=[Event.PERM],
+							env=env,
+							query=[
+								{'_id': setting._id, 'type': 'global'}
+							],
+							doc={
+								'val': {'$add': 1}
+							},
+						)
+					)
+					setting_update_callback = lambda results: logger.error(f'Failed to update Setting doc for counter \'{counter_name}\'') if results.status != 200 else None
+					setting_results.add_done_callback(setting_update_callback)
 					counter_val = counter_val.replace(group, str(setting.val + 1))
 		return counter_val
 
@@ -1222,10 +1238,30 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 
 	if attr_type._type == 'ANY':
 		return '__any'
+
 	elif attr_type._type == 'ACCESS':
 		return {'anon': True, 'users': [], 'groups': []}
+
 	elif attr_type._type == 'BOOL':
 		attr_val = random.choice([True, False])
+		return attr_val
+
+	elif attr_type._type == 'COUNTER':
+		counter_groups = re.findall(
+			r'(\$__(?:values:[0-9]+|counters\.[a-z0-9_]+))', attr_type._args['pattern']
+		)
+		attr_val = attr_type._args['pattern']
+		for group in counter_groups:
+			for group in counter_groups:
+				if group.startswith('$__values:'):
+					value_callable = attr_type._args['values'][
+						int(group.replace('$__values:', ''))
+					]
+					attr_val = attr_val.replace(
+						group, str(value_callable(skip_events=[], env={}, query=[], doc={}))
+					)
+				elif group.startswith('$__counters.'):
+					attr_val = attr_val.replace(group, str(42))
 		return attr_val
 
 	elif attr_type._type == 'DATE':
@@ -1255,7 +1291,10 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return attr_val
 
 	elif attr_type._type == 'EMAIL':
-		return f'some-{math.ceil(random.random() * 10000)}@email.com'
+		attr_val = f'some-{math.ceil(random.random() * 10000)}@email.com'
+		if attr_type._args['allowed_domains']:
+			attr_val = attr_val.replace('email.com', random.choice(attr_type._args['allowed_domains']))
+		return attr_val
 
 	elif attr_type._type == 'FILE':
 		attr_file_type = 'text/plain'
@@ -1276,10 +1315,16 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		}
 
 	elif attr_type._type == 'FLOAT':
-		if attr_type._args['range']:
-			attr_val = random.choice([i for i in range(*attr_type._args['range'])])
+		if attr_type._args['ranges']:
+			attr_val = random.choice(range(math.ceil(attr_type._args['ranges'][0][0]), math.floor(attr_type._args['ranges'][0][1])))
+			if attr_val != attr_type._args['ranges'][0][0] and (attr_val - 0.01) != attr_type._args['ranges'][0][0]:
+				attr_val -= 0.01
+			elif (attr_val + 0.01) < attr_type._args['ranges'][0][1]:
+				attr_val += 0.01
+			else:
+				attr_val = float(attr_val)
 		else:
-			attr_val = math.ceil(random.random() * 10000)
+			attr_val = random.random() * 10000
 		return attr_val
 
 	elif attr_type._type == 'GEO':
@@ -1295,8 +1340,8 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return ObjectId()
 
 	elif attr_type._type == 'INT':
-		if attr_type._args['range']:
-			attr_val = random.choice([i for i in range(*attr_type._args['range'])])
+		if attr_type._args['ranges']:
+			attr_val = random.choice(range(attr_type._args['ranges'][0][0], attr_type._args['ranges'][0][1]))
 		else:
 			attr_val = math.ceil(random.random() * 10000)
 		return attr_val
@@ -1344,4 +1389,4 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 	elif attr_type._type == 'UNION':
 		attr_val = generate_attr(attr_type=random.choice(attr_type._args['union']))
 
-	raise Exception(f'Unkown generator attr \'{attr_type}\'')
+	raise Exception(f'Unknown generator attr \'{attr_type}\'')
