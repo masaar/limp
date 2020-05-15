@@ -91,7 +91,7 @@ async def run_app():
 
 	async def not_found_handler(request):
 		headers = [
-			('Server', 'limpd'),
+			('Server', 'LIMPd'),
 			('Powered-By', 'Masaar, https://masaar.com'),
 			('Access-Control-Allow-Origin', '*'),
 			('Access-Control-Allow-Methods', 'GET,POST'),
@@ -296,7 +296,7 @@ async def run_app():
 					not in Config.client_apps[request.headers['X-Auth-App']]['hosts']
 				)
 			):
-				logger.debug('Denying request due to unaithorised client_app.')
+				logger.debug('Denying request due to unauthorised client_app.')
 				headers.append(('Content-Type', 'application/json; charset=utf-8'))
 				return aiohttp.web.Response(
 					status=403,
@@ -327,7 +327,7 @@ async def run_app():
 						.encode(
 							{
 								'status': 500,
-								'msg': f'Unexpected error has occured [{str(e)}].',
+								'msg': f'Unexpected error has occurred [{str(e)}].',
 								'args': {'code': 'CORE_SERVER_ERROR', 'err': str(e)},
 							}
 						)
@@ -341,7 +341,7 @@ async def run_app():
 						.encode(
 							{
 								'status': 500,
-								'msg': 'Unexpected error has occured.',
+								'msg': 'Unexpected error has occurred.',
 								'args': {'code': 'CORE_SERVER_ERROR'},
 							}
 						)
@@ -757,7 +757,7 @@ async def run_app():
 							JSONEncoder().encode(
 								{
 									'status': 200,
-									'msg': 'Connection establised',
+									'msg': 'Connection established',
 									'args': {
 										'call_id': res['call_id']
 										if 'call_id' in res.keys()
@@ -989,13 +989,13 @@ async def run_app():
 			)
 
 		except Exception as e:
-			logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+			logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 			if Config.debug:
 				await env['ws'].send_str(
 					JSONEncoder().encode(
 						{
 							'status': 500,
-							'msg': f'Unexpected error has occured [{str(e)}].',
+							'msg': f'Unexpected error has occurred [{str(e)}].',
 							'args': {'code': 'CORE_SERVER_ERROR', 'err': str(e)},
 						}
 					)
@@ -1005,7 +1005,7 @@ async def run_app():
 					JSONEncoder().encode(
 						{
 							'status': 500,
-							'msg': 'Unexpected error has occured.',
+							'msg': 'Unexpected error has occurred.',
 							'args': {'code': 'CORE_SERVER_ERROR'},
 						}
 					)
@@ -1064,10 +1064,10 @@ async def run_app():
 						)
 						await close_session(i)
 			except Exception:
-				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+				logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 
 			try:
-				# [DOC] Calls Quota Workflow - Cleanup Sequence
+				# [DOC] Calls Quota Workflow - Clean-up Sequence
 				logger.debug('Time to check for IPs quotas!')
 				del_ip_quota = []
 				for ip in ip_quota.keys():
@@ -1081,7 +1081,7 @@ async def run_app():
 				for ip in del_ip_quota:
 					del ip_quota[ip]
 			except Exception:
-				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+				logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 
 			try:
 				# [DOC] Jobs Workflow
@@ -1123,7 +1123,7 @@ async def run_app():
 								session = session_results.args.docs[0]
 							else:
 								session = Config._sys_env
-							job_resuls = Config.modules[job['module']].methods[
+							job_results = Config.modules[job['module']].methods[
 								job['method']
 							](
 								skip_events=job['skip_events'],
@@ -1133,13 +1133,13 @@ async def run_app():
 							)
 							results_accepted = True
 							for measure in job['acceptance'].keys():
-								if job_resuls[measure] != job['acceptance'][measure]:
+								if job_results[measure] != job['acceptance'][measure]:
 									# [DOC] Job results are not accepted
 									results_accepted = False
 									break
 							if not results_accepted:
 								logger.warning(f'Job has failed: {job}.')
-								logger.warning(f'-Job results: {job_resuls}.')
+								logger.warning(f'-Job results: {job_results}.')
 								if (
 									'prevent_disable' not in job.keys()
 									or job['prevent_disable'] != True
@@ -1153,7 +1153,7 @@ async def run_app():
 					else:
 						logger.debug('-Not yet due.')
 			except Exception:
-				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+				logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 
 			try:
 				logger.debug('Time to check for files timeout!')
@@ -1178,7 +1178,7 @@ async def run_app():
 				logger.debug(f'-msg: {files_results.msg}')
 				logger.debug(f'-args.docs: {files_results.args.docs}')
 			except Exception:
-				logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+				logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 
 	def create_error_middleware(overrides):
 		@aiohttp.web.middleware

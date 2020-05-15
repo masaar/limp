@@ -186,7 +186,7 @@ class CAST:
 			self._attr = extract_attr(scope=scope, attr_path=self._attr)
 		elif type(self._attr) in [CALC, CAST, JOIN]:
 			self._attr = self._attr.execute(scope=scope)
-		# [DOC] Casr per _type
+		# [DOC] Cast per _type
 		if self._type == 'int':
 			return int(self._attr)
 		elif self._type == 'float':
@@ -448,7 +448,7 @@ class Test:
 				call_results['measure'] = measure
 		except Exception as e:
 			tb = traceback.format_exc()
-			logger.error(f'Exception occured: {tb}')
+			logger.error(f'Exception occurred: {tb}')
 			cls.break_debugger(locals(), call_results)
 			call_results.update(
 				{

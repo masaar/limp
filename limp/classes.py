@@ -394,7 +394,7 @@ class InvalidAttrTypeException(Exception):
 		self.attr_type = attr_type
 
 	def __str__(self):
-		return f'Unkown or invalid Attr Type \'{self.attr_type}\'.'
+		return f'Unknown or invalid Attr Type \'{self.attr_type}\'.'
 
 
 class InvalidAttrTypeArgException(Exception):
@@ -1048,7 +1048,7 @@ class DictObj:
 			attrs = attrs._attrs()
 		elif type(attrs) != dict:
 			raise TypeError(
-				f'DictObj can be initilised using DictObj or dict types only. Got \'{type(attrs)}\' instead.'
+				f'DictObj can be initialised using DictObj or dict types only. Got \'{type(attrs)}\' instead.'
 			)
 		self.__attrs = attrs
 

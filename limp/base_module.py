@@ -300,7 +300,7 @@ class BaseModule:
 									f'Invalid \'{arg_set}_args\' attr type for \'{attr}\' of set \'{args_set}\' of method \'{method}\' of module \'{self.module_name}\'. Exiting.'
 								)
 								exit()
-			# [DOC] Initlise method as BaseMethod
+			# [DOC] Initialise method as BaseMethod
 			self.methods[method] = BaseMethod(
 				module=self,
 				method=method,
@@ -311,7 +311,7 @@ class BaseModule:
 				get_method=self.methods[method]['get_method'],
 				post_method=self.methods[method]['post_method'],
 			)
-		# [DOC] Check extns for invalid extnded attrs
+		# [DOC] Check extns for invalid extended attrs
 		for attr in self.extns.keys():
 			if type(self.extns[attr]) not in [EXTN, ATTR_MOD]:
 				logger.error(
@@ -786,7 +786,7 @@ class BaseModule:
 			if type(on_create) in [DictObj, dict]:
 				return on_create
 			results, skip_events, env, query, doc, payload = on_create
-		# [DOC] create soft action is to only retrurn the new created doc _id.
+		# [DOC] create soft action is to only return the new created doc _id.
 		if Event.SOFT in skip_events:
 			results = await self.methods['read'](
 				skip_events=[Event.PERM], env=env, query=[[{'_id': results['docs'][0]}]]
@@ -995,7 +995,7 @@ class BaseModule:
 			if type(on_update) in [DictObj, dict]:
 				return on_update
 			results, skip_events, env, query, doc, payload = on_update
-		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skippend:
+		# [DOC] If at least one doc updated, and module has diff enabled, and __DIFF__ not skipped:
 		if results['count'] and self.diff and Event.DIFF not in skip_events:
 			# [DOC] If diff is a ATTR_MOD, Check condition for valid diff case
 			if type(self.diff) == ATTR_MOD:

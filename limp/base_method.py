@@ -114,7 +114,7 @@ class BaseMethod:
 			doc = {}
 		# [DOC] Convert list query to Query object
 		query = Query(copy.deepcopy(query))
-		# [DOC] deepcopy() doc object ro prevent duplicate memory alloc
+		# [DOC] deepcopy() doc object ro prevent mutating original doc
 		doc = copy.deepcopy(doc)
 
 		logger.debug(
@@ -369,14 +369,14 @@ class BaseMethod:
 				)
 			# query = Query([])
 		except Exception as e:
-			logger.error(f'An error occured. Details: {traceback.format_exc()}.')
+			logger.error(f'An error occurred. Details: {traceback.format_exc()}.')
 			tb = sys.exc_info()[2]
 			if tb is not None:
 				prev = tb
-				curr = tb.tb_next
-				while curr is not None:
-					prev = curr
-					curr = curr.tb_next
+				current = tb.tb_next
+				while current is not None:
+					prev = current
+					current = current.tb_next
 				logger.error(
 					f'Scope variables: {JSONEncoder().encode(prev.tb_frame.f_locals)}'
 				)
@@ -387,7 +387,7 @@ class BaseMethod:
 					results=DictObj(
 						{
 							'status': 500,
-							'msg': f'Unexpected error has occured [method:{self.module.module_name}.{self.method}] [{str(e)}].',
+							'msg': f'Unexpected error has occurred [method:{self.module.module_name}.{self.method}] [{str(e)}].',
 							'args': DictObj(
 								{
 									'code': 'CORE_SERVER_ERROR',
@@ -405,7 +405,7 @@ class BaseMethod:
 					results=DictObj(
 						{
 							'status': 500,
-							'msg': 'Unexpected error has occured.',
+							'msg': 'Unexpected error has occurred.',
 							'args': DictObj({'code': 'CORE_SERVER_ERROR'}),
 						}
 					),

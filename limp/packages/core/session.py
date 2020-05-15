@@ -130,7 +130,7 @@ class Session(BaseModule):
 			'expiry': (
 				datetime.datetime.utcnow() + datetime.timedelta(days=30)
 			).isoformat(),
-			'token_hash': pbkdf2_sha512.using(rounds=100000).hash(token),
+			'token_hash': pbkdf2_sha512.using(rounds=100000).hash(token),  # pylint: disable=no-member
 		}
 
 		results = await self.create(skip_events=[Event.PERM], env=env, doc=session)
@@ -298,7 +298,7 @@ class Session(BaseModule):
 
 		return self.status(
 			status=200,
-			msg='You were succefully reauthed.',
+			msg='You were successfully reauthed.',
 			args={'session': results.args.docs[0]},
 		)
 

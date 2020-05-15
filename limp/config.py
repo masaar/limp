@@ -33,7 +33,7 @@ class Config:
 	_app_version: str = None
 	_app_path: str = None
 
-	test: str = False
+	test: str = None
 	test_skip_flush: bool = False
 	test_force: bool = False
 	test_env: bool = False
@@ -103,7 +103,7 @@ class Config:
 	locale: str = 'ar_AE'
 
 	admin_doc: LIMP_DOC = {}
-	admin_password: str = '__ADMINx0'
+	admin_password: str = '__0xADMIN'
 
 	anon_token: str = '__ANON_TOKEN_f00000000000000000000012'
 	anon_privileges: Dict[str, List[str]] = {}
@@ -138,7 +138,7 @@ class Config:
 		# [DOC] Check API version
 		if not cls.packages_api_levels:
 			logger.warning(
-				'No API-level sepecified for the app. LIMPd would continue to run the app, but the developer should consider adding API-level to eliminate specs mismatch.'
+				'No API-level specified for the app. LIMPd would continue to run the app, but the developer should consider adding API-level to eliminate specs mismatch.'
 			)
 		else:
 			limp_level = '.'.join(cls._limp_version.split('.')[0:2])
@@ -172,7 +172,7 @@ class Config:
 					)
 			except:
 				logger.warning(
-					'An error occured while attempting to check for latest update to LIMP. Please, check for updates on your own.'
+					'An error occurred while attempting to check for latest update to LIMP. Please, check for updates on your own.'
 				)
 
 		# [DOC] Check for jobs
@@ -317,7 +317,7 @@ class Config:
 						logger.debug(f'Skipping service module {module}')
 			else:
 				logger.warning(
-					f'Testing on \'{cls.env}\' env. LIMPd would be sleeping for 5secs to give you chance to abort test workflow if this was a mistake.'
+					f'Testing on \'{cls.env}\' env. LIMPd would be sleeping for 5sec to give you chance to abort test workflow if this was a mistake.'
 				)
 				time.sleep(5)
 

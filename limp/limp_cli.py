@@ -29,7 +29,7 @@ def limp_cli():
 	)
 
 	subparsers = parser.add_subparsers(
-		title='Commnad', description='LIMP CLI command to run', dest='command'
+		title='Command', description='LIMP CLI command to run', dest='command'
 	)
 
 	parser_create = subparsers.add_parser('create', help='Create new LIMP app')
@@ -51,7 +51,7 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default .]',
+		help='Path of the app to discover its dependencies. [default .]',
 		default='.',
 	)
 	parser_install.add_argument(
@@ -66,7 +66,7 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default .]',
+		help='Path of the app to discover its dependencies. [default .]',
 		default='.',
 	)
 	parser_launch.add_argument('--env', help='Choose specific env')
@@ -93,7 +93,7 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default .]',
+		help='Path of the app to discover its dependencies. [default .]',
 		default='.',
 	)
 	parser_test.add_argument(
@@ -126,7 +126,7 @@ def limp_cli():
 		'app_path',
 		type=str,
 		nargs='?',
-		help='Path of the app to discover its dependecies. [default .]',
+		help='Path of the app to discover its dependencies. [default .]',
 		default='.',
 	)
 	parser_ref.add_argument('--debug', help='Enable debug mode', action='store_true')
@@ -217,7 +217,7 @@ def install_deps(args: argparse.Namespace):
 	logger.debug('Beginning to install dependencies')
 	# [DOC] Create standard call command list
 	pip_command = [sys.executable, '-m', 'pip', 'install']
-	# [DOC] Check for install_user glag to install dependencies with --user option
+	# [DOC] Check for install_user flag to install dependencies with --user option
 	if args.install_user:
 		logger.debug('Detected install_user flag')
 		pip_command.append('--user')
@@ -250,7 +250,7 @@ def install_deps(args: argparse.Namespace):
 
 
 def launch(
-	args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref'] = None
+	args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref', 'generate_models'] = None
 ):
 	global os, asyncio
 	global handler
@@ -497,7 +497,7 @@ def launch(
 		# [TODO] Implement realm APP Config Attr checks
 	except Exception:
 		logger.error(
-			'An unexpected exception happened while attempeting to process LIMP app. Exception details:'
+			'An unexpected exception happened while attempting to process LIMP app. Exception details:'
 		)
 		logger.error(traceback.format_exc())
 		logger.error('Exiting.')

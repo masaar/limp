@@ -312,7 +312,7 @@ class Data:
 							logger.warning(
 								f'Failed to convert attr to id type: {step[attr]}'
 							)
-					# [DOC] Check for access sepcial attrs
+					# [DOC] Check for access special attrs
 					elif (
 						step_attr in step_attrs.keys()
 						and step_attrs[step_attr]._type == 'ACCESS'
@@ -811,7 +811,7 @@ class Data:
 		results = None
 		doc = copy.deepcopy(doc)
 		update_doc = {'$set': doc}
-		# [DOC] Check for increament oper
+		# [DOC] Check for increment oper
 		del_attrs = []
 		for attr in doc.keys():
 			# [DOC] Check for $add update oper

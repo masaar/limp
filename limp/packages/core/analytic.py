@@ -28,7 +28,7 @@ class Analytic(BaseModule):
 			desc='Analytics subevent distinguishing attribute. This is usually `STR`, or `ID` but it is introduced in the module as `ANY` to allow wider use-cases by developers.'
 		),
 		'date': ATTR.DATE(
-			desc='Analytics event date. This allows clustering of events occurances to limit doc size.'
+			desc='Analytics event date. This allows clustering of events occupancies to limit doc size.'
 		),
 		'occurrences': ATTR.LIST(
 			desc='All occurrences of the event as list.',
