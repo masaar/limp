@@ -1,7 +1,5 @@
 from limp.utils import set_attr
 
-from .fixtures import attr_obj
-
 
 def test_set_attr_item(attr_obj):
 	set_attr(scope=attr_obj, attr_path='item2', value='test_set_attr_item')

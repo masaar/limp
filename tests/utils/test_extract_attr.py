@@ -1,7 +1,5 @@
 from limp.utils import extract_attr
 
-from .fixtures import attr_obj
-
 
 def test_extract_attr_item(attr_obj):
 	attr_val = extract_attr(scope=attr_obj, attr_path='item2')

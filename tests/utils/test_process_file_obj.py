@@ -1,6 +1,6 @@
 from limp.utils import process_file_obj
 
-from .fixtures import Module, read_file_results, delete_file_results
+from tests.conftest import Module
 
 import pytest
 
