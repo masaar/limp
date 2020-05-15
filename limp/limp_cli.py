@@ -132,7 +132,10 @@ def limp_cli():
 	parser_ref.add_argument('--debug', help='Enable debug mode', action='store_true')
 
 	args = parser.parse_args()
-	args.func(args)
+	if args.command:
+		args.func(args)
+	else:
+		parser.print_help()
 
 
 def create(args: argparse.Namespace):
@@ -315,7 +318,7 @@ def launch(
 		Config._app_path = os.path.realpath(args.app_path)
 		# [DOC] Read app_config and update Config accordingly
 		# [DOC] Check envs, env
-		if custom_launch != 'generate_ref' and app_config.envs:
+		if custom_launch not in ['generate_ref'] and app_config.envs:
 			if not args.env and not app_config.env:
 				logger.error(
 					'App Config Attr \'envs\' found, but no \'env\' App Config Attr, or CLI Attr were defined.'
