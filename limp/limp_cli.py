@@ -2,7 +2,7 @@ from limp import __version__
 
 from typing import Literal
 
-import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback, shutil, re
+import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback, shutil, urllib.request, re, tarfile
 
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
@@ -152,36 +152,44 @@ def create(args: argparse.Namespace):
 		)
 		exit(1)
 
-	clone_call = subprocess.call(
-		[
-			'git',
-			'clone',
-			'https://github.com/masaar/limp_app_template',
-			os.path.realpath(os.path.join(args.app_path, args.app_name)),
-		]
-	)
-	if clone_call != 0:
-		logger.error('Git clone call failed. Check console for details. Exiting.')
-		exit(1)
+	api_level = '.'.join(__version__.split('.')[:2])
+	template_url = 'https://github.com/masaar/limp_app_template/archive/APIv0.0.tar.gz'
+	template_url = template_url.replace('0.0', api_level)
+	logger.info(f'Attempting to download LIMP app template from: {template_url}')
 
-	checkout_call = subprocess.call(
-		['git', 'checkout', 'tags/APIv' + '.'.join(__version__.split('.')[:2])],
-		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name)),
-	)
-	if checkout_call != 0:
-		logger.error('Git checkout call failed. Check console for details. Exiting.')
-		exit(1)
+	# [REF] https://stackoverflow.com/a/7244263/2393762
+	file_name, _ = urllib.request.urlretrieve(template_url)
+	logger.info('File downloaded successfully!')
 
-	shutil.rmtree(os.path.realpath(os.path.join(args.app_path, args.app_name, '.git')))
+	def template_members(*, archive):
+		l = len(f'limp_app_template-APIv{api_level}/')
+		for member in archive.getmembers():
+			if member.path.startswith(f'limp_app_template-APIv{api_level}'):
+				member.path = member.path[l:]
+				yield member
 
+	app_path = os.path.realpath(os.path.join(args.app_path, args.app_name))
+	logger.info(f'Attempting to extract template archive to: {app_path}')
+	# [REF]: https://stackoverflow.com/a/43094365/2393762
+	with tarfile.open(name=file_name, mode='r:gz') as archive:
+		archive.extract
+		archive.extractall(
+			path=app_path, members=template_members(archive=archive),
+		)
+	logger.info('Archive extracted successfully!')
+
+	logger.info('Attempting to initialise empty Git repo for new LIMP app.')
 	init_call = subprocess.call(
 		['git', 'init'],
 		cwd=os.path.realpath(os.path.join(args.app_path, args.app_name)),
 	)
 	if init_call != 0:
-		logger.error('Git init call failed. Check console for details. Exiting.')
-		exit(1)
+		logger.error(
+			'Git init call failed. Check console for details, then create Git repo yourself.'
+		)
+	logger.info('Git repo initialised successfully!')
 
+	logger.info('Attempting to config app template for new LIMP app.')
 	with open(
 		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
 	) as f:
@@ -208,6 +216,8 @@ def create(args: argparse.Namespace):
 			os.path.join(args.app_path, args.app_name, 'packages', args.app_name)
 		),
 	)
+
+	logger.info(f'Congrats! Your LIMP app {args.app_name} is successfully created!')
 
 
 def install_deps(args: argparse.Namespace):
@@ -250,7 +260,8 @@ def install_deps(args: argparse.Namespace):
 
 
 def launch(
-	args: argparse.Namespace, custom_launch: Literal['test', 'generate_ref', 'generate_models'] = None
+	args: argparse.Namespace,
+	custom_launch: Literal['test', 'generate_ref', 'generate_models'] = None,
 ):
 	global os, asyncio
 	global handler
@@ -524,3 +535,4 @@ def generate_ref(args: argparse.Namespace):
 
 	Config.generate_ref = True
 	launch(args=args, custom_launch='generate_ref')
+
