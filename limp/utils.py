@@ -232,6 +232,12 @@ def generate_ref(
 							permission.query_mod = [permission.query_mod]
 						for i in range(len(permission.query_mod)):
 							Config._api_ref += f'	  * Set {i}:\n'
+							# [TODO] Improve nested list sets
+							if type(permission.query_mod[i]) != dict:
+								Config._api_ref += (
+									f'		* List: {permission.query_mod[i]}\n'
+								)
+								continue
 							for attr in permission.query_mod[i].keys():
 								if type(permission.query_mod[i][attr]) == ATTR_MOD:
 									Config._api_ref += f'		* {attr}:\n'
