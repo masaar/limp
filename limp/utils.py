@@ -626,7 +626,8 @@ async def validate_default(
 							},
 						)
 					)
-					setting_update_callback = lambda results: logger.error(f'Failed to update Setting doc for counter \'{counter_name}\'') if results.status != 200 else None
+					# [DOC] Condition "not task.cancelled()" is added to avoid exceptions with the task getting cancelled during its run as such it might be running in test mode, or at time of shutting down LIMP
+					setting_update_callback = lambda task: logger.error(f'Failed to update Setting doc for counter \'{counter_name}\'') if not task.cancelled() and task.result().status != 200 else None
 					setting_results.add_done_callback(setting_update_callback)
 					counter_val = counter_val.replace(group, str(setting.val + 1))
 		return counter_val
