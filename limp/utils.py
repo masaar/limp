@@ -758,27 +758,15 @@ async def validate_attr(
 								date_range_delta = {}
 								if date_range[i][-1] == 'd':
 									date_range_delta = {'days': int(date_range[i][:-1])}
-								elif date_range[i][-1] == 's':
-									date_range_delta = {
-										'seconds': int(date_range[i][:-1])
-									}
-								elif date_range[i][-1] == 'm':
-									date_range_delta = {
-										'minutes': int(date_range[i][:-1])
-									}
-								elif date_range[i][-1] == 'h':
-									date_range_delta = {
-										'hours': int(date_range[i][:-1])
-									}
 								elif date_range[i][-1] == 'w':
 									date_range_delta = {
 										'weeks': int(date_range[i][:-1])
 									}
 								date_range[i] = (
-									datetime.date.today()
+									datetime.datetime.utcnow()
 									+ datetime.timedelta(**date_range_delta)
-								).isoformat()
-						if attr_val > date_range[0] and attr_val < date_range[1]:
+								).isoformat().split('T')[0]
+						if attr_val >= date_range[0] and attr_val < date_range[1]:
 							return return_valid_attr(
 								attr_val=attr_val, attr_oper=attr_oper
 							)
@@ -817,11 +805,11 @@ async def validate_attr(
 										'weeks': int(datetime_range[i][:-1])
 									}
 								datetime_range[i] = (
-									datetime.date.today()
+									datetime.datetime.utcnow()
 									+ datetime.timedelta(**datetime_range_delta)
 								).isoformat()
 						if (
-							attr_val > datetime_range[0]
+							attr_val >= datetime_range[0]
 							and attr_val < datetime_range[1]
 						):
 							return return_valid_attr(
@@ -1139,9 +1127,7 @@ async def validate_attr(
 						for i in [0, 1]:
 							if time_range[i][0] in ['+', '-']:
 								time_range_delta = {}
-								if time_range[i][-1] == 'd':
-									time_range_delta = {'days': int(time_range[i][:-1])}
-								elif time_range[i][-1] == 's':
+								if time_range[i][-1] == 's':
 									time_range_delta = {
 										'seconds': int(time_range[i][:-1])
 									}
@@ -1153,15 +1139,11 @@ async def validate_attr(
 									time_range_delta = {
 										'hours': int(time_range[i][:-1])
 									}
-								elif time_range[i][-1] == 'w':
-									time_range_delta = {
-										'weeks': int(time_range[i][:-1])
-									}
 								time_range[i] = (
-									datetime.date.today()
+									datetime.datetime.utcnow()
 									+ datetime.timedelta(**time_range_delta)
-								).isoformat()
-						if attr_val > time_range[0] and attr_val < time_range[1]:
+								).isoformat().split('T')[1]
+						if attr_val >= time_range[0] and attr_val < time_range[1]:
 							return return_valid_attr(
 								attr_val=attr_val, attr_oper=attr_oper
 							)
@@ -1271,12 +1253,72 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return attr_val
 
 	elif attr_type._type == 'DATE':
-		attr_val = datetime.datetime.utcnow()
-		return attr_val.isoformat().split('T')[0]
+		if attr_type._args['ranges']:
+			datetime_range = attr_type._args['ranges'][0]
+			# [DOC] Be lazy! find a whether start, end of range is a datetime and base the value on it
+			if datetime_range[0][0] in ['+', '-'] and datetime_range[1][0] in ['+', '-']:
+				# [DOC] Both start, end are dynamic, process start
+				datetime_range_delta = {}
+				if datetime_range[0][-1] == 'd':
+					datetime_range_delta = {
+						'days': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'w':
+					datetime_range_delta = {
+						'weeks': int(datetime_range[0][:-1])
+					}
+				attr_val = (
+					datetime.datetime.utcnow()
+					+ datetime.timedelta(**datetime_range_delta)
+				).isoformat().split('T')[0]
+			else:
+				if datetime_range[0][0] not in ['+', '-']:
+					attr_val = datetime_range[0]
+				else:
+					attr_val = (datetime.datetime.fromisoformat(datetime_range[1]) - datetime.timedelta(days=1)).isoformat().split('T')[0]
+		else:
+			attr_val = datetime.datetime.utcnow().isoformat().split('T')[0]
+		return attr_val
 
 	elif attr_type._type == 'DATETIME':
-		attr_val = datetime.datetime.utcnow()
-		return attr_val.isoformat()
+		if attr_type._args['ranges']:
+			datetime_range = attr_type._args['ranges'][0]
+			# [DOC] Be lazy! find a whether start, end of range is a datetime and base the value on it
+			if datetime_range[0][0] in ['+', '-'] and datetime_range[1][0] in ['+', '-']:
+				# [DOC] Both start, end are dynamic, process start
+				datetime_range_delta = {}
+				if datetime_range[0][-1] == 'd':
+					datetime_range_delta = {
+						'days': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 's':
+					datetime_range_delta = {
+						'seconds': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'm':
+					datetime_range_delta = {
+						'minutes': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'h':
+					datetime_range_delta = {
+						'hours': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'w':
+					datetime_range_delta = {
+						'weeks': int(datetime_range[0][:-1])
+					}
+				attr_val = (
+					datetime.datetime.utcnow()
+					+ datetime.timedelta(**datetime_range_delta)
+				).isoformat()
+			else:
+				if datetime_range[0][0] not in ['+', '-']:
+					attr_val = datetime_range[0]
+				else:
+					attr_val = (datetime.datetime.fromisoformat(datetime_range[1]) - datetime.timedelta(days=1)).isoformat()
+		else:
+			attr_val = datetime.datetime.utcnow().isoformat()
+		return attr_val
 
 	elif attr_type._type == 'KV_DICT':
 		attr_val = {
@@ -1382,8 +1424,37 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return f'__str-{math.ceil(random.random() * 10000)}'
 
 	elif attr_type._type == 'TIME':
-		attr_val = datetime.datetime.utcnow()
-		return attr_val.isoformat().split('T')[1]
+		if attr_type._args['ranges']:
+			datetime_range = attr_type._args['ranges'][0]
+			# [DOC] Be lazy! find a whether start, end of range is a datetime and base the value on it
+			if datetime_range[0][0] in ['+', '-'] and datetime_range[1][0] in ['+', '-']:
+				# [DOC] Both start, end are dynamic, process start
+				datetime_range_delta = {}
+				if datetime_range[0][-1] == 's':
+					datetime_range_delta = {
+						'seconds': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'm':
+					datetime_range_delta = {
+						'minutes': int(datetime_range[0][:-1])
+					}
+				elif datetime_range[0][-1] == 'h':
+					datetime_range_delta = {
+						'hours': int(datetime_range[0][:-1])
+					}
+				attr_val = (
+					datetime.datetime.utcnow()
+					+ datetime.timedelta(**datetime_range_delta)
+				).isoformat().split('T')[1]
+			else:
+				if datetime_range[0][0] not in ['+', '-']:
+					attr_val = datetime_range[0]
+				else:
+					# [REF]: https://stackoverflow.com/a/656394/2393762
+					attr_val = (datetime.datetime.combine(datetime.date.today(), datetime.time.fromisoformat(datetime_range[1])) - datetime.timedelta(minutes=1)).isoformat().split('T')[1]
+		else:
+			attr_val = datetime.datetime.utcnow().isoformat().split('T')[1]
+		return attr_val
 
 	elif attr_type._type == 'URI_WEB':
 		return f'https://some.uri-{math.ceil(random.random() * 10000)}.com'
