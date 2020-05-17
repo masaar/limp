@@ -1010,9 +1010,9 @@ class PACKAGE_CONFIG:
 
 
 @dataclass
-class APP_CONFIG:
-	name: str
-	version: str
+class APP_CONFIG(PACKAGE_CONFIG):
+	name: str = None
+	version: str = None
 	debug: bool = False
 	port: int = None
 	env: str = None

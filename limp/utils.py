@@ -24,7 +24,7 @@ logger = logging.getLogger('limp')
 def import_modules():
 	import limp
 	from limp.base_module import BaseModule
-	from limp.config import Config
+	from limp.config import Config, process_config
 	from limp.test import TEST
 
 	sys.path.append(os.path.join(limp.__path__[0], 'packages'))
@@ -33,7 +33,6 @@ def import_modules():
 	# [DOC] Assign required variables
 	modules: Dict[str, BaseModule] = {}
 	modules_packages: Dict[str, List[str]] = {}
-	user_config = {'user_attrs': {}, 'user_auth_attrs': [], 'user_attrs_defaults': {}}
 
 	# [DOC] Iterate over packages in modules folder
 	for _, pkgname, ispkg in pkgutil.iter_modules(
@@ -49,46 +48,7 @@ def import_modules():
 
 		# [DOC] Load package and attempt to load config
 		package = __import__(pkgname, fromlist='*')
-		for config_attr in dir(package.config):
-			config_attr_val = getattr(package.config, config_attr)
-
-			# [DOC] Check existence of of api_level, version Config Attrs
-			if config_attr in ['api_level', 'version']:
-				if config_attr_val == None:
-					logger.error(
-						f'Package \'{pkgname}\' is missing either \'{config_attr}\' Config Attr. Exiting.'
-					)
-					exit()
-				# [DOC] Check type of api_level, version Config Attrs
-				elif type(config_attr_val) != str:
-					logger.error(
-						f'Package \'{pkgname}\' is having invalid type of \'{config_attr}\'. Exiting.'
-					)
-					exit()
-				else:
-					# [DOC] Update corresponding Config
-					if config_attr == 'api_level':
-						Config.packages_api_levels[pkgname] = config_attr_val
-					else:
-						Config.packages_versions[pkgname] = config_attr_val
-			elif config_attr.startswith('__') or config_attr_val == None:
-				continue
-			# [DOC] Skip non Config Attr attrs
-			elif config_attr in [
-				'user_attrs',
-				'user_auth_attrs',
-				'user_attrs_defaults',
-			]:
-				user_config[config_attr] = config_attr_val
-				setattr(Config, config_attr, config_attr_val)
-			elif type(config_attr_val) == dict:
-				if not getattr(Config, config_attr):
-					setattr(Config, config_attr, {})
-				deep_update(
-					target=getattr(Config, config_attr), new_values=config_attr_val
-				)
-			else:
-				setattr(Config, config_attr, config_attr_val)
+		process_config(config=package.config, pkgname=pkgname)
 
 		# [DOC] Add package to loaded packages dict
 		modules_packages[pkgname] = []
@@ -137,22 +97,22 @@ def import_modules():
 					modules[module_name] = cls()
 					modules_packages[pkgname].append(module_name)
 	# [DOC] Update User, Session modules with populated attrs
-	modules['user'].attrs.update(user_config['user_attrs'])
+	modules['user'].attrs.update(Config.user_attrs)
 	modules['user'].defaults['locale'] = Config.locale
-	for attr in user_config['user_auth_attrs']:
+	for attr in Config.user_auth_attrs:
 		modules['user'].unique_attrs.append(attr)
 		modules['user'].attrs[f'{attr}_hash'] = ATTR.STR()
 		modules['session'].methods['auth']['doc_args'].append(
 			{
 				'hash': ATTR.STR(),
-				attr: user_config['user_attrs'][attr],
+				attr: Config.user_attrs[attr],
 				'groups': ATTR.LIST(list=[ATTR.ID()]),
 			}
 		)
 		modules['session'].methods['auth']['doc_args'].append(
-			{'hash': ATTR.STR(), attr: user_config['user_attrs'][attr]}
+			{'hash': ATTR.STR(), attr: Config.user_attrs[attr]}
 		)
-	modules['user'].defaults.update(user_config['user_attrs_defaults'])
+	modules['user'].defaults.update(Config.user_attrs_defaults)
 	# [DOC] Call update_modules, effectively finalise initialising modules
 	Config.modules = modules
 	for module in modules.values():

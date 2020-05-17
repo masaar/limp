@@ -267,7 +267,7 @@ def launch(
 	global handler
 
 	# [DOC] Update Config with LIMP CLI args
-	from limp.config import Config
+	from limp.config import Config, process_config
 
 	Config._limp_version = __version__
 	if not custom_launch:
@@ -506,6 +506,8 @@ def launch(
 					)
 					exit()
 		# [TODO] Implement realm APP Config Attr checks
+		# [DOC] Process other app config attrs as PACKAGE_CONFIG
+		process_config(config=app_config)
 	except Exception:
 		logger.error(
 			'An unexpected exception happened while attempting to process LIMP app. Exception details:'

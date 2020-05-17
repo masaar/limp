@@ -1,6 +1,6 @@
 from limp.enums import Event
-from limp.utils import generate_attr
-from limp.classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR
+from limp.utils import generate_attr, deep_update
+from limp.classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR, APP_CONFIG, PACKAGE_CONFIG
 
 from typing import List, Dict, Callable, Any, Union, Set, Tuple, Literal, TypedDict
 
@@ -12,6 +12,56 @@ from passlib.hash import pbkdf2_sha512
 import os, logging, datetime, time, requests
 
 logger = logging.getLogger('limp')
+
+
+def process_config(*, config: Union[APP_CONFIG, PACKAGE_CONFIG], pkgname: str = None):
+	if type(config) not in [APP_CONFIG, PACKAGE_CONFIG]:
+		logger.error(f'Config object of type \'{type(config)}\' is invalid. Exiting.')
+		exit(1)
+	
+	if type(config) == PACKAGE_CONFIG and not pkgname:
+		logger.error('Provided Config object of type \'PACKAGE_CONFIG\' without \'pkgname\'. Exiting.')
+		exit(1)
+
+	app_only_attrs = APP_CONFIG.__annotations__.keys()
+
+	for config_attr in dir(config):
+			config_attr_val = getattr(config, config_attr)
+
+			# [DOC] Check existence of of api_level, version Config Attrs
+			if type(config) == PACKAGE_CONFIG and config_attr in ['api_level', 'version']:
+				if config_attr_val == None:
+					logger.error(
+						f'Package \'{pkgname}\' is missing \'{config_attr}\' Config Attr. Exiting.'
+					)
+					exit()
+				# [DOC] Check type of api_level, version Config Attrs
+				elif type(config_attr_val) != str:
+					logger.error(
+						f'Package \'{pkgname}\' is having invalid type of \'{config_attr}\'. Exiting.'
+					)
+					exit()
+				else:
+					# [DOC] Update corresponding Config
+					getattr(Config, f'packages_{config_attr}s')[pkgname] = config_attr_val
+			elif config_attr.startswith('__') or config_attr_val == None or config_attr in app_only_attrs:
+				continue
+			# [DOC] Skip non Config Attr attrs
+			elif config_attr in [
+				'user_attrs',
+				'user_auth_attrs',
+				'user_attrs_defaults',
+			]:
+				setattr(Config, config_attr, config_attr_val)
+			elif type(config_attr_val) == dict:
+				if not getattr(Config, config_attr):
+					setattr(Config, config_attr, {})
+				deep_update(
+					target=getattr(Config, config_attr), new_values=config_attr_val
+				)
+			else:
+				setattr(Config, config_attr, config_attr_val)
+	pass
 
 
 class Config:
