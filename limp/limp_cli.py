@@ -1,8 +1,8 @@
 from limp import __version__
 
-from typing import Literal
+from typing import Literal, Any
 
-import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback, shutil, urllib.request, re, tarfile
+import argparse, os, logging, datetime, sys, subprocess, asyncio, traceback, shutil, urllib.request, re, tarfile, string, random
 
 logger = logging.getLogger('limp')
 handler = logging.StreamHandler()
@@ -41,6 +41,11 @@ def limp_cli():
 		nargs='?',
 		help='Path to create new LIMP app. [default .]',
 		default='.',
+	)
+	parser_create.add_argument(
+		'--default-config',
+		help='Create new LIMP app with default config',
+		action='store_true',
 	)
 
 	parser_install = subparsers.add_parser(
@@ -151,6 +156,118 @@ def create(args: argparse.Namespace):
 			'Value for \'app_name\' CLI Arg is invalid. Name should have only small letters and underscores.'
 		)
 		exit(1)
+	
+	app_config = {
+		# [REF]: https://stackoverflow.com/a/47073723/2393762
+		'admin_password': ['__ADMIN_PASSWORD__', ''.join([random.choice(string.ascii_letters + string.digits + string.punctuation ) for n in range(18)]).replace('\'', '^')],
+		'anon_token_suffix': ['__ANON_TOKEN_SUFFIX__', ''.join([random.choice(string.digits) for n in range(24)])]
+	}
+
+	envs_defaults = {
+		'dev_local': 'mongodb://localhost',
+		'dev_server': 'mongodb://admin:admin@mongodb',
+		'prod': 'mongodb://admin:admin@prod',
+	}
+
+	if not args.default_config:
+		# [DOC] Allow user to specify custom config per the following Config Attrs
+		logger.info('Not detected \'default-config\' CLI Arg. Attempting to create LIMP app with custom Config.')
+		logger.info('If you would like to have app created with default config, stop the process, and re-run LIMP CLI with \'default-config\' CLI Arg.')
+		# [DOC] envs: data_server
+		logger.info('\'envs\' Config Attr provides environment-specific configuration. You will be required to specify \'data_server\' for each of the default available LIMP environments, namely \'dev_local\', \'dev_server\', and \'prod\'.')
+		for env in envs_defaults.keys():
+			while True:
+				config_attr_val = input(f'\n> What would be the value for \'data_server\' Config Attr for environment \'{env}\'; The connection string to connect to your MongoDB host? [{envs_defaults[env]}]\n- ')
+				if not config_attr_val:
+					logger.info(f'Setting \'data_server\' Config Attr for environment \'{env}\' to default \'{envs_defaults[env]}\'.')
+					app_config[f'{env}:data_server'] = [f'__{env.upper()}_DATA_SERVER__', (config_attr_val := envs_defaults[env])]
+				else:
+					logger.info(f'Setting \'data_server\' Config Attr for environment \'{env}\' to: \'{config_attr_val}\'.')
+					app_config[f'{env}:data_server'] = [f'__{env.upper()}_DATA_SERVER__', config_attr_val]
+				break
+		# [DOC] env
+		while True:
+			config_attr_val = input('\n> What would be the value for \'env\'; Config Attr for default environnement to be used when invoking LIMP CLI \'launch\' command? [$__env.ENV]\n- ')
+			if not config_attr_val:
+				logger.info('Setting \'env\' Config Attr to default: \'$__env.ENV\'.')
+				app_config['data_name'] = ['limp_data', (config_attr_val := '$__env.ENV')]
+				break
+			elif config_attr_val not in list(envs_defaults.keys()) and not re.match(r'^\$__env\.[A-Za-z_]+$', config_attr_val):
+				logger.error('\'env\' Config Attr can only be one of the environments names defined in \'envs\' Config Attr, or a valid Env Variable.')
+			else:
+				logger.info(f'Setting \'env\' Config Attr to: \'{config_attr_val}\'.')
+				app_config['env'] = ['__ENV__', config_attr_val]
+				break
+		# [DOC] data_name
+		while True:
+			config_attr_val = input('\n> What would be the value for \'data_name\'; Config Attr for database name to be created on \'data_server\'? [limp_data]\n- ')
+			if not config_attr_val:
+				logger.info('Setting \'data_name\' Config Attr to default: \'limp_data\'.')
+				app_config['data_name'] = ['__DATA_NAME__', (config_attr_val := 'limp_data')]
+				break
+			elif not re.match(r'^[a-zA-Z0-9\-_]+$', config_attr_val):
+				logger.error('\'data_name\' Config Attr can\'t have special characters other than underscores and hyphens in it.')
+			else:
+				logger.info(f'Setting \'data_name\' Config Attr to: \'{config_attr_val}\'.')
+				app_config['data_name'] = ['__DATA_NAME__', config_attr_val]
+				break
+		# [DOC] locales
+		while True:
+			config_attr_val = input('\n> What would be the comma-separated, language_COUNTRY-formatted value for \'locales\'; Config Attr for localisations of your app? [ar_AE, en_AE]\n- ')
+			if not config_attr_val:
+				logger.info('Setting \'locales\' Config Attr to default: \'ar_AE, en_AE\'.')
+				locales = ['ar_AE', 'en_AE']
+				app_config['locales'] = ['__LOCALES__', (config_attr_val := 'ar_AE\', \'en_AE')]
+				break
+			else:
+				try:
+					locales = [re.match(r'^([a-z]{2}_[A-Z]{2})$', locale.strip()).group(0) for locale in config_attr_val.split(',')]
+					logger.info(f'Setting \'locales\' Config Attr to: \'{config_attr_val}\'.')
+					app_config['locales'] = ['__LOCALES__', '\', \''.join(locales)]
+					break
+				except:
+					logger.error('An exception occurred while attempting to process value provided.')
+					logger.error('\'locales\' Config Attr value should be provided as comma-separated, language_COUNTRY-formatted list of localisations.')
+		# [DOC] locale
+		while True:
+			config_attr_val = input('\n> What would be the value for \'locale\'; Config Attr for default localisation of your app? [first value of \'locales\' Config Attr]\n- ')
+			if not config_attr_val:
+				logger.info(f'Setting \'locale\' Config Attr to first value of \'locales\' Config Attr: \'{locales[0]}\'.')
+				app_config['locale'] = ['__LOCALE__', (config_attr_val := locales[0])]
+				break
+			elif config_attr_val not in locales:
+				logger.error('\'locale\' Config Attr can only be one of the localisations defined in \'locales\' Config Attr.')
+			else:
+				logger.info(f'Setting \'locale\' Config Attr to: \'{config_attr_val}\'.')
+				app_config['locale'] = ['__LOCALE__', config_attr_val]
+				break
+		# [DOC] admin_doc: email
+		while True:
+			config_attr_val = input('\n> What would be the value for \'admin_doc\'.\'email\'; Config Attr? [admin@app.limp.localhost]\n- ')
+			if not config_attr_val:
+				logger.info('Setting \'admin_doc\'.\'email\' Config Attr to default: \'admin@app.limp.localhost\'.')
+				app_config['admin_doc:email'] = ['__ADMIN_DOC_EMAIL__', (config_attr_val := 'admin@app.limp.localhost')]
+				break
+			elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', config_attr_val):
+				logger.error('\'admin_doc\'.\'email\' Config Attr value is not a valid email address.')
+			else:
+				logger.info(f'Setting \'admin_doc\'.\'email\' Config Attr to: \'{config_attr_val}\'.')
+				app_config['admin_doc:email'] = ['__ADMIN_DOC_EMAIL__', config_attr_val]
+				break
+	else:
+		for env in envs_defaults.keys():
+			app_config[f'{env}:data_server'] = [f'__{env.upper()}_DATA_SERVER__', envs_defaults[env]]
+		app_config.update({
+			'env': ['__ENV__', '$__env.ENV'],
+			'data_name': ['__DATA_NAME__', 'limp_data'],
+			'locales': ['__LOCALES__', '\', \''.join(['ar_AE', 'en_AE'])],
+			'locale': ['__LOCALE__', 'ar_AE'],
+			'admin_doc:email': ['__ADMIN_DOC_EMAIL__', 'admin@app.limp.localhost'],
+		})
+	
+	logger.info('This will create an app with the following config:')
+	for config_attr, config_set in app_config.items():
+		logger.info(f'- {config_attr}: \'{config_set[1]}\'')
 
 	api_level = '.'.join(__version__.split('.')[:2])
 	template_url = 'https://github.com/masaar/limp_app_template/archive/APIv0.0.tar.gz'
@@ -191,13 +308,17 @@ def create(args: argparse.Namespace):
 
 	logger.info('Attempting to config app template for new LIMP app.')
 	with open(
-		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
+		# os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
+		os.path.realpath(os.path.join('d:', 'devel', 'limp', 'limp_app_template', 'limp_app.py')), 'r'
 	) as f:
 		limp_app_file = f.read()
 	with open(
 		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'w'
 	) as f:
-		f.write(limp_app_file.replace('PROJECT_NAME', args.app_name, 1))
+		limp_app_file = limp_app_file.replace('__PROJECT_NAME__', args.app_name, 1)
+		for config_set in app_config.values():
+			limp_app_file = limp_app_file.replace(config_set[0], config_set[1], 1)
+		f.write(limp_app_file)
 
 	with open(
 		os.path.realpath(os.path.join(args.app_path, args.app_name, '.gitignore')), 'r'
