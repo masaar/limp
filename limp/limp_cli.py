@@ -101,6 +101,7 @@ def limp_cli():
 		help='Path of the app to discover its dependencies. [default .]',
 		default='.',
 	)
+	parser_test.add_argument('--env', help='Choose specific env')
 	parser_test.add_argument(
 		'--skip-flush',
 		help='Skip flushing previous test data collections',
@@ -112,7 +113,7 @@ def limp_cli():
 		action='store_true',
 	)
 	parser_test.add_argument(
-		'--env',
+		'--use-env',
 		help='Run tests on selected env rather than sandbox env',
 		action='store_true',
 	)
@@ -308,8 +309,7 @@ def create(args: argparse.Namespace):
 
 	logger.info('Attempting to config app template for new LIMP app.')
 	with open(
-		# os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
-		os.path.realpath(os.path.join('d:', 'devel', 'limp', 'limp_app_template', 'limp_app.py')), 'r'
+		os.path.realpath(os.path.join(args.app_path, args.app_name, 'limp_app.py')), 'r'
 	) as f:
 		limp_app_file = f.read()
 	with open(
@@ -391,9 +391,9 @@ def launch(
 	from limp.config import Config, process_config
 
 	Config._limp_version = __version__
+	Config.env = args.env
 	if not custom_launch:
 		Config.test_collections = args.test_collections
-		Config.env = args.env
 		Config.force_admin_check = args.force_admin_check
 
 	# [DOC] Check for port CLI Arg
@@ -647,7 +647,7 @@ def test(args: argparse.Namespace):
 	Config.test = args.test_name
 	Config.test_skip_flush = args.skip_flush
 	Config.test_force = args.force
-	Config.test_env = args.env
+	Config.test_env = args.use_env
 	Config.test_breakpoint = args.breakpoint
 	launch(args=args, custom_launch='test')
 
