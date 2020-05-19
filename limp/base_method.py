@@ -196,12 +196,19 @@ class BaseMethod:
 					permissions_check['query'] = [permissions_check['query']]
 				for i in range(len(permissions_check['query'])):
 					del_args = []
-					for attr in permissions_check['query'][i].keys():
-						# [DOC] Flag attr for deletion if value is None
-						if permissions_check['query'][i][attr] == None:
-							del_args.append(attr)
-					for attr in del_args:
-						del permissions_check['query'][i][attr]
+					# [DOC] attempt to process query_set as nested-list (OR) even if it's dict
+					if type(permissions_check['query'][i]) == dict:
+						query_set_list = [permissions_check['query'][i]]
+					elif type(permissions_check['query'][i]) == list:
+						query_set_list = permissions_check['query'][i]
+					# [DOC] loop over query_set_list, query_set
+					for query_set in query_set_list:
+						for attr in query_set.keys():
+							# [DOC] Flag attr for deletion if value is None
+							if query_set[attr] == None:
+								del_args.append(attr)
+						for attr in del_args:
+							del query_set[attr]
 				# [DOC] Append query permissions args to query
 				query.append(permissions_check['query'])
 
