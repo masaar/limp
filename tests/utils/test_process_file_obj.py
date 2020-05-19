@@ -1,13 +1,26 @@
 from limp.utils import process_file_obj
 
-from tests.conftest import Module
+from bson import ObjectId
 
 import pytest
 
 
 @pytest.mark.asyncio
-async def test_process_file_obj(read_file_results, delete_file_results):
-	modules = {'file': Module(_read=read_file_results, _delete=delete_file_results)}
+async def test_process_file_obj(mock_module, mock_call_results):
+	modules = {
+		'file': mock_module(
+			read=mock_call_results(
+				status=200, count=1, doc={
+					'_id': ObjectId(),
+					'file': {
+						'name': 'test_process_file_obj',
+						# ... rest of FILE attrs
+					}
+				}
+			),
+			delete=mock_call_results(status=200, count=1),
+		)
+	}
 
 	doc = {
 		'file': {'__file': '000000000000000000000000'},
@@ -19,8 +32,8 @@ async def test_process_file_obj(read_file_results, delete_file_results):
 
 
 @pytest.mark.asyncio
-async def test_process_file_obj_invalid():
-	modules = {'file': Module(_read=None, _delete=None)}
+async def test_process_file_obj_invalid(mock_module):
+	modules = {'file': mock_module()}
 
 	doc = {
 		'file': {'__file': '000000000000000000000000'},

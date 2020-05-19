@@ -1,58 +1,61 @@
+from limp.classes import DictObj
+
 from dataclasses import dataclass
-
 from typing import Dict, Any
+from bson import ObjectId
+from contextlib import contextmanager
 
-import pytest
+import pytest, copy
 
 
 @dataclass
 class Module:
-	_read: 'Results'
-	_delete: 'Results'
+	_read: DictObj
+	_create: DictObj
+	_delete: DictObj
+	_update: DictObj
 
 	async def read(self, **kwargs):
 		return self._read
+	
+	async def create(self, **kwargs):
+		return self._create
+	
+	async def update(self, **kwargs):
+		return self._update
 
 	async def delete(self, **kwargs):
 		return self._delete
 
 
-@dataclass
-class Results:
-	args: 'ResultsArgs'
-	status: int = 200
+@pytest.fixture
+def mock_call_results():
+	def _(status: int, count: int, doc: Dict[str, Any] = None, code: str = None):
+		return DictObj({
+			'status': status,
+			'args': DictObj({
+				'count': count,
+				'code': code,
+				'docs': [
+					DictObj(doc if doc else {'_id': ObjectId()}) for __ in range(count)
+				]
+			})
+		})
 
-
-@dataclass
-class ResultsArgs:
-	docs: 'ResultsArgsDoc'
-	count: int = 1
-
-
-@dataclass
-class ResultsArgsDoc:
-	file: Dict[str, Any]
+	return _
 
 
 @pytest.fixture
-def read_file_results():
-	return Results(
-		args=ResultsArgs(
-			docs=[
-				ResultsArgsDoc(
-					file={
-						'name': 'test_process_file_obj'
-						# ... more FILE Attr Type specific items
-					}
-				)
-			]
+def mock_module():
+	def _(read: DictObj = None, create: DictObj = None, update: DictObj = None, delete: DictObj = None):
+		return Module(
+			_read=read,
+			_create=create,
+			_update=update,
+			_delete=delete
 		)
-	)
 
-
-@pytest.fixture
-def delete_file_results():
-	return Results(args=ResultsArgs(docs=None))
+	return _
 
 
 @pytest.fixture
@@ -75,3 +78,25 @@ def attr_obj():
 			'dict': {'list': ['item1', 'item2']},
 		},
 	}
+
+
+@pytest.fixture
+def preserve_state():
+	@contextmanager
+	def preserve_state_manager(module, state_name):
+		state = getattr(module, state_name)
+		state_attrs = {}
+		for attr in dir(state):
+			if not attr.startswith('__'):
+				state_attrs[attr] = copy.deepcopy(getattr(state, attr))
+		try:
+			yield
+		finally:
+			for attr in dir(state):
+				if not attr.startswith('__'):
+					setattr(state, attr, state_attrs[attr])
+
+	def _(module, state_name):
+		return preserve_state_manager(module, state_name)
+
+	return _

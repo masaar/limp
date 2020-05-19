@@ -80,6 +80,102 @@ async def test_validate_attr_URI_WEB_uri_web_params():
 
 
 @pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_allowed_domains_uri_web_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		await utils.validate_attr(
+			attr_name='test_validate_attr_URI_WEB',
+			attr_type=ATTR.URI_WEB(allowed_domains=['foo.com', 'bar.net']),
+			attr_val='https://sub.example.com',
+			allow_opers=False,
+			allow_none=False,
+		)
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_allowed_domains_strict_uri_web_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		await utils.validate_attr(
+			attr_name='test_validate_attr_URI_WEB',
+			attr_type=ATTR.URI_WEB(allowed_domains=['foo.com', 'bar.net'], strict=True),
+			attr_val='http://sub.bar.net',
+			allow_opers=False,
+			allow_none=False,
+		)
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_allowed_domains_uri_web():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_URI_WEB',
+		attr_type=ATTR.URI_WEB(allowed_domains=['foo.com', 'bar.net']),
+		attr_val='https://sub.foo.com/index?something=value',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'https://sub.foo.com/index?something=value'
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_allowed_domains_strict_uri_web():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_URI_WEB',
+		attr_type=ATTR.URI_WEB(allowed_domains=['foo.com', 'bar.net'], strict=True),
+		attr_val='http://bar.net/some-params/and+page',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'http://bar.net/some-params/and+page'
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_disallowed_domains_uri_web_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		await utils.validate_attr(
+			attr_name='test_validate_attr_URI_WEB',
+			attr_type=ATTR.URI_WEB(disallowed_domains=['foo.com', 'bar.net']),
+			attr_val='https://sub.foo.com',
+			allow_opers=False,
+			allow_none=False,
+		)
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_disallowed_domains_strict_uri_web_invalid():
+	with pytest.raises(utils.InvalidAttrException):
+		await utils.validate_attr(
+			attr_name='test_validate_attr_URI_WEB',
+			attr_type=ATTR.URI_WEB(disallowed_domains=['foo.com', 'bar.net'], strict=True),
+			attr_val='https://bar.net',
+			allow_opers=False,
+			allow_none=False,
+		)
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_disallowed_domains_uri_web():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_URI_WEB',
+		attr_type=ATTR.URI_WEB(disallowed_domains=['foo.com', 'bar.net']),
+		attr_val='https://sub.foobar.com',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'https://sub.foobar.com'
+
+
+@pytest.mark.asyncio
+async def test_validate_attr_URI_WEB_disallowed_domains_strict_uri_web():
+	attr_val = await utils.validate_attr(
+		attr_name='test_validate_attr_URI_WEB',
+		attr_type=ATTR.URI_WEB(disallowed_domains=['foo.com', 'bar.net'], strict=True),
+		attr_val='http://sub.bar.net',
+		allow_opers=False,
+		allow_none=False,
+	)
+	assert attr_val == 'http://sub.bar.net'
+
+
+@pytest.mark.asyncio
 async def test_validate_attr_URI_WEB_None_allow_none():
 	attr_val = await utils.validate_attr(
 		attr_name='test_validate_attr_URI_WEB',
