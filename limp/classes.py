@@ -96,10 +96,10 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	'BOOL': {},
 	'LOCALE': {},
 	'LOCALES': {},
-	'EMAIL': {'allowed_domains': List[str], 'disallowed_domains': List[str]},
+	'EMAIL': {'allowed_domains': List[str], 'disallowed_domains': List[str], 'strict_matching': bool},
 	'PHONE': {'codes': List[str]},
 	'IP': {},
-	'URI_WEB': {'allowed_domains': List[str], 'disallowed_domains': List[str]},
+	'URI_WEB': {'allowed_domains': List[str], 'disallowed_domains': List[str], 'strict_matching': bool},
 	'DATETIME': {'ranges': List[List[datetime.datetime]]},
 	'DATE': {'ranges': List[List[datetime.date]]},
 	'TIME': {'ranges': List[List[datetime.time]]},
@@ -521,12 +521,14 @@ class ATTR:
 		desc: str = None,
 		allowed_domains: List[str] = None,
 		disallowed_domains: List[str] = None,
+		strict: bool = False,
 	):
 		return ATTR(
 			attr_type='EMAIL',
 			desc=desc,
 			allowed_domains=allowed_domains,
 			disallowed_domains=disallowed_domains,
+			strict=strict,
 		)
 
 	@classmethod
@@ -544,12 +546,14 @@ class ATTR:
 		desc: str = None,
 		allowed_domains: List[str] = None,
 		disallowed_domains: List[str] = None,
+		strict: bool = False,
 	):
 		return ATTR(
 			attr_type='URI_WEB',
 			desc=desc,
 			allowed_domains=allowed_domains,
 			disallowed_domains=disallowed_domains,
+			strict=strict,
 		)
 
 	@classmethod
