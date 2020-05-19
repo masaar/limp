@@ -11,7 +11,7 @@ with open('dev_requirements.txt', 'r') as f:
 
 setuptools.setup(
 	name='LIMP',
-	version='6.1.0.dev4',
+	version='6.1.0.dev5',
 	author='Mahmoud Abduljawad',
 	author_email='mahmoud@masaar.com',
 	description='Rapid app development framework',
