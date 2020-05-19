@@ -861,12 +861,16 @@ async def validate_attr(
 			if type(attr_val) == str and re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
 				if attr_type._args['allowed_domains']:
 					for domain in attr_type._args['allowed_domains']:
+						if attr_type._args['strict']:
+							domain = f'@{domain}'
 						if attr_val.endswith(domain):
 							return return_valid_attr(
 								attr_val=attr_val, attr_oper=attr_oper
 							)
 				elif attr_type._args['disallowed_domains']:
 					for domain in attr_type._args['disallowed_domains']:
+						if attr_type._args['strict']:
+							domain = f'@{domain}'
 						if attr_val.endswith(domain):
 							break
 					else:
@@ -1115,7 +1119,24 @@ async def validate_attr(
 			if re.match(
 				r'^https?:\/\/(?:[\w\-\_]+\.)(?:\.?[\w]{2,})+([\?\/].*)?$', attr_val
 			):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				if attr_type._args['allowed_domains']:
+					attr_val_domain = attr_val.split('/')[2]
+					for domain in attr_type._args['allowed_domains']:
+						if attr_type._args['strict'] and attr_val_domain == domain:
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						elif not attr_type._args['strict'] and attr_val_domain.endswith(domain):
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				elif attr_type._args['disallowed_domains']:
+					attr_val_domain = attr_val.split('/')[2]
+					for domain in attr_type._args['disallowed_domains']:
+						if attr_type._args['strict'] and attr_val_domain == domain:
+							break
+						elif not attr_type._args['strict'] and attr_val_domain.endswith(domain):
+							break
+					else:
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				else:
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
 		elif attr_type._type == 'LITERAL':
 			if attr_val in attr_type._args['literal']:
@@ -1300,9 +1321,13 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return attr_val
 
 	elif attr_type._type == 'EMAIL':
-		attr_val = f'some-{math.ceil(random.random() * 10000)}@email.com'
+		attr_val = f'some-{math.ceil(random.random() * 10000)}@mail.provider.com'
 		if attr_type._args['allowed_domains']:
-			attr_val = attr_val.replace('email.com', random.choice(attr_type._args['allowed_domains']))
+			if attr_type._args['strict']:
+				domain = 'mail.provider.com'
+			else:
+				domain = 'provider.com'
+			attr_val = attr_val.replace(domain, random.choice(attr_type._args['allowed_domains']))
 		return attr_val
 
 	elif attr_type._type == 'FILE':
@@ -1382,6 +1407,8 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return f'+{attr_phone_code}{math.ceil(random.random() * 10000)}'
 
 	elif attr_type._type == 'STR':
+		if attr_type._args['pattern']:
+			logger.warning('Generator for Attr Type STR can\'t handle patterns. Ignoring.')
 		return f'__str-{math.ceil(random.random() * 10000)}'
 
 	elif attr_type._type == 'TIME':
@@ -1418,7 +1445,14 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 		return attr_val
 
 	elif attr_type._type == 'URI_WEB':
-		return f'https://some.uri-{math.ceil(random.random() * 10000)}.com'
+		attr_val = f'https://sub.domain.com/page-{math.ceil(random.random() * 10000)}/'
+		if attr_type._args['allowed_domains']:
+			if attr_type._args['strict']:
+				domain = 'sub.domain.com'
+			else:
+				domain = 'domain.com'
+			attr_val = attr_val.replace(domain, random.choice(attr_type._args['allowed_domains']))
+		return attr_val
 
 	elif attr_type._type == 'LITERAL':
 		attr_val = random.choice(attr_type._args['literal'])
@@ -1426,5 +1460,6 @@ def generate_attr(*, attr_type: ATTR) -> Any:
 
 	elif attr_type._type == 'UNION':
 		attr_val = generate_attr(attr_type=random.choice(attr_type._args['union']))
+		return attr_val
 
 	raise Exception(f'Unknown generator attr \'{attr_type}\'')
