@@ -10,10 +10,11 @@ from limp.classes import (
 	L10N,
 	LIMP_MODULE,
 	LIMP_ENV,
+	ATTRS_TYPES
 )
 from limp.enums import Event, LIMP_VALUES
 
-from typing import Dict, Union, Literal, List, Any
+from typing import Dict, Union, Literal, List, Tuple, Any
 from bson import ObjectId, binary
 
 import logging, pkgutil, inspect, re, datetime, time, math, random, copy, os, sys, asyncio
@@ -779,6 +780,34 @@ async def validate_attr(
 				else:
 					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
 
+		elif attr_type._type == 'DYNAMIC_ATTR':
+			if type(attr_val) == dict:
+				try:
+					if (not attr_type._args['types']) or (attr_type._args['types'] and attr_val['type'] in attr_type._args['types']):
+						_, attr_val = generate_dynamic_attr(dynamic_attr=attr_val)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				except:
+					pass
+		
+		elif attr_type._type == 'DYNAMIC_VAL':
+			# [DOC] Populate setting_query
+			setting_query = {}
+			if attr_type._args['dynamic_attr'].startswith('$__settings.global/'):
+				setting_query['type'] = 'global'
+				setting_query['var'] = attr_type._args['dynamic_attr'].split('/')[1]
+			elif attr_type._args['dynamic_attr'].startswith('$__settings.user/'):
+				setting_query['type'] = 'user'
+				_, setting_query['user'], setting_query['var'] = attr_type._args['dynamic_attr'].split('/')
+			# [DOC] Check if variables are present in setting_query['var']
+			for setting_query_var in re.findall(r'(\$__doc\.([a-zA-Z0-9_]+))', setting_query['var']):
+				setting_query['var'] = setting_query['var'].replace(setting_query_var[0], str(extract_attr(scope=doc, attr_path=setting_query_var[1])))
+			# [DOC] Read setting val
+			setting_results = await Config.modules['setting'].read(skip_events=[Event.PERM], env=env, query=[setting_query])
+			setting = setting_results.args.docs[0]
+			dynamic_attr = generate_dynamic_attr(dynamic_attr=setting.val)[0]
+			attr_val = await validate_attr(attr_name=attr_name, attr_type=dynamic_attr, attr_val=attr_val)
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+
 		elif attr_type._type == 'KV_DICT':
 			if type(attr_val) == dict:
 				if attr_type._args['min']:
@@ -1201,6 +1230,38 @@ def return_valid_attr(
 		return {'$append': attr_val[0], '$unique': False}
 	elif attr_oper == '$append__unique':
 		return {'$append': attr_val[0], '$unique': True}
+
+
+def generate_dynamic_attr(*, dynamic_attr: Dict[str, Any]) -> Tuple[ATTR, Dict[str, Any]]:
+	if dynamic_attr['type'] in ATTRS_TYPES.keys():
+		if 'args' not in dynamic_attr.keys():
+			dynamic_attr['args'] = {}
+		# [DOC] Process args of type ATTR
+		if 'list' in dynamic_attr['args'].keys():
+			shadow_arg_list = []
+			for i in range(len(dynamic_attr['args']['list'])):
+				shadow_arg_list.append(None)
+				dynamic_attr['args']['list'][i], shadow_arg_list[i] = generate_dynamic_attr(dynamic_attr=dynamic_attr['args']['list'][i])
+		elif 'dict' in dynamic_attr['args'].keys():
+			shadow_arg_dict = {}
+			for dict_attr in dynamic_attr['args']['dict'].keys():
+				dynamic_attr['args']['dict'][dict_attr], shadow_arg_dict[dict_attr] = generate_dynamic_attr(dynamic_attr=dynamic_attr['args']['dict'][dict_attr])
+		# [TODO] elif key, val, union
+		# [DOC] Generate dynamic ATTR using ATTR controller
+		dynamic_attr_type = getattr(ATTR, dynamic_attr['type'])(**dynamic_attr['args'])
+		# [DOC] Reset values for args of type ATTR
+		if 'list' in dynamic_attr['args'].keys():
+			dynamic_attr['args']['list'] = shadow_arg_list
+		elif 'dict' in dynamic_attr['args'].keys():
+			dynamic_attr['args']['dict'] = shadow_arg_dict
+		# [TODO] elif key, val, union
+		# [DOC] Set defaults for optional args
+		if 'allow_none' not in dynamic_attr.keys():
+			dynamic_attr['allow_none'] = False
+		if 'default' not in dynamic_attr.keys():
+			dynamic_attr['default'] = None
+	
+	return (dynamic_attr_type, dynamic_attr)
 
 
 def generate_attr(*, attr_type: ATTR) -> Any:

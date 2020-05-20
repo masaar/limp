@@ -102,6 +102,8 @@ ATTRS_TYPES: Dict[str, Dict[str, Type]] = {
 	'URI_WEB': {'allowed_domains': List[str], 'disallowed_domains': List[str], 'strict_matching': bool},
 	'DATETIME': {'ranges': List[List[datetime.datetime]]},
 	'DATE': {'ranges': List[List[datetime.date]]},
+	'DYNAMIC_ATTR': {'types': List[str]},
+	'DYNAMIC_VAL': {'dynamic_attr': str},
 	'TIME': {'ranges': List[List[datetime.time]]},
 	'FILE': {
 		'types': List[str],
@@ -434,6 +436,8 @@ class ATTR:
 		'URI_WEB',
 		'DATETIME',
 		'DATE',
+		'DYNAMIC_ATTR',
+		'DYNAMIC_VAL',
 		'TIME',
 		'FILE',
 		'GEO',
@@ -565,6 +569,14 @@ class ATTR:
 		return ATTR(attr_type='DATE', desc=desc, ranges=ranges)
 
 	@classmethod
+	def DYNAMIC_ATTR(cls, *, desc: str = None, types: List[str] = None):
+		return ATTR(attr_type='DYNAMIC_ATTR', desc=desc, types=types)
+	
+	@classmethod
+	def DYNAMIC_VAL(cls, *, desc: str = None, dynamic_attr: str):
+		return ATTR(attr_type='DYNAMIC_VAL', desc=desc, dynamic_attr=dynamic_attr)
+
+	@classmethod
 	def TIME(cls, *, desc: str = None, ranges: List[List[str]] = None):
 		return ATTR(attr_type='TIME', desc=desc, ranges=ranges)
 
@@ -639,33 +651,7 @@ class ATTR:
 		if attr_type._valid:
 			return
 
-		if attr_type._type not in [
-			'ANY',
-			'ACCESS',
-			'COUNTER',
-			'ID',
-			'STR',
-			'INT',
-			'FLOAT',
-			'BOOL',
-			'LOCALE',
-			'LOCALES',
-			'EMAIL',
-			'PHONE',
-			'IP',
-			'URI_WEB',
-			'DATETIME',
-			'DATE',
-			'TIME',
-			'FILE',
-			'GEO',
-			'LIST',
-			'KV_DICT',
-			'TYPED_DICT',
-			'LITERAL',
-			'UNION',
-			'TYPE',
-		]:
+		if attr_type._type not in ATTRS_TYPES.keys():
 			raise InvalidAttrTypeException(attr_type=attr_type)
 		elif (
 			not skip_type
@@ -684,7 +670,7 @@ class ATTR:
 						arg_type=ATTRS_TYPES[attr_type._type][arg],
 						arg_val=attr_type._args[arg],
 					)
-				elif arg in attr_type._args.keys() and attr_type._args[arg]:
+				elif arg in attr_type._args.keys() and attr_type._args[arg] != None:
 					cls.validate_arg(
 						arg_name=arg,
 						arg_type=ATTRS_TYPES[attr_type._type][arg],
@@ -747,6 +733,12 @@ class ATTR:
 			return
 		elif arg_type == float:
 			if type(arg_val) not in [float, int]:
+				raise InvalidAttrTypeArgException(
+					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
+				)
+			return
+		elif arg_type == bool:
+			if type(arg_val) != bool:
 				raise InvalidAttrTypeArgException(
 					arg_name=arg_name, arg_type=arg_type, arg_val=arg_val
 				)
@@ -878,16 +870,18 @@ class PERM:
 
 class EXTN:
 	module: str
+	query: LIMP_QUERY
 	attrs: List[str]
 	force: bool = False
 
 	def __repr__(self):
 		return f'<EXTN:{self.module},{self.attrs},{self.force}>'
 
-	def __init__(self, *, module: str, attrs: List[str] = None, force: bool = False):
+	def __init__(self, *, module: str, query: LIMP_QUERY = None, attrs: List[str] = None, force: bool = False):
 		if not attrs:
 			attrs = ['*']
 		self.module = module
+		self.query = query
 		self.attrs = attrs
 		self.force = force
 

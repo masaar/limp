@@ -610,7 +610,7 @@ class Data:
 		# [DOC] Read doc if not in extn_models
 		if str(extn_id) not in extn_models.keys():
 			extn_results = await extn_module.methods['read'](
-				skip_events=skip_events, env=env, query=[{'_id': extn_id}]
+				skip_events=skip_events, env=env, query=[{'_id': extn_id}] + (extn.query or [])
 			)
 			if extn_results['args']['count']:
 				extn_models[str(extn_id)] = extn_results['args']['docs'][0]
