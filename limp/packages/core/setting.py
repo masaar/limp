@@ -83,7 +83,7 @@ class Setting(BaseModule):
 				PERM(
 					privilege='update',
 					query_mod={'type': 'user', 'user': '$__user', '$limit': 1},
-					doc_mod={'type': None},
+					doc_mod={'var': None, 'type': None},
 				),
 			],
 			'query_args': [
