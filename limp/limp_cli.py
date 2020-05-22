@@ -391,7 +391,8 @@ def launch(
 	from limp.config import Config, process_config
 
 	Config._limp_version = __version__
-	Config.env = args.env
+	if custom_launch != 'generate_ref':
+		Config.env = args.env
 	if not custom_launch:
 		Config.test_collections = args.test_collections
 		Config.force_admin_check = args.force_admin_check

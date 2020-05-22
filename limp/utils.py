@@ -133,12 +133,11 @@ def extract_lambda_body(lambda_func):
 
 
 def generate_ref(
-	*, modules_packages: Dict[str, List[str]], modules: List['BaseModule']
+	*, modules_packages: Dict[str, List[str]], modules: Dict[str, 'BaseModule']
 ):
 	from limp.config import Config
 	from limp.base_module import BaseModule
 
-	modules: List[BaseModule]
 	# [DOC] Initialise _api_ref Config Attr
 	Config._api_ref = '# API Reference\n'
 	# [DOC] Iterate over packages in ascending order
@@ -538,8 +537,16 @@ async def validate_doc(
 	env: Dict[str, Any] = None,
 	query: Union[LIMP_QUERY, Query] = None,
 ):
+	# [DOC] In case of allow_none, expand doc, keeping original, for further processing
+	if allow_none:
+		original_doc = doc
+		doc = expand_attr(doc=doc)
+
 	for attr in attrs.keys():
 		if attr not in doc.keys():
+			# [DOC] In case of allow_none, validation is not required, skip
+			if allow_none:
+				continue
 			doc[attr] = None
 		try:
 			doc[attr] = await validate_attr(
@@ -561,7 +568,25 @@ async def validate_doc(
 					raise e
 			else:
 				raise e
-
+	# [DOC] In case of allow_none, validation is not required, skip
+	if allow_none:
+		update_doc = {}
+		for attr in original_doc.keys():
+			if '.' in attr:
+				attr = attr.split('.')
+				doc_attr = doc[attr[0]]
+				for i in range(1, len(attr)):
+					if type(doc_attr) == dict:
+						doc_attr = doc_attr[attr[i]]
+					else:
+						doc_attr = doc_attr[int(attr[i])]
+					# [DOC] Break loop at last attr
+					if (i := i + 1) == len(attr):
+						break
+				update_doc[attr[i-1]] = doc_attr
+		original_doc.update(update_doc)
+		doc = original_doc
+					
 
 async def validate_default(
 	*,
@@ -671,7 +696,8 @@ async def validate_attr(
 	except:
 		pass
 
-	attr_oper = False
+	attr_oper = None
+	attr_oper_args = {}
 	if allow_opers and type(attr_val) == dict:
 		if '$add' in attr_val.keys():
 			attr_oper = '$add'
@@ -682,7 +708,9 @@ async def validate_attr(
 		elif '$append' in attr_val.keys():
 			attr_oper = '$append'
 			if '$unique' in attr_val.keys() and attr_val['$unique'] == True:
-				attr_oper = '$append__unique'
+				attr_oper_args['$unique'] = True
+			else:
+				attr_oper_args['$unique'] = False
 			attr_val = [attr_val['$append']]
 		elif '$remove' in attr_val.keys():
 			attr_oper = '$remove'
@@ -694,7 +722,7 @@ async def validate_attr(
 	try:
 		if attr_type._type == 'ANY':
 			if attr_val != None:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'ACCESS':
 			if (
@@ -704,11 +732,11 @@ async def validate_attr(
 				and type(attr_val['users']) == list
 				and type(attr_val['groups']) == list
 			):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'BOOL':
 			if type(attr_val) == bool:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'DATE':
 			if re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', attr_val):
@@ -730,10 +758,10 @@ async def validate_attr(
 								).isoformat().split('T')[0]
 						if attr_val >= date_range[0] and attr_val < date_range[1]:
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'DATETIME':
 			if re.match(
@@ -775,17 +803,17 @@ async def validate_attr(
 							and attr_val < datetime_range[1]
 						):
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'DYNAMIC_ATTR':
 			if type(attr_val) == dict:
 				try:
 					if (not attr_type._args['types']) or (attr_type._args['types'] and attr_val['type'] in attr_type._args['types']):
 						_, attr_val = generate_dynamic_attr(dynamic_attr=attr_val)
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 				except:
 					pass
 		
@@ -806,7 +834,7 @@ async def validate_attr(
 			setting = setting_results.args.docs[0]
 			dynamic_attr = generate_dynamic_attr(dynamic_attr=setting.val)[0]
 			attr_val = await validate_attr(attr_name=attr_name, attr_type=dynamic_attr, attr_val=attr_val)
-			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'KV_DICT':
 			if type(attr_val) == dict:
@@ -859,7 +887,7 @@ async def validate_attr(
 						doc=doc,
 						scope=attr_val,
 					)
-				return return_valid_attr(attr_val=shadow_attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=shadow_attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'TYPED_DICT':
 			if type(attr_val) == dict:
@@ -884,7 +912,7 @@ async def validate_attr(
 						doc=doc,
 						scope=attr_val,
 					)
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'EMAIL':
 			if type(attr_val) == str and re.match(r'^[^@]+@[^@]+\.[^@]+$', attr_val):
@@ -894,7 +922,7 @@ async def validate_attr(
 							domain = f'@{domain}'
 						if attr_val.endswith(domain):
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				elif attr_type._args['disallowed_domains']:
 					for domain in attr_type._args['disallowed_domains']:
@@ -903,9 +931,9 @@ async def validate_attr(
 						if attr_val.endswith(domain):
 							break
 					else:
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'FILE':
 			if type(attr_val) == list and len(attr_val):
@@ -950,10 +978,10 @@ async def validate_attr(
 							or attr_val['type'].split('/')[1] == file_type.split('/')[1]
 						):
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 			else:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'FLOAT':
 			if type(attr_val) == str and re.match(r'^[0-9]+(\.[0-9]+)?$', attr_val):
@@ -966,32 +994,32 @@ async def validate_attr(
 					for _range in attr_type._args['ranges']:
 						if attr_val >= _range[0] and attr_val < _range[1]:
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'GEO':
 			if (
 				type(attr_val) == dict
-				and list(attr_val.keys()) == ['type', 'coordinates']
+				and set(attr_val.keys()) == {'type', 'coordinates'}
 				and attr_val['type'] in ['Point']
 				and type(attr_val['coordinates']) == list
 				and len(attr_val['coordinates']) == 2
 				and type(attr_val['coordinates'][0]) in [int, float]
 				and type(attr_val['coordinates'][1]) in [int, float]
 			):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'ID':
 			if type(attr_val) == BaseModel or type(attr_val) == DictObj:
-				return return_valid_attr(attr_val=attr_val._id, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val._id, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 			elif type(attr_val) == ObjectId:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 			elif type(attr_val) == str:
 				try:
 					return return_valid_attr(
-						attr_val=ObjectId(attr_val), attr_oper=attr_oper
+						attr_val=ObjectId(attr_val), attr_oper=attr_oper, attr_oper_args=attr_oper_args
 					)
 				except:
 					raise ConvertAttrException(
@@ -1009,17 +1037,17 @@ async def validate_attr(
 					for _range in attr_type._args['ranges']:
 						if attr_val in range(*_range):
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'IP':
 			if re.match(
 				r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',
 				attr_val,
 			):
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'LIST':
 			if type(attr_val) == list:
@@ -1064,7 +1092,7 @@ async def validate_attr(
 							attr_type=attr_type,
 							val_type=type(attr_val),
 						)
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'LOCALE':
 			attr_val = await validate_attr(
@@ -1090,28 +1118,28 @@ async def validate_attr(
 				else attr_val[Config.locale]
 				for locale in Config.locales
 			}
-			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'LOCALES':
 			if attr_val in Config.locales:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'PHONE':
 			if attr_type._args['codes']:
 				for phone_code in attr_type._args['codes']:
 					if re.match(fr'^\+{phone_code}[0-9]+$', attr_val):
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 			else:
 				if re.match(r'^\+[0-9]+$', attr_val):
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'STR':
 			if type(attr_val) == str:
 				if attr_type._args['pattern']:
 					if re.match(f'^{attr_type._args["pattern"]}$', attr_val):
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'TIME':
 			if re.match(r'^[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]{6})?)?$', attr_val):
@@ -1139,10 +1167,10 @@ async def validate_attr(
 								).isoformat().split('T')[1]
 						if attr_val >= time_range[0] and attr_val < time_range[1]:
 							return return_valid_attr(
-								attr_val=attr_val, attr_oper=attr_oper
+								attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args
 							)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'URI_WEB':
 			if re.match(
@@ -1152,9 +1180,9 @@ async def validate_attr(
 					attr_val_domain = attr_val.split('/')[2]
 					for domain in attr_type._args['allowed_domains']:
 						if attr_type._args['strict'] and attr_val_domain == domain:
-							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 						elif not attr_type._args['strict'] and attr_val_domain.endswith(domain):
-							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+							return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 				elif attr_type._args['disallowed_domains']:
 					attr_val_domain = attr_val.split('/')[2]
 					for domain in attr_type._args['disallowed_domains']:
@@ -1163,13 +1191,13 @@ async def validate_attr(
 						elif not attr_type._args['strict'] and attr_val_domain.endswith(domain):
 							break
 					else:
-						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+						return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 				else:
-					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+					return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'LITERAL':
 			if attr_val in attr_type._args['literal']:
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'UNION':
 			for child_attr in attr_type._args['union']:
@@ -1188,7 +1216,7 @@ async def validate_attr(
 					)
 				except:
 					continue
-				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper)
+				return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'TYPE':
 			return return_valid_attr(
@@ -1196,6 +1224,7 @@ async def validate_attr(
 					attr_name=attr_name, attr_type=attr_type, attr_val=attr_val
 				),
 				attr_oper=attr_oper,
+				attr_oper_args=attr_oper_args,
 			)
 
 	except Exception as e:
@@ -1218,18 +1247,15 @@ async def validate_attr(
 def return_valid_attr(
 	*,
 	attr_val: Any,
-	attr_oper: Literal[
-		False, '$add', '$multiply', '$append', '$append__unique', '$remove'
-	],
-):
+	attr_oper: Literal[None, '$add', '$multiply', '$append'],
+	attr_oper_args: Dict[str, Any]
+) -> Any:
 	if not attr_oper:
 		return attr_val
 	elif attr_oper in ['$add', '$multiply', '$remove']:
 		return {attr_oper: attr_val}
 	elif attr_oper == '$append':
-		return {'$append': attr_val[0], '$unique': False}
-	elif attr_oper == '$append__unique':
-		return {'$append': attr_val[0], '$unique': True}
+		return {'$append': attr_val[0], '$unique': attr_oper_args['$unique']}
 
 
 def generate_dynamic_attr(*, dynamic_attr: Dict[str, Any]) -> Tuple[ATTR, Dict[str, Any]]:
