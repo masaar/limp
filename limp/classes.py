@@ -710,6 +710,12 @@ class ATTR:
 									'user': ObjectId('f00000000000000000000010'),
 									'var': '__counter:'
 									+ group.replace('$__counters.', ''),
+									'val_type': {
+										'type': 'INT',
+										'args': {},
+										'allow_none': False,
+										'default': None
+									},
 									'val': 0,
 									'type': 'global',
 								},
@@ -992,8 +998,6 @@ class PACKAGE_CONFIG:
 	anon_token: str = None
 	anon_privileges: Dict[str, List[str]] = None
 	user_attrs: Dict[str, 'ATTRS_TYPES'] = None
-	user_auth_attrs: List[str] = None
-	user_attrs_defaults: Dict[str, Any] = None
 	user_settings: Dict[
 		str, Dict[Literal['type', 'val'], Union[Literal['user', 'user_sys'], Any]]
 	] = None

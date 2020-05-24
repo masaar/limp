@@ -86,9 +86,9 @@ class STEP:
 		logger.debug(f'Attempting to validate test step: {step}')
 		if step._step == 'AUTH':
 			logger.debug(f'Validating test step \'AUTH\' with args: {step._args}')
-			if step._args['var'] not in Config.user_auth_attrs:
+			if step._args['var'] not in Config.user_attrs.keys():
 				raise InvalidTestStepException(
-					msg=f'Test step arg \'var\' is invalid. Found \'{step._args["var"]}\', but expecting one of: {Config.user_auth_attrs}.'
+					msg=f'Test step arg \'var\' is invalid. Found \'{step._args["var"]}\', but expecting one of: {list(Config.user_attrs.keys())}.'
 				)
 			if step._args['val'].startswith('$__'):
 				logger.debug(

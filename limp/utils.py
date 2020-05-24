@@ -99,8 +99,13 @@ def import_modules():
 					modules_packages[pkgname].append(module_name)
 	# [DOC] Update User, Session modules with populated attrs
 	modules['user'].attrs.update(Config.user_attrs)
+	if sum(1 for attr in Config.user_settings.keys() if attr in Config.user_attrs.keys()) != 0:
+		logger.error(
+			'At least on attr from \'user_settings\' is conflicting with an attr from \'user_attrs\'. Exiting.'
+		)
+		exit()
 	modules['user'].defaults['locale'] = Config.locale
-	for attr in Config.user_auth_attrs:
+	for attr in Config.user_attrs.keys():
 		modules['user'].unique_attrs.append(attr)
 		modules['user'].attrs[f'{attr}_hash'] = ATTR.STR()
 		modules['session'].methods['auth']['doc_args'].append(
@@ -113,7 +118,7 @@ def import_modules():
 		modules['session'].methods['auth']['doc_args'].append(
 			{'hash': ATTR.STR(), attr: Config.user_attrs[attr]}
 		)
-	modules['user'].defaults.update(Config.user_attrs_defaults)
+		
 	# [DOC] Call update_modules, effectively finalise initialising modules
 	Config.modules = modules
 	for module in modules.values():
@@ -1288,6 +1293,25 @@ def generate_dynamic_attr(*, dynamic_attr: Dict[str, Any]) -> Tuple[ATTR, Dict[s
 			dynamic_attr['default'] = None
 	
 	return (dynamic_attr_type, dynamic_attr)
+
+
+def encode_attr_type(*, attr_type: ATTR) -> Dict[str, Any]:
+	encoded_attr_type = {
+		'type': attr_type._type,
+		'args': copy.deepcopy(attr_type._args),
+		'allow_none': attr_type._default != LIMP_VALUES.NONE_VALUE,
+		'default': attr_type._default if attr_type._default != LIMP_VALUES.NONE_VALUE else None
+	}
+	# [DOC] Process args of type ATTR
+	if 'list' in attr_type._args.keys():
+		for i in range(len(attr_type._args['list'])):
+			encoded_attr_type['args']['list'][i] = encode_attr_type(attr_type=attr_type._args['list'][i])
+	elif 'dict' in attr_type._args.keys():
+		for dict_attr in attr_type._args['dict'].keys():
+			encoded_attr_type['args']['dict'][dict_attr] = encode_attr_type(attr_type=attr_type._args['dict'][dict_attr])
+	# [TODO] elif key, val, union
+	
+	return encoded_attr_type
 
 
 def generate_attr(*, attr_type: ATTR) -> Any:

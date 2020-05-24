@@ -1,9 +1,12 @@
 from limp.base_module import BaseModule
-from limp.enums import Event
+from limp.enums import Event, LIMP_VALUES
 from limp.classes import ATTR, PERM, EXTN, ATTR_MOD
 from limp.config import Config
+from limp.utils import validate_attr, encode_attr_type
 
 from bson import ObjectId
+
+import copy
 
 
 class User(BaseModule):
@@ -85,8 +88,7 @@ class User(BaseModule):
 	async def on_read(self, results, skip_events, env, query, doc, payload):
 		for i in range(len(results['docs'])):
 			user = results['docs'][i]
-			user['settings'] = {}
-			for auth_attr in Config.user_auth_attrs:
+			for auth_attr in Config.user_attrs.keys():
 				del user[f'{auth_attr}_hash']
 			if len(Config.user_doc_settings):
 				setting_results = await Config.modules['setting'].read(
@@ -96,11 +98,17 @@ class User(BaseModule):
 						{'user': user._id, 'var': {'$in': Config.user_doc_settings}}
 					],
 				)
+				user_doc_settings = copy.copy(Config.user_doc_settings)
 				if setting_results.args.count:
-					user['settings'] = {
-						setting_doc['var']: setting_doc['val']
-						for setting_doc in setting_results.args.docs
-					}
+					for setting_doc in setting_results.args.docs:
+						user_doc_settings.remove(setting_doc['var'])
+						user[setting_doc['var']] = setting_doc['val']
+				# [DOC] Forward-compatibility: If user was created before presence of any user_doc_settings, add them with default value
+				for setting_attr in user_doc_settings:
+					user[setting_attr] = Config.user_settings[setting_attr]['default']
+					# [DOC] Set LIMP_VALUES.NONE_VALUE to None if it was default
+					if user[setting_attr] == LIMP_VALUES.NONE_VALUE:
+						user[setting_attr] = None
 		return (results, skip_events, env, query, doc, payload)
 
 	async def pre_create(self, skip_events, env, query, doc, payload):
@@ -113,27 +121,49 @@ class User(BaseModule):
 				doc['groups'] = [realm.default]
 			else:
 				doc['groups'] = [ObjectId('f00000000000000000000013')]
-		if 'settings' in doc.keys():
-			payload['settings'] = doc['settings']
+		user_settings = {}
+		for attr in Config.user_settings.keys():
+			if Config.user_settings[attr]['type'] == 'user_sys':
+				user_settings[attr] = copy.deepcopy(Config.user_settings[attr]['default'])
+			else:
+				if attr in doc.keys():
+					try:
+						await validate_attr(
+							attr_name=attr,
+							attr_type=Config.user_settings[attr]['val_type'],
+							attr_val=doc[attr]
+						)
+						user_settings[attr] = doc[attr]
+					except:
+						return self.status(
+							status=400,
+							msg=f'Invalid settings attr \'{attr}\' for \'create\' request on module \'CORE_USER\'',
+							args={'code': 'INVALID_ATTR'},
+						)
+				else:
+					if Config.user_settings[attr]['default'] == LIMP_VALUES.NONE_VALUE:
+						return self.status(
+							status=400,
+							msg=f'Missing settings attr \'{attr}\' for \'create\' request on module \'CORE_USER\'',
+							args={'code': 'MISSING_ATTR'},
+						)
+					else:
+						user_settings[attr] = copy.deepcopy(Config.user_settings[attr]['default'])
+		payload['user_settings'] = user_settings
 		return (skip_events, env, query, doc, payload)
 
 	async def on_create(self, results, skip_events, env, query, doc, payload):
-		if 'settings' in payload.keys():
-			for setting in payload['settings'].keys():
-				if callable(payload['settings'][setting]['val']):
-					setting_val = payload['settings'][setting]['val'](
-						skip_events=skip_events, env=env, query=query, doc=doc
-					)
-				else:
-					setting_val = payload['settings'][setting]['val']
+		if 'user_settings' in payload.keys():
+			for setting in payload['user_settings'].keys():
 				setting_results = await Config.modules['setting'].create(
 					skip_events=[Event.PERM, Event.ARGS],
 					env=env,
 					doc={
 						'user': results['docs'][0]._id,
 						'var': setting,
-						'val': setting_val,
-						'type': payload['settings'][setting]['type'],
+						'val_type': encode_attr_type(attr_type=Config.user_settings[setting]['val_type']),
+						'val': payload['user_settings'][setting],
+						'type': Config.user_settings[setting]['type'],
 					},
 				)
 				if setting_results.status != 200:

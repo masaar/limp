@@ -23,7 +23,7 @@ def process_config(*, config: Union[APP_CONFIG, PACKAGE_CONFIG], pkgname: str = 
 		logger.error('Provided Config object of type \'PACKAGE_CONFIG\' without \'pkgname\'. Exiting.')
 		exit(1)
 
-	app_only_attrs = APP_CONFIG.__annotations__.keys()
+	app_only_attrs = APP_CONFIG.__annotations__.keys() # pylint: disable=no-member
 
 	for config_attr in dir(config):
 			config_attr_val = getattr(config, config_attr)
@@ -47,11 +47,7 @@ def process_config(*, config: Union[APP_CONFIG, PACKAGE_CONFIG], pkgname: str = 
 			elif config_attr.startswith('__') or config_attr_val == None or config_attr in app_only_attrs:
 				continue
 			# [DOC] Skip non Config Attr attrs
-			elif config_attr in [
-				'user_attrs',
-				'user_auth_attrs',
-				'user_attrs_defaults',
-			]:
+			elif config_attr == ['user_attrs', 'user_settings']:
 				setattr(Config, config_attr, config_attr_val)
 			elif type(config_attr_val) == dict:
 				if not getattr(Config, config_attr):
@@ -159,8 +155,6 @@ class Config:
 	anon_privileges: Dict[str, List[str]] = {}
 
 	user_attrs: Dict[str, 'ATTRS_TYPES'] = {}
-	user_auth_attrs: List[str] = []
-	user_attrs_defaults: Dict[str, Any] = {}
 	user_settings: Dict[
 		str, Dict[Literal['type', 'val'], Union[Literal['user', 'user_sys'], Any]]
 	] = {}
@@ -185,6 +179,7 @@ class Config:
 
 	@classmethod
 	async def config_data(cls) -> None:
+		# [TODO] Add validator for user_attrs, user_settings, user_doc_settings
 		# [DOC] Check API version
 		if not cls.packages_api_levels:
 			logger.warning(
@@ -242,11 +237,9 @@ class Config:
 					).isoformat()[:16]
 
 		# [DOC] Check for presence of user_auth_attrs
-		if len(cls.user_auth_attrs) < 1 or sum(
-			1 for attr in cls.user_auth_attrs if attr in cls.user_attrs.keys()
-		) != len(cls.user_auth_attrs):
+		if not cls.user_attrs.keys():
 			logger.error(
-				'Either no \'user_auth_attrs\' are provided, or one of \'user_auth_attrs\' not present in \'user_attrs\'. Exiting.'
+				'No \'user_attrs\' are provided. Exiting.'
 			)
 			exit()
 
@@ -453,7 +446,7 @@ class Config:
 			# [DOC] Update ADMIN user doc with admin_doc Config Attr
 			admin_doc.update(cls.admin_doc)
 
-			for auth_attr in cls.user_auth_attrs:
+			for auth_attr in cls.user_attrs.keys():
 				admin_doc[
 					f'{auth_attr}_hash'
 				] = pbkdf2_sha512.using(  # pylint: disable=no-member
@@ -466,7 +459,7 @@ class Config:
 			if cls.realm:
 				admin_doc['realm'] = '__global'
 			admin_results = await cls.modules['user'].create(
-				skip_events=[Event.PERM, Event.PRE, Event.ON],
+				skip_events=[Event.PERM],
 				env=cls._sys_env,
 				doc=admin_doc,
 			)
@@ -508,7 +501,7 @@ class Config:
 						f'Detected change in \'admin_doc.{attr}\' Config Attr.'
 					)
 					admin_doc_update[attr] = cls.admin_doc[attr]
-			for auth_attr in cls.user_auth_attrs:
+			for auth_attr in cls.user_attrs.keys():
 				auth_attr_hash = pbkdf2_sha512.using(  # pylint: disable=no-member
 					rounds=100000
 				).hash(
@@ -576,7 +569,7 @@ class Config:
 					anon_doc_update[f'privileges.{module}'] = cls.anon_privileges[
 						module
 					]
-			for auth_attr in cls.user_auth_attrs:
+			for auth_attr in cls.user_attrs.keys():
 				if (
 					f'{auth_attr}_hash' not in anon_doc
 					or anon_doc[f'{auth_attr}_hash'] != cls.anon_token
@@ -845,7 +838,7 @@ class Config:
 		}
 		for attr in cls.user_attrs.keys():
 			anon_doc[attr] = generate_attr(attr_type=cls.user_attrs[attr])
-		for auth_attr in cls.user_auth_attrs:
+		for auth_attr in cls.user_attrs.keys():
 			anon_doc[f'{auth_attr}_hash'] = cls.anon_token
 		if cls.realm:
 			anon_doc['realm'] = '__global'

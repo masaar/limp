@@ -1,7 +1,7 @@
 from limp.base_module import BaseModule
 from limp.enums import Event
 from limp.classes import ATTR, PERM, EXTN, ATTR_MOD
-from limp.utils import InvalidAttrException
+from limp.utils import InvalidAttrException, validate_attr, generate_dynamic_attr
 from limp.config import Config
 
 
@@ -15,6 +15,7 @@ class Setting(BaseModule):
 			desc='Name of the setting. This is unique for every `user` in the module.'
 		),
 		'val': ATTR.ANY(desc='Value of the setting.'),
+		'val_type': ATTR.DYNAMIC_ATTR(),
 		'type': ATTR.LITERAL(
 			desc='Type of the setting. This sets whether setting is global, or belong to user, and whether use can update it or not.',
 			literal=['global', 'user', 'user_sys'],
@@ -83,7 +84,7 @@ class Setting(BaseModule):
 				PERM(
 					privilege='update',
 					query_mod={'type': 'user', 'user': '$__user', '$limit': 1},
-					doc_mod={'var': None, 'type': None},
+					doc_mod={'var': None, 'val_type': None, 'type': None},
 				),
 			],
 			'query_args': [
@@ -110,49 +111,52 @@ class Setting(BaseModule):
 		},
 	}
 
-	async def pre_create(self, skip_events, env, query, doc, payload):
-		if (
-			type(doc['val']) == list
-			and len(doc['val']) == 1
-			and type(doc['val'][0]) == dict
-			and 'content' in doc['val'][0].keys()
-		):
-			doc['val'] = doc['val'][0]
-		return (skip_events, env, query, doc, payload)
-
 	async def on_create(self, results, skip_events, env, query, doc, payload):
 		if doc['type'] in ['user', 'user_sys']:
-			if doc['user'] == env['session'].user._id:
-				env['session'].user.settings[doc['var']] = doc['val']
+			if (
+				doc['user'] == env['session'].user._id
+				and doc['var'] in Config.user_doc_settings
+			):
+				env['session'].user[doc['var']] = doc['val']
 		return (results, skip_events, env, query, doc, payload)
 
 	async def pre_update(self, skip_events, env, query, doc, payload):
-		if (
-			type(doc['val']) == list
-			and len(doc['val']) == 1
-			and type(doc['val'][0]) == dict
-			and 'content' in doc['val'][0].keys()
-		):
-			doc['val'] = doc['val'][0]
+		setting_results = await self.read(
+			skip_events=[Event.PERM], env=env, query=query
+		)
+		if not setting_results.args.count:
+			return self.status(
+				status=400, msg='Invalid Setting doc', args={'code': 'INVALID_SETTING'}
+			)
+		setting = setting_results.args.docs[0]
+		# [DOC] Attempt to validate val against Setting val_type
+		try:
+			setting_val_type, _ = generate_dynamic_attr(dynamic_attr=setting.val_type)
+			doc['val'] = await validate_attr(
+				attr_name=setting.var, attr_type=setting_val_type, attr_val=doc['val']
+			)
+		except Exception as e:
+			return self.status(
+				status=400,
+				msg=f'Invalid value for for Setting doc of type \'{type(doc["val"])}\' with required type \'{setting_val_type}\'',
+				args={'code': 'INVALID_ATTR'},
+			)
 		return (skip_events, env, query, doc, payload)
 
 	async def on_update(self, results, skip_events, env, query, doc, payload):
-		if query['type'][0] in ['user', 'user_sys']:
-			if query['user'][0] == env['session'].user._id:
-				if type(doc['val']) == dict and '$add' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]] += doc['val']['$add']
-				elif type(doc['val']) == dict and '$multiply' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]] *= doc['val'][
-						'$multiply'
-					]
-				elif type(doc['val']) == dict and '$append' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]].append(
-						doc['val']['$append']
-					)
-				elif type(doc['val']) == dict and '$remove' in doc['val'].keys():
-					env['session'].user.settings[query['var'][0]].remove(
-						doc['val']['$remove']
-					)
-				else:
-					env['session'].user.settings[query['var'][0]] = doc['val']
+		if (
+			query['type'][0] in ['user', 'user_sys']
+			and query['user'][0] == env['session'].user._id
+			and query['var'][0] in Config.user_doc_settings
+		):
+			if type(doc['val']) == dict and '$add' in doc['val'].keys():
+				env['session'].user[query['var'][0]] += doc['val']['$add']
+			elif type(doc['val']) == dict and '$multiply' in doc['val'].keys():
+				env['session'].user[query['var'][0]] *= doc['val']['$multiply']
+			elif type(doc['val']) == dict and '$append' in doc['val'].keys():
+				env['session'].user[query['var'][0]].append(doc['val']['$append'])
+			elif type(doc['val']) == dict and '$remove' in doc['val'].keys():
+				env['session'].user[query['var'][0]].remove(doc['val']['$remove'])
+			else:
+				env['session'].user[query['var'][0]] = doc['val']
 		return (results, skip_events, env, query, doc, payload)
