@@ -78,6 +78,7 @@ class Config:
 	_app_name: str = None
 	_app_version: str = None
 	_app_path: str = None
+	_app_packages: Dict[str, str] = None
 
 	test: str = None
 	test_skip_flush: bool = False
@@ -180,6 +181,18 @@ class Config:
 	@classmethod
 	async def config_data(cls) -> None:
 		# [TODO] Add validator for user_attrs, user_settings, user_doc_settings
+
+		# [DOC] Check app packages
+		if cls._app_packages:
+			logger.debug('Found \'_app_packages\' Config Attr. Attempting to validate all loaded packages are matching _app_packages Config Attr value.')
+			for package, version in cls._app_packages.items():
+				if package not in cls.packages_versions.keys():
+					logger.error(f'Package \'{package}\' is required by \'_app_packages\' Config Attr, but not loaded. Exiting.')
+					exit(1)
+				if version != cls.packages_versions[package]:
+					logger.error(f'Package \'{package}\' version \'{cls.packages_versions[package]}\' is loaded but not matching required version \'{version}\'. Exiting.')
+					exit(1)
+
 		# [DOC] Check API version
 		if not cls.packages_api_levels:
 			logger.warning(
@@ -427,6 +440,7 @@ class Config:
 					exit()
 
 		# [DOC] Checking users collection
+		# [TODO] Updated sequence to handle users 
 		logger.debug('Testing users collection.')
 		user_results = await cls.modules['user'].read(
 			skip_events=[Event.PERM, Event.ON],

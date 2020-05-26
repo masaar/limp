@@ -433,6 +433,7 @@ def launch(
 			sys.path.append(args.app_path)
 			limp_app = __import__('limp_app')
 			app_config = limp_app.config
+			Config._app_packages = getattr(limp_app, 'packages', None)
 		except ModuleNotFoundError:
 			logger.error(
 				f'No \'limp_app.py\' file found in specified path: \'{args.app_path}\'. Exiting.'
