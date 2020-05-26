@@ -397,15 +397,6 @@ def launch(
 		Config.test_collections = args.test_collections
 		Config.force_admin_check = args.force_admin_check
 
-	# [DOC] Check for port CLI Arg
-	if not custom_launch and args.port:
-		try:
-			Config.port = int(args.port)
-		except:
-			logger.error(f'Port should be in integer format. Exiting.')
-			exit()
-	else:
-		Config.port = 8081
 	# [DOC] Check for debug CLI Arg
 	if args.debug:
 		Config.debug = True
@@ -523,6 +514,11 @@ def launch(
 				logger.info(
 					f'Ignoring \'port\' App Config Attr in favour of \'port\' CLI Arg with value \'{args.port}\'.'
 				)
+				try:
+					Config.port = int(args.port)
+				except:
+					logger.error(f'Port should be in integer format. Exiting.')
+					exit()
 			else:
 				logger.info('Found \'port\' App Config Attr. Attempting to process it.')
 				if type(app_config.port) == int:
@@ -557,6 +553,7 @@ def launch(
 				logger.info(
 					f'Ignoring \'debug\' App Config Attr in favour of \'debug\' CLI Arg with value \'{args.debug}\'.'
 				)
+				Config.debug = args.debug
 			else:
 				logger.info(
 					'Found \'debug\' App Config Attr. Attempting to process it.'
