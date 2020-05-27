@@ -209,7 +209,7 @@ class Data:
 							attrs[attr.split('.')[0]]._extn.module
 						].attrs
 
-						# [DOC] Don't attempt to extn attr that is already extn'ed
+						# [DOC] Don't attempt to extn attr that is already extended
 						lookup_query = False
 						for stage in aggregate_prefix:
 							if (

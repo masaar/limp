@@ -22,6 +22,7 @@ limp/utils.py
 limp/packages/__init__.py
 limp/packages/core/__init__.py
 limp/packages/core/analytic.py
+limp/packages/core/core.py
 limp/packages/core/diff.py
 limp/packages/core/file.py
 limp/packages/core/group.py
