@@ -50,6 +50,10 @@ __pycache
 .vs
 .gitmodules
 
+# Codecov
+.coverage
+coverage.xml
+
 # Project Spcefic
 limp/certs/*
 tests/logs/*
