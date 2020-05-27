@@ -93,7 +93,7 @@ def test_generate_attr_DATETIME_ranges_dynamic_start_end_negative():
 	attr_val = utils.generate_attr(
 		attr_type=ATTR.DATETIME(ranges=[['-5d', '+52w']])
 	)
-	assert attr_val == (datetime.datetime.utcnow() + datetime.timedelta(days=-5)).isoformat()
+	assert attr_val.split('.')[0] == (datetime.datetime.utcnow() + datetime.timedelta(days=-5)).isoformat().split('.')[0]
 
 
 def test_generate_attr_KV_DICT_no_args():
