@@ -1,3 +1,6 @@
+![Python package](https://github.com/masaar/limp/workflows/Python%20package/badge.svg?branch=v6.1.0-package)
+![Codecov](https://codecov.io/gh/masaar/limp/branch/v6.1.0-package/graphs/badge.svg)
+
 # LIMP
 LIMP is a backend framework that is designed for use by Masaar for rapid app development. It uses `HTTP/2 Websocket` as primary protocol of communication with clients. However, it also provides an `HTTP/1 GET`, `POST` interfaces for additional communication windows.
 
