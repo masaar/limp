@@ -180,6 +180,7 @@ class BaseMethod:
 			)
 			logger.debug(f'permissions_check: {permissions_check}.')
 			if permissions_check == False:
+				breakpoint()
 				return await self.return_results(
 					ws=env['ws'],
 					results=DictObj(

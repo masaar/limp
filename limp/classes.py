@@ -76,7 +76,7 @@ LIMP_DOC = Dict[
 			str,
 			Union[
 				Dict[Literal['$add', '$multiply'], int],
-				Dict[Literal['$append', '$remove'], Any],
+				Dict[Literal['$append', '$set_index', '$del_val', '$del_index'], Any],
 				Any,
 			],
 		],

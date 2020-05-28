@@ -542,11 +542,6 @@ async def validate_doc(
 	env: Dict[str, Any] = None,
 	query: Union[LIMP_QUERY, Query] = None,
 ):
-	# [DOC] In case of allow_none, expand doc, keeping original, for further processing
-	if allow_none:
-		original_doc = doc
-		doc = expand_attr(doc=doc)
-
 	for attr in attrs.keys():
 		if attr not in doc.keys():
 			# [DOC] In case of allow_none, validation is not required, skip
@@ -573,24 +568,6 @@ async def validate_doc(
 					raise e
 			else:
 				raise e
-	# [DOC] In case of allow_none, validation is not required, skip
-	if allow_none:
-		update_doc = {}
-		for attr in original_doc.keys():
-			if '.' in attr:
-				attr = attr.split('.')
-				doc_attr = doc[attr[0]]
-				for i in range(1, len(attr)):
-					if type(doc_attr) == dict:
-						doc_attr = doc_attr[attr[i]]
-					else:
-						doc_attr = doc_attr[int(attr[i])]
-					# [DOC] Break loop at last attr
-					if (i := i + 1) == len(attr):
-						break
-				update_doc[attr[i-1]] = doc_attr
-		original_doc.update(update_doc)
-		doc = original_doc
 					
 
 async def validate_default(
@@ -717,9 +694,23 @@ async def validate_attr(
 			else:
 				attr_oper_args['$unique'] = False
 			attr_val = [attr_val['$append']]
-		elif '$remove' in attr_val.keys():
-			attr_oper = '$remove'
-			attr_val = attr_val['$remove']
+		elif '$set_index' in attr_val.keys():
+			attr_oper = '$set_index'
+			attr_oper_args['$index'] = attr_val['$index']
+			attr_val = [attr_val['$set_index']]
+		elif '$del_val' in attr_val.keys():
+			attr_oper = '$del_val'
+			attr_val = attr_val['$del_val']
+			if attr_type._type != 'LIST' or type(attr_val['$del_val']) != list:
+				raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
+		elif '$del_index' in attr_val.keys():
+			attr_oper = '$del_index'
+			attr_oper_args['$index'] = attr_val['$index']
+			attr_val = attr_val['$del_index']
+			if attr_type._type != 'LIST' or type(attr_val['$index']) != int:
+				raise InvalidAttrException(attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val))
+			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 	# [DOC] Deepcopy attr_val to eliminate changes in in original object
 	attr_val = copy.deepcopy(attr_val)
@@ -1252,15 +1243,19 @@ async def validate_attr(
 def return_valid_attr(
 	*,
 	attr_val: Any,
-	attr_oper: Literal[None, '$add', '$multiply', '$append'],
+	attr_oper: Literal[None, '$add', '$multiply', '$append', '$set_index', '$del_val', '$del_index'],
 	attr_oper_args: Dict[str, Any]
 ) -> Any:
 	if not attr_oper:
 		return attr_val
-	elif attr_oper in ['$add', '$multiply', '$remove']:
+	elif attr_oper in ['$add', '$multiply', '$del_val']:
 		return {attr_oper: attr_val}
 	elif attr_oper == '$append':
 		return {'$append': attr_val[0], '$unique': attr_oper_args['$unique']}
+	elif attr_oper == '$set_index':
+		return {'$set_index': attr_val[0], '$index': attr_oper_args['$index']}
+	elif attr_oper == '$del_index':
+		return {'$index': attr_oper_args['$index']}
 
 
 def generate_dynamic_attr(*, dynamic_attr: Dict[str, Any]) -> Tuple[ATTR, Dict[str, Any]]:

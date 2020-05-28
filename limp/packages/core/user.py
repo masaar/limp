@@ -267,6 +267,6 @@ class User(BaseModule):
 			skip_events=[Event.PERM],
 			env=env,
 			query=[{'_id': query['_id'][0]}],
-			doc={'groups': {'$remove': [query['group'][0]]}},
+			doc={'groups': {'$del_val': [query['group'][0]]}},
 		)
 		return results

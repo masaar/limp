@@ -1330,7 +1330,7 @@ class BaseModule:
 			query=[{'_id': query['_id'][0]}],
 			doc={
 				query['attr'][0]: {
-					'$remove': [doc[query['attr'][0]][query['index'][0]]]
+					'$del_val': [doc[query['attr'][0]][query['index'][0]]]
 				}
 			},
 		)

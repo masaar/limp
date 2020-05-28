@@ -395,10 +395,7 @@ class Session(BaseModule):
 					permission_module = permission.privilege.split('.')[0]
 					permission_attr = permission.privilege.split('.')[1]
 
-				if (
-					'*' in user.privileges.keys()
-					and permission_module not in user.privileges.keys()
-				):
+				if ('*' in user.privileges.keys()):
 					user.privileges[permission_module] = copy.deepcopy(
 						user.privileges['*']
 					)

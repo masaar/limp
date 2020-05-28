@@ -838,15 +838,25 @@ class Data:
 						update_doc['$push'] = {}
 					update_doc['$push'][attr] = doc[attr]['$append']
 					del_attrs.append(attr)
-			# [DOC] Check for $remove update oper
-			elif type(doc[attr]) == dict and '$remove' in doc[attr].keys():
+			# [DOC] Check for $set_index update oper
+			elif type(doc[attr]) == dict and '$set_index' in doc[attr].keys():
+				update_doc['$set'][f'{attr}.{doc[attr]["$index"]}'] = doc[attr]
+				del_attrs.append(attr)
+			# [DOC] Check for $del_val update oper
+			elif type(doc[attr]) == dict and '$del_val' in doc[attr].keys():
 				if '$pullAll' not in update_doc.keys():
 					update_doc['$pullAll'] = {}
-				update_doc['$pullAll'][attr] = doc[attr]['$remove']
+				update_doc['$pullAll'][attr] = doc[attr]['$del_val']
+				del_attrs.append(attr)
+			# [DOC] Check for $del_index update oper
+			elif type(doc[attr]) == dict and '$del_index' in doc[attr].keys():
+				if '$unset' not in update_doc.keys():
+					update_doc['$unset'] = {}
+				update_doc['$unset'][f'{attr}.{doc[attr]["$index"]}'] = True
 				del_attrs.append(attr)
 		for del_attr in del_attrs:
 			del doc[del_attr]
-		if not len(list(update_doc['$set'].keys())):
+		if not update_doc['$set']:
 			del update_doc['$set']
 		logger.debug(f'Final update doc: {update_doc}')
 		# [DOC] If using Azure Mongo service update docs one by one

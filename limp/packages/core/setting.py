@@ -135,7 +135,7 @@ class Setting(BaseModule):
 			doc['val'] = await validate_attr(
 				attr_name=setting.var, attr_type=setting_val_type, attr_val=doc['val']
 			)
-		except Exception as e:
+		except:
 			return self.status(
 				status=400,
 				msg=f'Invalid value for for Setting doc of type \'{type(doc["val"])}\' with required type \'{setting_val_type}\'',
@@ -155,8 +155,13 @@ class Setting(BaseModule):
 				env['session'].user[query['var'][0]] *= doc['val']['$multiply']
 			elif type(doc['val']) == dict and '$append' in doc['val'].keys():
 				env['session'].user[query['var'][0]].append(doc['val']['$append'])
-			elif type(doc['val']) == dict and '$remove' in doc['val'].keys():
-				env['session'].user[query['var'][0]].remove(doc['val']['$remove'])
+			elif type(doc['val']) == dict and '$set_index' in doc['val'].keys():
+				env['session'].user[query['var'][0]][doc['val']['$index']] = doc['val']['$set_index']
+			elif type(doc['val']) == dict and '$del_val' in doc['val'].keys():
+				for val in doc['val']['$del_val']:
+					env['session'].user[query['var'][0]].remove(val)
+			elif type(doc['val']) == dict and '$del_index' in doc['val'].keys():
+				del env['session'].user[query['var'][0]][doc['val']['$index']]
 			else:
 				env['session'].user[query['var'][0]] = doc['val']
 		return (results, skip_events, env, query, doc, payload)
