@@ -11,8 +11,7 @@ async def test_validate_attr_BOOL_None():
 			attr_name='test_validate_attr_BOOL',
 			attr_type=ATTR.BOOL(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_BOOL_int():
 			attr_name='test_validate_attr_BOOL',
 			attr_type=ATTR.BOOL(),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -34,8 +32,7 @@ async def test_validate_attr_BOOL_bool():
 		attr_name='test_validate_attr_BOOL',
 		attr_type=ATTR.BOOL(),
 		attr_val=False,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == False
 
@@ -46,8 +43,7 @@ async def test_validate_attr_BOOL_None_allow_none():
 		attr_name='test_validate_attr_BOOL',
 		attr_type=ATTR.BOOL(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -60,8 +56,7 @@ async def test_validate_attr_BOOL_default_None():
 		attr_name='test_validate_attr_BOOL',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_BOOL'
 
@@ -74,8 +69,7 @@ async def test_validate_attr_BOOL_default_int():
 		attr_name='test_validate_attr_BOOL',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_BOOL'
 
@@ -88,7 +82,6 @@ async def test_validate_attr_BOOL_default_int_allow_none():
 		attr_name='test_validate_attr_BOOL',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

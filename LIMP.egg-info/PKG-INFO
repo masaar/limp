@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: LIMP
-Version: 6.1.0.dev8
+Version: 6.1.0.dev9
 Summary: Rapid app development framework
 Home-page: https://github.com/masaar/limp
 Author: Mahmoud Abduljawad
@@ -58,4 +58,4 @@ Classifier: Topic :: Internet :: WWW/HTTP
 Classifier: Framework :: AsyncIO
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
-Provides-Extra: dev_dependencies
+Provides-Extra: dev

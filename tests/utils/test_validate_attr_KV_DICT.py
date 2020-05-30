@@ -11,8 +11,7 @@ async def test_validate_attr_DICT_None():
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.ANY()),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_DICT_int():
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.ANY()),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_DICT_dict_invalid():
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT()),
 			attr_val={'key': 'value', 'key2': 2,},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -50,8 +47,7 @@ async def test_validate_attr_DICT_simple_dict():
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.ANY()),
 		attr_val=dict_attr_val,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == dict_attr_val
 
@@ -65,8 +61,7 @@ async def test_validate_attr_DICT_nested_dict_invalid():
 				key=ATTR.STR(), val=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT())
 			),
 			attr_val={'key1': 'value', 'key2': 2,},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -82,8 +77,7 @@ async def test_validate_attr_DICT_nested_dict():
 			key=ATTR.STR(), val=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT())
 		),
 		attr_val=dict_attr_val,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == dict_attr_val
 
@@ -95,8 +89,7 @@ async def test_validate_attr_DICT_nested_list_dict_invalid():
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.LIST(list=[ATTR.INT()])),
 			attr_val={'key1': ['a'],},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -106,8 +99,7 @@ async def test_validate_attr_DICT_nested_list_dict():
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.LIST(list=[ATTR.INT()])),
 		attr_val={'key1': ['4'], 'key2': [1, '2', 3]},
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == {
 		'key1': [4],
@@ -121,8 +113,7 @@ async def test_validate_attr_DICT_req_dict():
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT(), req=['key3']),
 		attr_val={'key1': '4', 'key2': 1, 'key3': 0},
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == {'key1': 4, 'key2': 1, 'key3': 0}
 
@@ -134,8 +125,7 @@ async def test_validate_attr_DICT_min_req_dict_invalid():
 			attr_name='test_validate_attr_DICT',
 			attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT(), min=3, req=['key3']),
 			attr_val={'key1': '4', 'key3': 0},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -148,8 +138,7 @@ async def test_validate_attr_DICT_min_req_max_dict_invalid():
 				key=ATTR.STR(), val=ATTR.INT(), min=3, max=4, req=['key3']
 			),
 			attr_val={'key1': '4', 'key2': 3, 'key3': 0, 'key4': 5, 'key5': 2},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -161,8 +150,7 @@ async def test_validate_attr_DICT_min_req_max_dict():
 			key=ATTR.STR(), val=ATTR.INT(), min=3, max=4, req=['key3']
 		),
 		attr_val={'key1': '4', 'key2': 3, 'key3': 0, 'key4': 5},
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == {'key1': 4, 'key2': 3, 'key3': 0, 'key4': 5}
 
@@ -173,8 +161,7 @@ async def test_validate_attr_DICT_None_allow_none():
 		attr_name='test_validate_attr_DICT',
 		attr_type=ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT()),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -190,8 +177,7 @@ async def test_validate_attr_DICT_default_None():
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_DICT'
 
@@ -204,8 +190,7 @@ async def test_validate_attr_DICT_default_int():
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_DICT'
 
@@ -218,7 +203,6 @@ async def test_validate_attr_DICT_default_int_allow_none():
 		attr_name='test_validate_attr_DICT',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

@@ -860,8 +860,7 @@ class BaseModule:
 			await validate_doc(
 				doc=doc,
 				attrs=self.attrs,
-				allow_opers=True,
-				allow_none=True,
+				allow_update=True,
 				skip_events=skip_events,
 				env=env,
 				query=query,

@@ -11,8 +11,7 @@ async def test_validate_attr_FLOAT_None():
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_FLOAT_str():
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(),
 			attr_val='str',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -34,8 +32,7 @@ async def test_validate_attr_FLOAT_float():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=1.1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 1.1
 
@@ -46,8 +43,7 @@ async def test_validate_attr_FLOAT_int():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 1
 
@@ -58,8 +54,7 @@ async def test_validate_attr_FLOAT_float_as_str():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val='1.1',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 1.1
 
@@ -70,8 +65,7 @@ async def test_validate_attr_FLOAT_int_as_str():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val='1',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 1
 
@@ -83,8 +77,7 @@ async def test_validate_attr_FLOAT_range_float_invalid():
 			attr_name='test_validate_attr_FLOAT',
 			attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
 			attr_val=9.5,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -94,8 +87,7 @@ async def test_validate_attr_FLOAT_range_float():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
 		attr_val=0.5,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 0.5
 
@@ -106,8 +98,7 @@ async def test_validate_attr_FLOAT_range_float_as_str():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(ranges=[[0.5, 9.5]]),
 		attr_val='0.5',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 0.5
 
@@ -118,8 +109,7 @@ async def test_validate_attr_FLOAT_None_allow_none():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=ATTR.FLOAT(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -132,8 +122,7 @@ async def test_validate_attr_FLOAT_default_None():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_FLOAT'
 
@@ -146,8 +135,7 @@ async def test_validate_attr_FLOAT_default_str():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val='str',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_FLOAT'
 
@@ -160,7 +148,6 @@ async def test_validate_attr_FLOAT_default_int_allow_none():
 		attr_name='test_validate_attr_FLOAT',
 		attr_type=attr_type,
 		attr_val='str',
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

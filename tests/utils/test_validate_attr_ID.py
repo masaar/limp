@@ -12,8 +12,7 @@ async def test_validate_attr_ID_None():
 			attr_name='test_validate_attr_ID',
 			attr_type=ATTR.ID(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -24,8 +23,7 @@ async def test_validate_attr_ID_int():
 			attr_name='test_validate_attr_ID',
 			attr_type=ATTR.ID(),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_ID_str():
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val='000000000000000000000000',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == ObjectId('000000000000000000000000')
 
@@ -47,8 +44,7 @@ async def test_validate_attr_ID_objectid():
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val=ObjectId('000000000000000000000000'),
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == ObjectId('000000000000000000000000')
 
@@ -59,8 +55,7 @@ async def test_validate_attr_ID_None_allow_none():
 		attr_name='test_validate_attr_ID',
 		attr_type=ATTR.ID(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -73,8 +68,7 @@ async def test_validate_attr_ID_default_None():
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_ID'
 
@@ -87,8 +81,7 @@ async def test_validate_attr_ID_default_int():
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_ID'
 
@@ -101,7 +94,6 @@ async def test_validate_attr_ID_default_int_allow_none():
 		attr_name='test_validate_attr_ID',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

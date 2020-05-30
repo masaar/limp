@@ -11,8 +11,7 @@ async def test_validate_attr_LIST_None():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.STR()]),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_LIST_int():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.STR()]),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_LIST_dict_invalid():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.STR()]),
 			attr_val={'key': 'value', 'key2': 'value',},
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -47,8 +44,7 @@ async def test_validate_attr_LIST_simple_list():
 		attr_name='test_validate_attr_LIST',
 		attr_type=ATTR.LIST(list=[ATTR.STR()]),
 		attr_val=list_attr_val,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == list_attr_val
 
@@ -60,8 +56,7 @@ async def test_validate_attr_LIST_nested_list_invalid():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.LIST(list=[ATTR.STR()])]),
 			attr_val=['str', 'str', ['str']],
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -72,8 +67,7 @@ async def test_validate_attr_LIST_nested_list():
 		attr_name='test_validate_attr_LIST',
 		attr_type=ATTR.LIST(list=[ATTR.LIST(list=[ATTR.STR()])]),
 		attr_val=list_attr_val,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == list_attr_val
 
@@ -85,8 +79,7 @@ async def test_validate_attr_LIST_nested_dict_invalid():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT())]),
 			attr_val=[{'key': 1}, {'key': 'val'}],
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -96,8 +89,7 @@ async def test_validate_attr_LIST_nested_dict():
 		attr_name='test_validate_attr_LIST',
 		attr_type=ATTR.LIST(list=[ATTR.KV_DICT(key=ATTR.STR(), val=ATTR.INT())]),
 		attr_val=[{'key': 1}, {'key': '2'}],
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == [{'key': 1}, {'key': 2}]
 
@@ -109,8 +101,7 @@ async def test_validate_attr_LIST_muti_list_invalid():
 			attr_name='test_validate_attr_LIST',
 			attr_type=ATTR.LIST(list=[ATTR.EMAIL(), ATTR.URI_WEB()]),
 			attr_val=['info@limp.masaar.com', 'http://sub.example.com', '1'],
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -125,8 +116,7 @@ async def test_validate_attr_LIST_multi_list_invalid_count():
 				'http://sub.example.com',
 				'https://sub.domain.com',
 			],
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -141,8 +131,7 @@ async def test_validate_attr_LIST_typed_dict():
 		attr_name='test_validate_attr_LIST',
 		attr_type=ATTR.LIST(list=[ATTR.EMAIL(), ATTR.URI_WEB()], min=1, max=3),
 		attr_val=list_attr_val,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == list_attr_val
 
@@ -153,8 +142,7 @@ async def test_validate_attr_LIST_None_allow_none():
 		attr_name='test_validate_attr_LIST',
 		attr_type=ATTR.LIST(list=[ATTR.STR()]),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -170,8 +158,7 @@ async def test_validate_attr_LIST_default_None():
 		attr_name='test_validate_attr_LIST',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_LIST'
 
@@ -184,8 +171,7 @@ async def test_validate_attr_LIST_default_int():
 		attr_name='test_validate_attr_LIST',
 		attr_type=attr_type,
 		attr_val=[1],
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_LIST'
 
@@ -198,7 +184,6 @@ async def test_validate_attr_LIST_default_int_allow_none():
 		attr_name='test_validate_attr_LIST',
 		attr_type=attr_type,
 		attr_val=[1],
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == [None]

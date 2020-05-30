@@ -11,8 +11,7 @@ async def test_validate_attr_DATE_None():
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_DATE_int():
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_DATE_str_invalid():
 			attr_name='test_validate_attr_DATE',
 			attr_type=ATTR.DATE(),
 			attr_val='20200202',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -46,8 +43,7 @@ async def test_validate_attr_DATE_date():
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val='2020-02-02',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == '2020-02-02'
 
@@ -58,8 +54,7 @@ async def test_validate_attr_DATE_None_allow_none():
 		attr_name='test_validate_attr_DATE',
 		attr_type=ATTR.DATE(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -72,8 +67,7 @@ async def test_validate_attr_DATE_default_None():
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_DATE'
 
@@ -86,8 +80,7 @@ async def test_validate_attr_DATE_default_int():
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_DATE'
 
@@ -100,7 +93,6 @@ async def test_validate_attr_DATE_default_int_allow_none():
 		attr_name='test_validate_attr_DATE',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

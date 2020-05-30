@@ -536,30 +536,37 @@ async def validate_doc(
 	*,
 	doc: LIMP_DOC,
 	attrs: Dict[str, ATTR],
-	allow_opers: bool = False,
-	allow_none: bool = False,
+	allow_update: bool = False,
 	skip_events: List[str] = None,
 	env: Dict[str, Any] = None,
 	query: Union[LIMP_QUERY, Query] = None,
 ):
-	for attr in attrs.keys():
-		if attr not in doc.keys():
-			# [DOC] In case of allow_none, validation is not required, skip
-			if allow_none:
-				continue
-			doc[attr] = None
+	from limp.config import Config
+
+	for attr in doc.keys():
+		if attr.split('.')[0] not in attrs.keys() or (allow_update and doc[attr] == None):
+			continue
 		try:
-			doc[attr] = await validate_attr(
-				attr_name=attr,
-				attr_type=attrs[attr],
-				attr_val=doc[attr],
-				allow_opers=allow_opers,
-				allow_none=allow_none,
-				skip_events=skip_events,
-				env=env,
-				query=query,
-				doc=doc,
-			)
+			if allow_update and '.' in attr:
+				doc[attr] = await validate_dot_notated(
+					attr=attr,
+					doc=doc,
+					attrs=attrs,
+					skip_events=skip_events,
+					env=env,
+					query=query,
+				)
+			else:
+				doc[attr] = await validate_attr(
+					attr_name=attr,
+					attr_type=attrs[attr],
+					attr_val=doc[attr],
+					allow_update=allow_update,
+					skip_events=skip_events,
+					env=env,
+					query=query,
+					doc=doc,
+				)
 		except Exception as e:
 			if type(e) in [InvalidAttrException, ConvertAttrException]:
 				if doc[attr] == None:
@@ -570,15 +577,79 @@ async def validate_doc(
 				raise e
 					
 
+async def validate_dot_notated(
+	attr: str,
+	doc: LIMP_DOC,
+	attrs: Dict[str, ATTR],
+	skip_events: List[str],
+	env: Dict[str, Any],
+	query: Union[LIMP_QUERY, Query],
+):
+	from limp.config import Config
+
+	attr_path = attr.split('.')
+	attr_path_len = len(attr_path)
+	attr_type: Union[Dict[str, ATTR], ATTR] = attrs
+
+	try:
+		for i in range(attr_path_len):
+			# [DOC] Iterate over attr_path to reach last valide Attr Type
+			if type(attr_type) == dict:
+				attr_type = attr_type[attr_path[i]]
+			elif type(attr_type) == ATTR and attr_type._type == 'LOCALE':
+				if attr_path[i] not in Config.locales:
+					raise Exception()
+				attr_type = ATTR.STR()
+			elif type(attr_type) == ATTR and attr_type._type == 'TYPED_DICT':
+				attr_type = attr_type._args['dict'][attr_path[i]]
+			elif type(attr_type) == ATTR and attr_type._type == 'KV_DICT':
+				attr_type = attr_type._args['val']
+			# [DOC] However, if list or union, start a new validate_dot_notated call as it is required to check all the provided types
+			elif type(attr_type) == ATTR and attr_type._type in ['LIST', 'UNION']:
+				if attr_type._type == 'LIST':
+					attr_type_iter = attr_type._args['list']
+				else:
+					attr_type_iter = attr_type._args['union']
+				for child_attr_type in attr_type_iter:
+					attr_val = await validate_dot_notated(
+						attr='.'.join(attr_path[i:]),
+						doc={'.'.join(attr_path[i:]): doc[attr]},
+						attrs={attr_path[i]: child_attr_type},
+						skip_events=skip_events,
+						env=env,
+						query=query,
+					)
+					if attr_val != None:
+						return attr_val
+				raise Exception()
+			else:
+				raise Exception()
+		
+		# [DOC] Validate val against final Attr Type
+		attr_val = await validate_attr(
+			attr_name=attr,
+			attr_type=attr_type,
+			attr_val=doc[attr],
+			allow_update=True,
+			skip_events=skip_events,
+			env=env,
+			query=query,
+			doc=doc,
+		)
+		return attr_val
+	except:
+		raise InvalidAttrException(attr_name=attr, attr_type=attrs[attr_path[0]], val_type=type(doc[attr]))
+
+
 async def validate_default(
 	*,
 	attr_type: ATTR,
 	attr_val: Any,
-	skip_events: List[str] = None,
-	env: Dict[str, Any] = None,
-	query: Union[LIMP_QUERY, Query] = None,
-	doc: LIMP_DOC = None,
-	scope: LIMP_DOC = None,
+	skip_events: List[str],
+	env: Dict[str, Any],
+	query: Union[LIMP_QUERY, Query],
+	doc: LIMP_DOC,
+	scope: LIMP_DOC,
 	allow_none: bool,
 ):
 	if not allow_none and type(attr_type._default) == ATTR_MOD:
@@ -654,8 +725,7 @@ async def validate_attr(
 	attr_name: str,
 	attr_type: ATTR,
 	attr_val: Any,
-	allow_opers: bool = False,
-	allow_none: bool = False,
+	allow_update: bool = False,
 	skip_events: List[str] = None,
 	env: Dict[str, Any] = None,
 	query: Union[LIMP_QUERY, Query] = None,
@@ -673,14 +743,14 @@ async def validate_attr(
 			query=query,
 			doc=doc,
 			scope=scope if scope else doc,
-			allow_none=allow_none,
+			allow_none=allow_update,
 		)
 	except:
 		pass
 
 	attr_oper = None
 	attr_oper_args = {}
-	if allow_opers and type(attr_val) == dict:
+	if allow_update and type(attr_val) == dict:
 		if '$add' in attr_val.keys():
 			attr_oper = '$add'
 			attr_val = attr_val['$add']
@@ -863,8 +933,7 @@ async def validate_attr(
 							attr_name=f'{attr_name}.{child_attr_val}',
 							attr_type=attr_type._args['key'],
 							attr_val=child_attr_val,
-							allow_opers=allow_opers,
-							allow_none=allow_none,
+							allow_update=allow_update,
 							skip_events=skip_events,
 							env=env,
 							query=query,
@@ -875,8 +944,7 @@ async def validate_attr(
 						attr_name=f'{attr_name}.{child_attr_val}',
 						attr_type=attr_type._args['val'],
 						attr_val=attr_val[child_attr_val],
-						allow_opers=allow_opers,
-						allow_none=allow_none,
+						allow_update=allow_update,
 						skip_events=skip_events,
 						env=env,
 						query=query,
@@ -900,8 +968,7 @@ async def validate_attr(
 						attr_name=f'{attr_name}.{child_attr_type}',
 						attr_type=attr_type._args['dict'][child_attr_type],
 						attr_val=attr_val[child_attr_type],
-						allow_opers=allow_opers,
-						allow_none=allow_none,
+						allow_update=allow_update,
 						skip_events=skip_events,
 						env=env,
 						query=query,
@@ -938,8 +1005,7 @@ async def validate_attr(
 						attr_name=attr_name,
 						attr_type=attr_type,
 						attr_val=attr_val[0],
-						allow_opers=allow_opers,
-						allow_none=allow_none,
+						allow_update=allow_update,
 						skip_events=skip_events,
 						env=env,
 						query=query,
@@ -1070,8 +1136,7 @@ async def validate_attr(
 								attr_name=attr_name,
 								attr_type=child_attr_type,
 								attr_val=child_attr_val,
-								allow_opers=allow_opers,
-								allow_none=allow_none,
+								allow_update=allow_update,
 								skip_events=skip_events,
 								env=env,
 								query=query,
@@ -1100,8 +1165,7 @@ async def validate_attr(
 					req=[Config.locale],
 				),
 				attr_val=attr_val,
-				allow_opers=allow_opers,
-				allow_none=allow_none,
+				allow_update=allow_update,
 				skip_events=skip_events,
 				env=env,
 				query=query,
@@ -1202,8 +1266,7 @@ async def validate_attr(
 						attr_name=attr_name,
 						attr_type=child_attr,
 						attr_val=attr_val,
-						allow_opers=allow_opers,
-						allow_none=allow_none,
+						allow_update=allow_update,
 						skip_events=skip_events,
 						env=env,
 						query=query,
@@ -1232,7 +1295,7 @@ async def validate_attr(
 			attr_name=attr_name, attr_type=attr_type, val_type=type(attr_val)
 		)
 	if type(e) in [InvalidAttrException, ConvertAttrException]:
-		if allow_none:
+		if allow_update:
 			return None
 		elif attr_type._default != LIMP_VALUES.NONE_VALUE:
 			return attr_type._default

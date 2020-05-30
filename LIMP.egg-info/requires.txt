@@ -9,9 +9,10 @@ passlib>=1.7.2
 Pillow>=6.2.2
 PyJWT>=1.7.1
 
-[dev_dependencies]
+[dev]
 pylint>=2.5.2
 pytest>=5.4.1
 pytest-asyncio>=0.12.0
+pytest-mock>=3.1.0
 codecov>=2.1.3
 pytest-cov>=2.9.0

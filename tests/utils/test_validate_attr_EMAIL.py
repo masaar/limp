@@ -11,8 +11,7 @@ async def test_validate_attr_EMAIL_None():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_EMAIL_int():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_EMAIL_str_invalid():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(),
 			attr_val='str',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -46,8 +43,7 @@ async def test_validate_attr_EMAIL_email():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(),
 		attr_val='info@limp.foobar.baz',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'info@limp.foobar.baz'
 
@@ -59,8 +55,7 @@ async def test_validate_attr_EMAIL_allowed_domains_email_invalid():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(allowed_domains=['foo.com', 'bar.net']),
 			attr_val='info@limp.foobar.baz',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -71,8 +66,7 @@ async def test_validate_attr_EMAIL_allowed_domains_strict_email_invalid():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(allowed_domains=['foo.com', 'bar.net'], strict=True),
 			attr_val='info@sub.foo.com',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -82,8 +76,7 @@ async def test_validate_attr_EMAIL_allowed_domains_email():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(allowed_domains=['foo.com', 'bar.net']),
 		attr_val='info@sub.foo.com',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'info@sub.foo.com'
 
@@ -94,8 +87,7 @@ async def test_validate_attr_EMAIL_allowed_domains_strict_email():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(allowed_domains=['foo.com', 'bar.net'], strict=True),
 		attr_val='info@foo.com',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'info@foo.com'
 
@@ -107,8 +99,7 @@ async def test_validate_attr_EMAIL_disallowed_domains_email_invalid():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(disallowed_domains=['foo.com', 'bar.net']),
 			attr_val='info@limp.foo.com',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -119,8 +110,7 @@ async def test_validate_attr_EMAIL_disallowed_domains_strict_email_invalid():
 			attr_name='test_validate_attr_EMAIL',
 			attr_type=ATTR.EMAIL(disallowed_domains=['foo.com', 'bar.net'], strict=True),
 			attr_val='info@foo.com',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -130,8 +120,7 @@ async def test_validate_attr_EMAIL_disallowed_domains_email():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(disallowed_domains=['foo.com', 'bar.net']),
 		attr_val='info@sub.foobar.com',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'info@sub.foobar.com'
 
@@ -142,8 +131,7 @@ async def test_validate_attr_EMAIL_disallowed_domains_strict_email():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(disallowed_domains=['foo.com', 'bar.net'], strict=True),
 		attr_val='info@sub.foo.com',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'info@sub.foo.com'
 
@@ -154,8 +142,7 @@ async def test_validate_attr_EMAIL_None_allow_none():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=ATTR.EMAIL(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -168,8 +155,7 @@ async def test_validate_attr_EMAIL_default_None():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_EMAIL'
 
@@ -182,8 +168,7 @@ async def test_validate_attr_EMAIL_default_int():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_EMAIL'
 
@@ -196,7 +181,6 @@ async def test_validate_attr_EMAIL_default_int_allow_none():
 		attr_name='test_validate_attr_EMAIL',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

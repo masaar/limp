@@ -11,8 +11,7 @@ async def test_validate_attr_UNION_None():
 			attr_name='test_validate_attr_UNION',
 			attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_UNION_float():
 			attr_name='test_validate_attr_UNION',
 			attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 			attr_val=1.1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -34,8 +32,7 @@ async def test_validate_attr_UNION_str():
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val='str',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'str'
 
@@ -46,8 +43,7 @@ async def test_validate_attr_UNION_int():
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 1
 
@@ -58,8 +54,7 @@ async def test_validate_attr_UNION_None_allow_none():
 		attr_name='test_validate_attr_UNION',
 		attr_type=ATTR.UNION(union=[ATTR.STR(), ATTR.INT()]),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -72,8 +67,7 @@ async def test_validate_attr_UNION_default_None():
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_UNION'
 
@@ -86,8 +80,7 @@ async def test_validate_attr_UNION_default_float():
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=1.1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_UNION'
 
@@ -100,7 +93,6 @@ async def test_validate_attr_UNION_default_float_allow_none():
 		attr_name='test_validate_attr_UNION',
 		attr_type=attr_type,
 		attr_val=1.1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

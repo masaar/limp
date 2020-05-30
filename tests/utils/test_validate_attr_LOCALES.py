@@ -14,8 +14,7 @@ async def test_validate_attr_LOCALES_None(monkeypatch):
 			attr_name='test_validate_attr_LOCALES',
 			attr_type=ATTR.LOCALES(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -29,8 +28,7 @@ async def test_validate_attr_LOCALES_str_invalid(monkeypatch):
 			attr_name='test_validate_attr_LOCALES',
 			attr_type=ATTR.LOCALES(),
 			attr_val='ar',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -43,8 +41,7 @@ async def test_validate_attr_LOCALES_locale(monkeypatch):
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=ATTR.LOCALES(),
 		attr_val='en_AE',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'en_AE'
 
@@ -58,8 +55,7 @@ async def test_validate_attr_LOCALES_None_allow_none(monkeypatch):
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=ATTR.LOCALES(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -75,8 +71,7 @@ async def test_validate_attr_LOCALES_default_None(monkeypatch):
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_LOCALES'
 
@@ -92,8 +87,7 @@ async def test_validate_attr_LOCALES_default_int(monkeypatch):
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_LOCALES'
 
@@ -109,7 +103,6 @@ async def test_validate_attr_LOCALES_default_int_allow_none(monkeypatch):
 		attr_name='test_validate_attr_LOCALES',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None

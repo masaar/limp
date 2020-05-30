@@ -50,7 +50,6 @@ async def test_validate_attr_COUNTER_values(preserve_state, mock_module, mock_ca
 			attr_name='test_validate_attr_COUNTER',
 			attr_type=attr_type,
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 		assert attr_val == 'COUNTER-422442-6'

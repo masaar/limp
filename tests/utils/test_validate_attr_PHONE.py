@@ -11,8 +11,7 @@ async def test_validate_attr_PHONE_None():
 			attr_name='test_validate_attr_PHONE',
 			attr_type=ATTR.PHONE(),
 			attr_val=None,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -23,8 +22,7 @@ async def test_validate_attr_PHONE_int():
 			attr_name='test_validate_attr_PHONE',
 			attr_type=ATTR.PHONE(),
 			attr_val=1,
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -35,8 +33,7 @@ async def test_validate_attr_PHONE_str_invalid():
 			attr_name='test_validate_attr_PHONE',
 			attr_type=ATTR.PHONE(),
 			attr_val='str',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -46,8 +43,7 @@ async def test_validate_attr_PHONE_phone():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=ATTR.PHONE(),
 		attr_val='+0',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == '+0'
 
@@ -59,8 +55,7 @@ async def test_validate_attr_PHONE_codes_phone_invalid():
 			attr_name='test_validate_attr_PHONE',
 			attr_type=ATTR.PHONE(codes=['971', '1']),
 			attr_val='+0',
-			allow_opers=False,
-			allow_none=False,
+			allow_update=False,
 		)
 
 
@@ -70,8 +65,7 @@ async def test_validate_attr_PHONE_codes_phone():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=ATTR.PHONE(codes=['971', '1']),
 		attr_val='+9710',
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == '+9710'
 
@@ -82,8 +76,7 @@ async def test_validate_attr_PHONE_None_allow_none():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=ATTR.PHONE(),
 		attr_val=None,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
 
@@ -96,8 +89,7 @@ async def test_validate_attr_PHONE_default_None():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=attr_type,
 		attr_val=None,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_PHONE'
 
@@ -110,8 +102,7 @@ async def test_validate_attr_PHONE_default_int():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=False,
-		allow_none=False,
+		allow_update=False,
 	)
 	assert attr_val == 'test_validate_attr_PHONE'
 
@@ -124,7 +115,6 @@ async def test_validate_attr_PHONE_default_int_allow_none():
 		attr_name='test_validate_attr_PHONE',
 		attr_type=attr_type,
 		attr_val=1,
-		allow_opers=True,
-		allow_none=True,
+		allow_update=True,
 	)
 	assert attr_val == None
