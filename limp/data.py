@@ -1,5 +1,5 @@
 from limp.config import Config
-from limp.enums import Event, DELETE_STRATEGY
+from limp.enums import Event, DELETE_STRATEGY, LOCALE_STRATEGY
 from limp.classes import DictObj, BaseModel, Query, EXTN, ATTR, ATTR_MOD, LIMP_DOC
 from limp.utils import extract_attr, set_attr
 
@@ -418,12 +418,27 @@ class Data:
 					and type(doc[attr]) == dict
 					and Config.locale in doc[attr].keys()
 				):
-					doc[attr] = {
-						locale: doc[attr][locale]
-						if locale in doc[attr].keys()
-						else doc[attr][Config.locale]
-						for locale in Config.locales
-					}
+					if Config.locale_strategy == LOCALE_STRATEGY.NONE_VALUE:
+						doc[attr] = {
+							locale: doc[attr][locale]
+							if locale in doc[attr].keys()
+							else None
+							for locale in Config.locales
+						}
+					elif callable(Config.locale_strategy):
+						doc[attr] = {
+							locale: doc[attr][locale]
+							if locale in doc[attr].keys()
+							else Config.locale_strategy(attr_val=doc[attr][Config.locale], locale=locale)
+							for locale in Config.locales
+						}
+					else:
+						doc[attr] = {
+							locale: doc[attr][locale]
+							if locale in doc[attr].keys()
+							else doc[attr][Config.locale]
+							for locale in Config.locales
+						}
 			if not skip_extn:
 				await Data._extend_attr(
 					doc=doc, scope=doc, attr_name=attr, attr_type=attrs[attr], env=env

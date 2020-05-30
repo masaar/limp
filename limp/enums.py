@@ -1,24 +1,29 @@
-from enum import Enum
+from enum import Enum, auto
 
 
 class Event(Enum):
-	ARGS = 'ARGS'
-	VALIDATE = 'VALIDATE'
-	PERM = 'PERM'
-	PRE = 'PRE'
-	ON = 'ON'
-	EXTN = 'EXTN'
-	SOFT = 'SOFT'
-	DIFF = 'DIFF'
-	SYS_DOCS = 'SYS_DOCS'
+	ARGS = auto()
+	VALIDATE = auto()
+	PERM = auto()
+	PRE = auto()
+	ON = auto()
+	EXTN = auto()
+	SOFT = auto()
+	DIFF = auto()
+	SYS_DOCS = auto()
 
 
 class DELETE_STRATEGY(Enum):
-	SOFT_SKIP_SYS = 'DELETE_SOFT_SKIP_SYS'
-	SOFT_SYS = 'DELETE_SOFT_SYS'
-	FORCE_SKIP_SYS = 'DELETE_FORCE_SKIP_SYS'
-	FORCE_SYS = 'DELETE_FORCE_SYS'
+	SOFT_SKIP_SYS = auto()
+	SOFT_SYS = auto()
+	FORCE_SKIP_SYS = auto()
+	FORCE_SYS = auto()
+
+
+class LOCALE_STRATEGY(Enum):
+	DUPLICATE = auto()
+	NONE_VALUE = auto()
 
 
 class LIMP_VALUES(Enum):
-	NONE_VALUE = 'NONE_VALUE'
+	NONE_VALUE = auto()

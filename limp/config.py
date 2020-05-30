@@ -1,4 +1,4 @@
-from limp.enums import Event
+from limp.enums import Event, LOCALE_STRATEGY
 from limp.utils import generate_attr, deep_update
 from limp.classes import LIMP_MODULE, DictObj, BaseModel, LIMP_DOC, ATTR, APP_CONFIG, PACKAGE_CONFIG
 
@@ -148,6 +148,7 @@ class Config:
 
 	locales: List[str] = ['ar_AE', 'en_AE']
 	locale: str = 'ar_AE'
+	locale_strategy: LOCALE_STRATEGY = LOCALE_STRATEGY.DUPLICATE
 
 	admin_doc: LIMP_DOC = {}
 	admin_password: str = '__0xADMIN'

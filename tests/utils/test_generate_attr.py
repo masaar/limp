@@ -1,5 +1,5 @@
 from limp.classes import ATTR
-from limp import utils
+from limp import utils, config
 
 from bson import ObjectId
 
@@ -16,8 +16,7 @@ def test_generate_attr_BOOL():
 
 
 def test_generate_attr_COUNTER(preserve_state):
-	import limp.config
-	with preserve_state(limp.config, 'Config'):
+	with preserve_state(config, 'Config'):
 		attr_val = utils.generate_attr(
 			attr_type=ATTR.COUNTER(
 				pattern='C-$__values:0/$__values:1-$__counters.test_counter',
@@ -245,20 +244,20 @@ def test_generate_attr_LIST_multiple_types():
 	assert sum(1 for j in attr_val if type(j) in [int, str]) == 2
 
 
-def test_generate_attr_LOCALE(monkeypatch):
-	with monkeypatch.context() as m:
-		from limp.config import Config
-		m.setattr(Config, 'locales', ['ar_AE', 'en_AE'])
+def test_generate_attr_LOCALE(preserve_state):
+	with preserve_state(config, 'Config'):
+		config.Config.locales = ['ar_AE', 'en_AE']
+		config.Config.locale = 'ar_AE'
 		attr_val = utils.generate_attr(attr_type=ATTR.LOCALE())
 
 		assert len(attr_val.keys()) == 2
 		assert set(attr_val.keys()) == {'ar_AE', 'en_AE'}
 
 
-def test_generate_attr_LOCALES(monkeypatch):
-	with monkeypatch.context() as m:
-		from limp.config import Config
-		m.setattr(Config, 'locales', ['ar_AE', 'en_AE'])
+def test_generate_attr_LOCALES(preserve_state):
+	with preserve_state(config, 'Config'):
+		config.Config.locales = ['ar_AE', 'en_AE']
+		config.Config.locale = 'ar_AE'
 		attr_val = utils.generate_attr(attr_type=ATTR.LOCALES())
 
 		assert attr_val in ['ar_AE', 'en_AE']

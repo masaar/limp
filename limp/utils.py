@@ -12,7 +12,7 @@ from limp.classes import (
 	LIMP_ENV,
 	ATTRS_TYPES
 )
-from limp.enums import Event, LIMP_VALUES
+from limp.enums import Event, LIMP_VALUES, LOCALE_STRATEGY
 
 from typing import Dict, Union, Literal, List, Tuple, Any
 from bson import ObjectId, binary
@@ -543,9 +543,19 @@ async def validate_doc(
 ):
 	from limp.config import Config
 
-	for attr in doc.keys():
-		if attr.split('.')[0] not in attrs.keys() or (allow_update and doc[attr] == None):
+	attrs_map = {attr.split('.')[0]: attr for attr in doc.keys()}
+
+	for attr in attrs.keys():
+		if attr not in attrs_map.keys():
+			if not allow_update:
+				doc[attr] = None
+			else:
+				continue
+		elif allow_update and doc[attrs_map[attr]] == None:
 			continue
+		elif allow_update and doc[attrs_map[attr]] != None:
+			attr = attrs_map[attr]
+			
 		try:
 			if allow_update and '.' in attr:
 				doc[attr] = await validate_dot_notated(
@@ -1172,12 +1182,27 @@ async def validate_attr(
 				doc=doc,
 				scope=attr_val,
 			)
-			attr_val = {
-				locale: attr_val[locale]
-				if locale in attr_val.keys()
-				else attr_val[Config.locale]
-				for locale in Config.locales
-			}
+			if Config.locale_strategy == LOCALE_STRATEGY.NONE_VALUE:
+				attr_val = {
+					locale: attr_val[locale]
+					if locale in attr_val.keys()
+					else None
+					for locale in Config.locales
+				}
+			elif callable(Config.locale_strategy):
+				attr_val = {
+					locale: attr_val[locale]
+					if locale in attr_val.keys()
+					else Config.locale_strategy(attr_val=attr_val, locale=locale)
+					for locale in Config.locales
+				}
+			else:
+				attr_val = {
+					locale: attr_val[locale]
+					if locale in attr_val.keys()
+					else attr_val[Config.locale]
+					for locale in Config.locales
+				}
 			return return_valid_attr(attr_val=attr_val, attr_oper=attr_oper, attr_oper_args=attr_oper_args)
 
 		elif attr_type._type == 'LOCALES':
